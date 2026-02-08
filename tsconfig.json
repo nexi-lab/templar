@@ -4,7 +4,18 @@
     "composite": false,
     "noEmit": true
   },
-  "references": [],
+  "references": [
+    { "path": "packages/errors" },
+    { "path": "packages/hooks" },
+    { "path": "packages/sandbox" },
+    { "path": "packages/model-router" },
+    { "path": "packages/nexus-sdk" },
+    { "path": "packages/core" },
+    { "path": "packages/node" },
+    { "path": "packages/middleware" },
+    { "path": "packages/gateway" },
+    { "path": "packages/test-utils" }
+  ],
   "include": [],
   "exclude": ["node_modules", "dist", "coverage"]
 }
