@@ -1,27 +1,21 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "lib": ["ES2022"],
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "checkJs": false,
-    "outDir": "./dist",
-    "rootDir": "./",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "composite": true,
-    "incremental": true
+    "composite": false,
+    "noEmit": true
   },
-  "exclude": ["node_modules", "dist", "build"]
+  "references": [
+    { "path": "packages/errors" },
+    { "path": "packages/hooks" },
+    { "path": "packages/sandbox" },
+    { "path": "packages/model-router" },
+    { "path": "packages/nexus-sdk" },
+    { "path": "packages/core" },
+    { "path": "packages/node" },
+    { "path": "packages/middleware" },
+    { "path": "packages/gateway" },
+    { "path": "packages/test-utils" }
+  ],
+  "include": [],
+  "exclude": ["node_modules", "dist", "coverage"]
 }

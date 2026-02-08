@@ -6,7 +6,7 @@ import {
   ValidationError,
   AgentNotFoundError,
   TokenExpiredError,
-} from "../../src/index.js";
+} from "../../index.js";
 
 describe("Exhaustive type checking with _tag discriminant", () => {
   it("should enable exhaustive switch statements", () => {

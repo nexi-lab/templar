@@ -1,9 +1,8 @@
 {
-  "name": "@templar/errors",
+  "name": "@templar/test-utils",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared error taxonomy for Templar AI Agent Execution Engine",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,17 +16,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^3.22.4"
+    "@templar/core": "workspace:*",
+    "@templar/errors": "workspace:*"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "keywords": [
-    "errors",
-    "error-handling",
-    "typescript",
-    "ai-agents"
-  ],
-  "license": "MIT"
+  "peerDependencies": {
+    "vitest": ">=4.0.0"
+  }
 }

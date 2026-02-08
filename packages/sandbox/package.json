@@ -1,9 +1,8 @@
 {
-  "name": "@templar/errors",
+  "name": "@templar/sandbox",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared error taxonomy for Templar AI Agent Execution Engine",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,17 +16,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^3.22.4"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "keywords": [
-    "errors",
-    "error-handling",
-    "typescript",
-    "ai-agents"
-  ],
-  "license": "MIT"
+    "@templar/errors": "workspace:*"
+  }
 }

@@ -10,7 +10,7 @@ import {
   QuotaExceededError,
   isTemplarError,
   isError,
-} from "../../src/index.js";
+} from "../../index.js";
 
 describe("TemplarError base class", () => {
   it("should create error with correct properties", () => {

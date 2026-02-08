@@ -9,7 +9,7 @@ import {
   isErrorStatus,
   isClientError,
   isServerError,
-} from "../../src/index.js";
+} from "../../index.js";
 
 describe("ERROR_CATALOG", () => {
   it("should have all expected domains", () => {

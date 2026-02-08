@@ -15,7 +15,7 @@ import {
   deserializeFromWebSocket,
   serializeError,
   safeDeserialize,
-} from "../../src/index.js";
+} from "../../index.js";
 
 describe("RFC 9457 serialization round-trips", () => {
   it("should round-trip InternalError", () => {
