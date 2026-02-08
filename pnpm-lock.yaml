@@ -27,6 +27,76 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18
 
+  packages/core: {}
+
+  packages/errors: {}
+
+  packages/gateway:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/hooks:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/middleware:
+    dependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/model-router:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/nexus-sdk:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/node:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/sandbox:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+
+  packages/test-utils:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      vitest:
+        specifier: '>=4.0.0'
+        version: 4.0.18
+
 packages:
 
   '@babel/helper-string-parser@7.27.1':
