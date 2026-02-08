@@ -1,0 +1,29 @@
+{
+  "name": "templar",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Templar - AI Agent Execution Engine built on DeepAgents.js + LangGraph.js",
+  "license": "MIT",
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "biome format --write .",
+    "check": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14",
+    "@vitest/coverage-v8": "^4.0.18",
+    "tsup": "^8.5.1",
+    "turbo": "^2.8.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
