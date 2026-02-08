@@ -1,36 +1,32 @@
 import { TemplarConfigError } from "@templar/errors";
 import type { TemplarConfig } from "./types.js";
-import {
-	validateAgentType,
-	validateManifest,
-	validateNexusClient,
-} from "./validation.js";
+import { validateAgentType, validateManifest, validateNexusClient } from "./validation.js";
 
 export const PACKAGE_NAME = "@templar/core" as const;
 
 // Export types
 export type {
-	AgentManifest,
-	ChannelAdapter,
-	ChannelCapabilities,
-	ChannelConfig,
-	DeepAgentConfig,
-	MessageHandler,
-	MiddlewareConfig,
-	ModelConfig,
-	NexusClient,
-	OutboundMessage,
-	PermissionConfig,
-	TemplarConfig,
-	TemplarMiddleware,
-	ToolConfig,
+  AgentManifest,
+  ChannelAdapter,
+  ChannelCapabilities,
+  ChannelConfig,
+  DeepAgentConfig,
+  MessageHandler,
+  MiddlewareConfig,
+  ModelConfig,
+  NexusClient,
+  OutboundMessage,
+  PermissionConfig,
+  TemplarConfig,
+  TemplarMiddleware,
+  ToolConfig,
 } from "./types.js";
 
 // Export validation functions
 export {
-	validateAgentType,
-	validateManifest,
-	validateNexusClient,
+  validateAgentType,
+  validateManifest,
+  validateNexusClient,
 } from "./validation.js";
 
 /**
@@ -38,8 +34,8 @@ export {
  * Will be implemented in @templar/middleware package
  */
 function getDefaultNexusMiddleware(_client: unknown): unknown[] {
-	// TODO: Implement when @templar/middleware is ready
-	return [];
+  // TODO: Implement when @templar/middleware is ready
+  return [];
 }
 
 /**
@@ -47,8 +43,8 @@ function getDefaultNexusMiddleware(_client: unknown): unknown[] {
  * Will be replaced with actual import when peerDependency is available
  */
 function createDeepAgent(config: unknown): unknown {
-	// TODO: Replace with actual import from 'deepagents'
-	return config;
+  // TODO: Replace with actual import from 'deepagents'
+  return config;
 }
 
 /**
@@ -94,29 +90,27 @@ function createDeepAgent(config: unknown): unknown {
  * ```
  */
 export function createTemplar(config: TemplarConfig): unknown {
-	// Validate configuration
-	validateAgentType(config.agentType);
-	validateNexusClient(config.nexus);
-	validateManifest(config.manifest);
+  // Validate configuration
+  validateAgentType(config.agentType);
+  validateNexusClient(config.nexus);
+  validateManifest(config.manifest);
 
-	// Inject Nexus middleware if nexus client provided
-	const middleware = [
-		...(config.nexus ? getDefaultNexusMiddleware(config.nexus) : []),
-		...(config.middleware ?? []),
-	];
+  // Inject Nexus middleware if nexus client provided
+  const middleware = [
+    ...(config.nexus ? getDefaultNexusMiddleware(config.nexus) : []),
+    ...(config.middleware ?? []),
+  ];
 
-	// Create DeepAgent with merged config
-	try {
-		return createDeepAgent({
-			...config,
-			middleware,
-		});
-	} catch (error) {
-		const errorMessage =
-			error instanceof Error ? error.message : String(error);
-		throw new TemplarConfigError(
-			`Failed to create Templar agent: ${errorMessage}`,
-			{ cause: error instanceof Error ? error : undefined },
-		);
-	}
+  // Create DeepAgent with merged config
+  try {
+    return createDeepAgent({
+      ...config,
+      middleware,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new TemplarConfigError(`Failed to create Templar agent: ${errorMessage}`, {
+      cause: error instanceof Error ? error : undefined,
+    });
+  }
 }
