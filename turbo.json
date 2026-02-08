@@ -7,6 +7,12 @@
     },
     "test": {
       "dependsOn": ["build"],
+      "inputs": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "../../vitest.config.ts",
+        "../../tsconfig.base.json"
+      ],
       "outputs": ["coverage/**"]
     },
     "lint": {

@@ -30,7 +30,7 @@ jobs:
           cache: "pnpm"
 
       - name: Turborepo cache
-        uses: rharkor/caching-for-turbo@v2
+        uses: rharkor/caching-for-turbo@v2.3.11
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
