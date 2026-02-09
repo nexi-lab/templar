@@ -1,6 +1,6 @@
 import { TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { createTemplar } from "../index.js";
+import { type AgentManifest, createTemplar } from "../index.js";
 import type { NexusClient, TemplarConfig } from "../types.js";
 
 describe("Edge cases", () => {
@@ -42,7 +42,7 @@ describe("Edge cases", () => {
         model: "gpt-4",
         customProp: "value",
         nestedProp: { key: "value" },
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       const agent = createTemplar(config);
       expect(agent).toBeDefined();
@@ -52,10 +52,6 @@ describe("Edge cases", () => {
     it("should handle config with null values for optional fields", () => {
       const config: TemplarConfig = {
         model: "gpt-4",
-        agentType: undefined,
-        nexus: undefined,
-        manifest: undefined,
-        middleware: undefined,
       };
 
       const agent = createTemplar(config);
@@ -93,7 +89,7 @@ describe("Edge cases", () => {
       const config: TemplarConfig = {
         model: "gpt-4",
         nexus: {} as NexusClient, // Invalid - missing methods
-        manifest: {} as TemplarConfig["manifest"], // Also invalid - missing required fields
+        manifest: {} as AgentManifest, // Also invalid - missing required fields
       };
 
       expect(() => createTemplar(config)).toThrow(/connect\(\) method|disconnect\(\) method/);
@@ -286,7 +282,7 @@ describe("Edge cases", () => {
     });
 
     it("should handle config created from Object.create(null)", () => {
-      const config = Object.create(null) as TemplarConfig;
+      const config = Object.create(null) as unknown as TemplarConfig;
       config.model = "gpt-4";
 
       const agent = createTemplar(config);
@@ -299,7 +295,7 @@ describe("Edge cases", () => {
       const config = {
         model: "gpt-4",
         agentType: "invalid",
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       expect(() => createTemplar(config)).toThrow(TemplarConfigError);
     });
@@ -310,7 +306,7 @@ describe("Edge cases", () => {
       const config = {
         model: "gpt-4",
         agentType: "invalid",
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       try {
         createTemplar(config);
@@ -325,7 +321,7 @@ describe("Edge cases", () => {
       const config = {
         model: "gpt-4",
         agentType: "medium",
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       try {
         createTemplar(config);

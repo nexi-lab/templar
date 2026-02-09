@@ -1,6 +1,6 @@
 import { TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { createTemplar } from "../index.js";
+import { type AgentManifest, createTemplar } from "../index.js";
 import type { NexusClient, TemplarConfig } from "../types.js";
 
 describe("createTemplar", () => {
@@ -66,7 +66,7 @@ describe("createTemplar", () => {
       const config = {
         model: "gpt-4",
         agentType: "invalid",
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       expect(() => createTemplar(config)).toThrow(TemplarConfigError);
       expect(() => createTemplar(config)).toThrow('Invalid agentType: "invalid"');
@@ -189,7 +189,7 @@ describe("createTemplar", () => {
         manifest: {
           version: "1.0.0",
           description: "Test",
-        } as TemplarConfig["manifest"],
+        } as AgentManifest,
       };
 
       expect(() => createTemplar(config)).toThrow('missing required field: "name"');
@@ -303,7 +303,7 @@ describe("createTemplar", () => {
         model: "gpt-4",
         customField: "custom-value",
         anotherField: 123,
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       const agent = createTemplar(config);
       expect(agent).toBeDefined();
@@ -314,7 +314,7 @@ describe("createTemplar", () => {
       const config = {
         model: "gpt-4",
         agentType: "invalid",
-      } as TemplarConfig;
+      } as unknown as TemplarConfig;
 
       expect(() => createTemplar(config)).toThrow(TemplarConfigError);
     });

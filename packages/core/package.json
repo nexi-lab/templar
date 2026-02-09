@@ -16,8 +16,8 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "deepagents": "^1.0.0",
-    "@langchain/langgraph": "^0.1.0"
+    "@langchain/langgraph": "^0.1.0",
+    "deepagents": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "@langchain/langgraph-supervisor": {
@@ -28,6 +28,7 @@
     }
   },
   "devDependencies": {
-    "@templar/errors": "workspace:*"
+    "@templar/errors": "workspace:*",
+    "@types/node": "^25.2.2"
   }
 }
