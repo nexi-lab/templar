@@ -2,7 +2,14 @@
  * SDK-specific error classes extending @templar/errors
  */
 
-import { ERROR_CATALOG, type ErrorCode, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode, TemplarError } from "@templar/errors";
+import {
+  ERROR_CATALOG,
+  type ErrorCode,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+  TemplarError,
+} from "@templar/errors";
 import type { ErrorResponse } from "./types/index.js";
 
 /**
