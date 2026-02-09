@@ -1,30 +1,143 @@
-export const PACKAGE_NAME = "@templar/errors" as const;
-
 /**
- * Base error class for all Templar errors
+ * @templar/errors
+ *
+ * Shared error taxonomy for Templar AI Agent Execution Engine
  */
-export class TemplarError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = this.constructor.name;
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
-}
 
-/**
- * Thrown when Templar configuration is invalid
- */
-export class TemplarConfigError extends TemplarError {}
+// ============================================================================
+// CORE EXPORTS
+// ============================================================================
 
-/**
- * Thrown when Nexus client validation fails
- */
-export class NexusClientError extends TemplarError {}
+export { type ErrorJSON, isError, isTemplarError, TemplarError } from "./base.js";
 
-/**
- * Thrown when agent manifest validation fails
- */
-export class ManifestValidationError extends TemplarError {}
+export {
+  ERROR_CATALOG,
+  type ErrorCatalogEntry,
+  type ErrorCode,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "./catalog.js";
+
+export {
+  getAllErrorCodes,
+  getCatalogEntry,
+  getErrorCodesByDomain,
+  getErrorMessage,
+  isClientError,
+  isErrorStatus,
+  isServerError,
+  isValidErrorCode,
+  validateCatalog,
+  wrapError,
+} from "./utils.js";
+
+// ============================================================================
+// ERROR CLASSES
+// ============================================================================
+
+// Internal errors
+// Auth errors
+// Resource errors
+// Validation errors
+// Agent errors
+// Workflow errors
+// Deployment errors
+// Quota/Rate limit errors
+// Application-specific errors
+export {
+  AgentConfigurationError,
+  AgentExecutionError,
+  AgentInvalidStateError,
+  AgentNotFoundError,
+  AgentTimeoutError,
+  AlreadyExistsError,
+  DeploymentConfigError,
+  DeploymentError,
+  DeploymentNotFoundError,
+  ForbiddenError,
+  InsufficientScopeError,
+  InternalError,
+  InvalidFormatError,
+  ManifestValidationError,
+  NexusClientError,
+  NotFoundError,
+  NotImplementedError,
+  OutOfRangeError,
+  PayloadTooLargeError,
+  QuotaExceededError,
+  RateLimitExceededError,
+  RequiredFieldError,
+  ResourceConflictError,
+  ResourceGoneError,
+  ServiceUnavailableError,
+  TemplarConfigError,
+  TimeoutError,
+  TokenExpiredError,
+  TokenInvalidError,
+  TokenMissingError,
+  ValidationError,
+  type ValidationIssue,
+  WorkflowExecutionError,
+  WorkflowInvalidStateError,
+  WorkflowNotFoundError,
+  WorkflowStepError,
+} from "./classes.js";
+
+// ============================================================================
+// WIRE FORMATS
+// ============================================================================
+
+// gRPC
+export {
+  GRPC_ERROR_TYPES,
+  GRPC_STATUS_CODES,
+  type GrpcErrorDetail,
+  GrpcErrorDetailSchema,
+  type GrpcStatus,
+  GrpcStatusCodeSchema,
+  type GrpcStatusCodeValue,
+  GrpcStatusSchema,
+  getGrpcStatusCode,
+  getGrpcStatusName,
+} from "./wire/grpc.js";
+// RFC 9457 (REST/HTTP)
+export {
+  type ProblemDetails,
+  ProblemDetailsPartialSchema,
+  ProblemDetailsSchema,
+  type ValidationIssue as ProblemDetailsValidationIssue,
+  ValidationIssueSchema,
+} from "./wire/rfc9457.js";
+
+// WebSocket
+export {
+  type WebSocketErrorMessage,
+  WebSocketErrorMessageSchema,
+  type WebSocketMessage,
+  WebSocketMessageSchema,
+  type WebSocketSuccessMessage,
+  WebSocketSuccessMessageSchema,
+} from "./wire/websocket.js";
+
+// ============================================================================
+// SERIALIZATION
+// ============================================================================
+
+export {
+  deserializeFromGrpc,
+  deserializeFromRFC9457,
+  deserializeFromWebSocket,
+  safeDeserialize,
+  serializeError,
+  serializeToGrpc,
+  serializeToRFC9457,
+  serializeToWebSocket,
+} from "./serialization.js";
+
+// ============================================================================
+// PACKAGE METADATA
+// ============================================================================
+
+export const PACKAGE_NAME = "@templar/errors";
+export const PACKAGE_VERSION = "0.1.0";
