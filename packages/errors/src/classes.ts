@@ -492,3 +492,52 @@ export class PayloadTooLargeError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// APPLICATION-SPECIFIC ERRORS
+// ============================================================================
+
+/**
+ * Thrown when Templar configuration is invalid
+ */
+export class TemplarConfigError extends TemplarError {
+  readonly _tag = "TemplarConfigError" as const;
+  readonly code = "VALIDATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.VALIDATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.VALIDATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.VALIDATION_FAILED.domain;
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, undefined, undefined, options);
+  }
+}
+
+/**
+ * Thrown when Nexus client validation fails
+ */
+export class NexusClientError extends TemplarError {
+  readonly _tag = "NexusClientError" as const;
+  readonly code = "VALIDATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.VALIDATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.VALIDATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.VALIDATION_FAILED.domain;
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, undefined, undefined, options);
+  }
+}
+
+/**
+ * Thrown when agent manifest validation fails
+ */
+export class ManifestValidationError extends TemplarError {
+  readonly _tag = "ManifestValidationError" as const;
+  readonly code = "VALIDATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.VALIDATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.VALIDATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.VALIDATION_FAILED.domain;
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, undefined, undefined, options);
+  }
+}

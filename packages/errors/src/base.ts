@@ -53,8 +53,18 @@ export abstract class TemplarError extends Error {
    */
   readonly traceId?: string | undefined;
 
-  constructor(message: string, metadata?: Record<string, string>, traceId?: string) {
-    super(message);
+  /**
+   * Optional cause error for error chaining (ES2022)
+   */
+  override readonly cause?: Error | undefined;
+
+  constructor(
+    message: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
 
     // Ensure proper prototype chain for instanceof checks
     Object.setPrototypeOf(this, new.target.prototype);
@@ -66,16 +76,11 @@ export abstract class TemplarError extends Error {
     if ("captureStackTrace" in Error) {
       (Error as any).captureStackTrace(this, this.constructor);
     }
-    if ("captureStackTrace" in Error) {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
-    if ("captureStackTrace" in Error) {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
 
     this.metadata = metadata;
     this.traceId = traceId;
     this.timestamp = new Date();
+    this.cause = options?.cause instanceof Error ? options.cause : undefined;
   }
 
   /**

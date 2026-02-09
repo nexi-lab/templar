@@ -44,6 +44,7 @@ export {
 // Workflow errors
 // Deployment errors
 // Quota/Rate limit errors
+// Application-specific errors
 export {
   AgentConfigurationError,
   AgentExecutionError,
@@ -58,6 +59,8 @@ export {
   InsufficientScopeError,
   InternalError,
   InvalidFormatError,
+  ManifestValidationError,
+  NexusClientError,
   NotFoundError,
   NotImplementedError,
   OutOfRangeError,
@@ -68,6 +71,7 @@ export {
   ResourceConflictError,
   ResourceGoneError,
   ServiceUnavailableError,
+  TemplarConfigError,
   TimeoutError,
   TokenExpiredError,
   TokenInvalidError,

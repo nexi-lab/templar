@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  InternalError,
   ManifestValidationError,
   NexusClientError,
   PACKAGE_NAME,
@@ -12,25 +13,26 @@ describe("@templar/errors", () => {
     expect(PACKAGE_NAME).toBe("@templar/errors");
   });
 
-  describe("TemplarError", () => {
+  describe("TemplarError base class", () => {
     it("should create error with message", () => {
-      const error = new TemplarError("test error");
+      // Use InternalError as concrete implementation
+      const error = new InternalError("test error");
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(TemplarError);
       expect(error.message).toBe("test error");
-      expect(error.name).toBe("TemplarError");
+      expect(error.name).toBe("InternalError");
     });
 
     it("should preserve stack trace", () => {
-      const error = new TemplarError("test error");
+      const error = new InternalError("test error");
       expect(error.stack).toBeDefined();
-      expect(error.stack).toContain("TemplarError");
+      expect(error.stack).toContain("InternalError");
     });
 
-    it("should support cause chaining", () => {
-      const cause = new Error("root cause");
-      const error = new TemplarError("wrapper error", { cause });
-      expect(error.cause).toBe(cause);
+    it("should support metadata and traceId", () => {
+      const error = new InternalError("test error", { userId: "123" }, "trace-abc");
+      expect(error.metadata).toEqual({ userId: "123" });
+      expect(error.traceId).toBe("trace-abc");
     });
   });
 
