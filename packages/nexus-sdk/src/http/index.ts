@@ -173,10 +173,10 @@ export class HttpClient {
         throw new NexusTimeoutError(`Request timeout after ${this.timeout}ms`, this.timeout);
       }
 
-      throw new NexusNetworkError(
-        `Network error: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error instanceof Error ? error : undefined },
-      );
+      const message = `Network error: ${error instanceof Error ? error.message : String(error)}`;
+      throw error instanceof Error
+        ? new NexusNetworkError(message, { cause: error })
+        : new NexusNetworkError(message);
     }
   }
 
