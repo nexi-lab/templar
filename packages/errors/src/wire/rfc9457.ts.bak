@@ -68,7 +68,7 @@ export interface ProblemDetails {
   /**
    * Nested validation errors (for validation failures)
    */
-  errors?: ValidationIssue[] | undefined;
+  errors?: ValidationIssue[];
 }
 
 /**

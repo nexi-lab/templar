@@ -63,14 +63,8 @@ export abstract class TemplarError extends Error {
     this.name = this.constructor.name;
 
     // Preserve stack trace (V8 only, but degrades gracefully)
-    if ("captureStackTrace" in Error) {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
-    if ("captureStackTrace" in Error) {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
-    if ("captureStackTrace" in Error) {
-      (Error as any).captureStackTrace(this, this.constructor);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
     }
 
     this.metadata = metadata;

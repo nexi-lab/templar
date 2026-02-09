@@ -389,7 +389,7 @@ export class WorkflowStepError extends TemplarError {
     public readonly workflowId: string,
     public readonly stepName: string,
     message: string,
-    public override readonly cause?: Error,
+    public readonly cause?: Error,
     metadata?: Record<string, string>,
     traceId?: string,
   ) {

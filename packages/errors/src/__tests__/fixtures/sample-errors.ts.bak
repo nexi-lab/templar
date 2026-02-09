@@ -11,7 +11,7 @@ import {
   TokenExpiredError,
   ValidationError,
   WorkflowStepError,
-} from "../../index.js";
+} from "../../src/index.js";
 
 export const sampleErrors = {
   internal: new InternalError("Internal server error", { component: "database" }, "trace-001"),

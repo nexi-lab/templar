@@ -78,7 +78,7 @@ describe("Exhaustive type checking with _tag discriminant", () => {
           return "payload_too_large";
         default: {
           // This line would cause a compile error if we missed a case
-          throw new Error("Exhaustive check failed");
+          return _exhaustive;
         }
       }
     }

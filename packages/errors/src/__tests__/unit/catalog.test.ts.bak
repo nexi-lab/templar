@@ -91,7 +91,7 @@ describe("ERROR_CATALOG", () => {
       // Internal errors have INTERNAL prefix
       // Other domains should match
       if (entry.domain !== "internal") {
-        if (prefix) expect(prefix.toLowerCase()).toBe(entry.domain);
+        expect(prefix.toLowerCase()).toBe(entry.domain);
       }
     }
   });
