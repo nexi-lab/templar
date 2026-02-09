@@ -1,0 +1,152 @@
+import type { ErrorCode, ErrorDomain, GrpcStatusCode, HttpStatusCode } from "./catalog.js";
+
+/**
+ * Base class for all Templar errors
+ *
+ * Features:
+ * - _tag discriminant for exhaustive pattern matching
+ * - Error code from catalog (single source of truth)
+ * - HTTP status and gRPC code mapping
+ * - Optional metadata for dynamic context
+ * - Preserved stack traces
+ */
+export abstract class TemplarError extends Error {
+  /**
+   * Discriminant tag for exhaustive type checking
+   * Each concrete error class must define this as a unique string literal
+   */
+  abstract readonly _tag: string;
+
+  /**
+   * Machine-readable error code from the catalog
+   */
+  abstract readonly code: ErrorCode;
+
+  /**
+   * HTTP status code for REST API responses
+   */
+  abstract readonly httpStatus: HttpStatusCode;
+
+  /**
+   * gRPC canonical status code for gRPC responses
+   */
+  abstract readonly grpcCode: GrpcStatusCode;
+
+  /**
+   * Domain this error belongs to (auth, agent, workflow, etc.)
+   */
+  abstract readonly domain: ErrorDomain;
+
+  /**
+   * Optional metadata for dynamic context
+   * Example: { userId: "123", agentId: "abc", attemptCount: "3" }
+   */
+  readonly metadata?: Record<string, string> | undefined;
+
+  /**
+   * Timestamp when the error was created
+   */
+  readonly timestamp: Date;
+
+  /**
+   * Optional trace ID for distributed tracing
+   */
+  readonly traceId?: string | undefined;
+
+  /**
+   * Optional cause error for error chaining (ES2022)
+   */
+  override readonly cause?: Error | undefined;
+
+  constructor(
+    message: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+
+    // Ensure proper prototype chain for instanceof checks
+    Object.setPrototypeOf(this, new.target.prototype);
+
+    // Set error name to the class name
+    this.name = this.constructor.name;
+
+    // Preserve stack trace (V8 only, but degrades gracefully)
+    if ("captureStackTrace" in Error) {
+      (Error as any).captureStackTrace(this, this.constructor);
+    }
+
+    this.metadata = metadata;
+    this.traceId = traceId;
+    this.timestamp = new Date();
+    this.cause = options?.cause instanceof Error ? options.cause : undefined;
+  }
+
+  /**
+   * Returns a plain object representation suitable for logging
+   */
+  toJSON(): ErrorJSON {
+    return {
+      _tag: this._tag,
+      name: this.name,
+      code: this.code,
+      message: this.message,
+      domain: this.domain,
+      httpStatus: this.httpStatus,
+      grpcCode: this.grpcCode,
+      metadata: this.metadata,
+      traceId: this.traceId,
+      timestamp: this.timestamp.toISOString(),
+      stack: this.stack,
+    };
+  }
+
+  /**
+   * Returns a string representation for logging
+   */
+  override toString(): string {
+    const parts = [`[${this.code}]`, this.message];
+
+    if (this.metadata && Object.keys(this.metadata).length > 0) {
+      parts.push(`(${JSON.stringify(this.metadata)})`);
+    }
+
+    if (this.traceId) {
+      parts.push(`[trace: ${this.traceId}]`);
+    }
+
+    return parts.join(" ");
+  }
+}
+
+/**
+ * Plain object representation of an error (for JSON serialization)
+ */
+export interface ErrorJSON {
+  _tag: string;
+  name: string;
+  code: ErrorCode;
+  message: string;
+  domain: ErrorDomain;
+  httpStatus: HttpStatusCode;
+  grpcCode: GrpcStatusCode;
+  metadata?: Record<string, string> | undefined;
+  traceId?: string | undefined;
+  timestamp: string;
+  stack?: string | undefined;
+}
+
+/**
+ * Type guard to check if a value is a TemplarError
+ */
+export function isTemplarError(value: unknown): value is TemplarError {
+  return value instanceof TemplarError;
+}
+
+/**
+ * Type guard to check if a value is an Error (including TemplarError)
+ */
+export function isError(value: unknown): value is Error {
+  return value instanceof Error;
+}
