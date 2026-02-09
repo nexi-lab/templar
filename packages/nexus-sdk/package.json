@@ -3,10 +3,27 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./agents": {
+      "types": "./dist/resources/agents.d.ts",
+      "import": "./dist/resources/agents.js"
+    },
+    "./tools": {
+      "types": "./dist/resources/tools.d.ts",
+      "import": "./dist/resources/tools.js"
+    },
+    "./channels": {
+      "types": "./dist/resources/channels.d.ts",
+      "import": "./dist/resources/channels.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "import": "./dist/http/index.js"
     }
   },
   "scripts": {
@@ -17,5 +34,8 @@
   },
   "dependencies": {
     "@templar/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2"
   }
 }

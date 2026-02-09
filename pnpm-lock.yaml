@@ -87,6 +87,10 @@ importers:
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
 
   packages/node:
     dependencies:
