@@ -56,7 +56,11 @@ export class NexusTimeoutError extends NexusSDKError {
 /**
  * Error for network-level failures (connection refused, DNS, etc.)
  */
-export class NexusNetworkError extends NexusSDKError {}
+export class NexusNetworkError extends NexusSDKError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+  }
+}
 
 /**
  * Error for client-side validation failures
