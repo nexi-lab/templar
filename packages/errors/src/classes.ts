@@ -541,3 +541,43 @@ export class ManifestValidationError extends TemplarError {
     super(message, undefined, undefined, options);
   }
 }
+
+/**
+ * Thrown when a channel type is not registered in the ChannelRegistry
+ */
+export class ChannelNotFoundError extends TemplarError {
+  readonly _tag = "ChannelNotFoundError" as const;
+  readonly code = "RESOURCE_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.RESOURCE_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.RESOURCE_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.RESOURCE_NOT_FOUND.domain;
+
+  constructor(channelType: string, options?: ErrorOptions) {
+    super(
+      `Channel type '${channelType}' not found. Did you forget to install @templar/channel-${channelType}?`,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+}
+
+/**
+ * Thrown when a channel fails to load or is invalid
+ */
+export class ChannelLoadError extends TemplarError {
+  readonly _tag = "ChannelLoadError" as const;
+  readonly code = "INTERNAL_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.INTERNAL_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.INTERNAL_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.INTERNAL_ERROR.domain;
+
+  constructor(channelType: string, reason: string, options?: ErrorOptions) {
+    super(
+      `Failed to load channel '${channelType}': ${reason}`,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+}

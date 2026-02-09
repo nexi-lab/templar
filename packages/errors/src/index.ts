@@ -45,6 +45,7 @@ export {
 // Deployment errors
 // Quota/Rate limit errors
 // Application-specific errors
+// Channel errors
 export {
   AgentConfigurationError,
   AgentExecutionError,
@@ -52,6 +53,8 @@ export {
   AgentNotFoundError,
   AgentTimeoutError,
   AlreadyExistsError,
+  ChannelLoadError,
+  ChannelNotFoundError,
   DeploymentConfigError,
   DeploymentError,
   DeploymentNotFoundError,

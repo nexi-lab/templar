@@ -29,6 +29,10 @@ export {
   validateNexusClient,
 } from "./validation.js";
 
+// Export channel loading infrastructure
+export { ChannelRegistry } from "./channel-registry.js";
+export { isChannelAdapter } from "./type-guards.js";
+
 /**
  * Placeholder for getDefaultNexusMiddleware
  * Will be implemented in @templar/middleware package
