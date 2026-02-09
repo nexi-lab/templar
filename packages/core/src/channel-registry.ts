@@ -1,6 +1,6 @@
 import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
-import type { ChannelAdapter } from "./types.js";
 import { isChannelAdapter } from "./type-guards.js";
+import type { ChannelAdapter } from "./types.js";
 
 /**
  * Registry for lazy-loading channel adapters
@@ -109,10 +109,7 @@ export class ChannelRegistry {
     // Step 2: Extract default export
     const AdapterClass = module.default;
     if (!AdapterClass) {
-      throw new ChannelLoadError(
-        type,
-        `Package must export a default ChannelAdapter class`,
-      );
+      throw new ChannelLoadError(type, `Package must export a default ChannelAdapter class`);
     }
 
     // Step 3: Instantiate adapter
@@ -121,11 +118,9 @@ export class ChannelRegistry {
       adapter = new AdapterClass(config);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new ChannelLoadError(
-        type,
-        `Failed to instantiate adapter: ${message}`,
-        { cause: error instanceof Error ? error : undefined },
-      );
+      throw new ChannelLoadError(type, `Failed to instantiate adapter: ${message}`, {
+        cause: error instanceof Error ? error : undefined,
+      });
     }
 
     // Step 4: Runtime type validation
@@ -159,9 +154,7 @@ export class ChannelRegistry {
     }
 
     // Disconnect all adapters
-    await Promise.allSettled(
-      adapters.map(adapter => adapter.disconnect()),
-    );
+    await Promise.allSettled(adapters.map((adapter) => adapter.disconnect()));
 
     // Clear caches
     this.cache.clear();

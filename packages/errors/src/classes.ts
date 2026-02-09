@@ -573,11 +573,6 @@ export class ChannelLoadError extends TemplarError {
   readonly domain = ERROR_CATALOG.INTERNAL_ERROR.domain;
 
   constructor(channelType: string, reason: string, options?: ErrorOptions) {
-    super(
-      `Failed to load channel '${channelType}': ${reason}`,
-      undefined,
-      undefined,
-      options,
-    );
+    super(`Failed to load channel '${channelType}': ${reason}`, undefined, undefined, options);
   }
 }

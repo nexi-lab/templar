@@ -4,6 +4,9 @@ import { validateAgentType, validateManifest, validateNexusClient } from "./vali
 
 export const PACKAGE_NAME = "@templar/core" as const;
 
+// Export channel loading infrastructure
+export { ChannelRegistry } from "./channel-registry.js";
+export { isChannelAdapter } from "./type-guards.js";
 // Export types
 export type {
   AgentManifest,
@@ -21,17 +24,12 @@ export type {
   TemplarMiddleware,
   ToolConfig,
 } from "./types.js";
-
 // Export validation functions
 export {
   validateAgentType,
   validateManifest,
   validateNexusClient,
 } from "./validation.js";
-
-// Export channel loading infrastructure
-export { ChannelRegistry } from "./channel-registry.js";
-export { isChannelAdapter } from "./type-guards.js";
 
 /**
  * Placeholder for getDefaultNexusMiddleware

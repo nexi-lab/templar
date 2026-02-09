@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
 import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
-import { MockChannelAdapter } from "../helpers/mock-channel.js";
+import { describe, expect, it, vi } from "vitest";
 import { ChannelRegistry } from "../../channel-registry.js";
+import { MockChannelAdapter } from "../helpers/mock-channel.js";
 
 describe("ChannelRegistry", () => {
   describe("registration", () => {
@@ -58,6 +58,7 @@ describe("ChannelRegistry", () => {
       registry.register("test", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return mockAdapter;
           }
         },
@@ -84,6 +85,7 @@ describe("ChannelRegistry", () => {
         default: class {
           constructor(config: unknown) {
             constructorSpy(config);
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter();
           }
         },
@@ -102,6 +104,7 @@ describe("ChannelRegistry", () => {
       const loaderSpy = vi.fn(async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter();
           }
         },
@@ -123,10 +126,11 @@ describe("ChannelRegistry", () => {
       const registry = new ChannelRegistry();
       const loaderSpy = vi.fn(async () => {
         // Simulate async loading delay
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         return {
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
               return new MockChannelAdapter();
             }
           },
@@ -155,6 +159,7 @@ describe("ChannelRegistry", () => {
       registry.register("slack", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("slack");
           }
         },
@@ -163,6 +168,7 @@ describe("ChannelRegistry", () => {
       registry.register("discord", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("discord");
           }
         },
@@ -228,6 +234,7 @@ describe("ChannelRegistry", () => {
       registry.register("invalid", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return { name: "test" }; // Missing required methods
           }
         },
@@ -251,6 +258,7 @@ describe("ChannelRegistry", () => {
         return {
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
               return new MockChannelAdapter();
             }
           },
@@ -294,6 +302,7 @@ describe("ChannelRegistry", () => {
       registry.register("channel1", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return mockAdapter1;
           }
         },
@@ -302,6 +311,7 @@ describe("ChannelRegistry", () => {
       registry.register("channel2", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return mockAdapter2;
           }
         },
@@ -324,6 +334,7 @@ describe("ChannelRegistry", () => {
       const loaderSpy = vi.fn(async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter();
           }
         },
@@ -346,11 +357,13 @@ describe("ChannelRegistry", () => {
     it("should handle disconnect failures gracefully", async () => {
       const registry = new ChannelRegistry();
       const mockAdapter = new MockChannelAdapter();
+      // biome-ignore lint/suspicious/noExplicitAny: Mock method access
       (mockAdapter.disconnect as any).mockRejectedValue(new Error("Disconnect failed"));
 
       registry.register("failing-disconnect", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return mockAdapter;
           }
         },

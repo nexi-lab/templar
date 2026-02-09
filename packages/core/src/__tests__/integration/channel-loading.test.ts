@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
 import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
-import { MockChannelAdapter } from "../helpers/mock-channel.js";
+import { describe, expect, it, vi } from "vitest";
 import { ChannelRegistry } from "../../channel-registry.js";
 import { isChannelAdapter } from "../../type-guards.js";
+import { MockChannelAdapter } from "../helpers/mock-channel.js";
 
 describe("Channel Loading Integration", () => {
   describe("full load flow", () => {
@@ -45,6 +45,7 @@ describe("Channel Loading Integration", () => {
       registry.register("slack", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("slack");
           }
         },
@@ -53,6 +54,7 @@ describe("Channel Loading Integration", () => {
       registry.register("discord", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("discord");
           }
         },
@@ -61,6 +63,7 @@ describe("Channel Loading Integration", () => {
       registry.register("teams", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("teams");
           }
         },
@@ -80,12 +83,15 @@ describe("Channel Loading Integration", () => {
 
     it("should handle adapter configuration correctly", async () => {
       const registry = new ChannelRegistry();
+      // biome-ignore lint/suspicious/noExplicitAny: Test helper variable
       let receivedConfig: any;
 
       registry.register("custom", async () => ({
         default: class {
+          // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
           constructor(config: any) {
             receivedConfig = config;
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter("custom");
           }
         },
@@ -111,10 +117,11 @@ describe("Channel Loading Integration", () => {
       registry.register("concurrent-test", async () => {
         loadCount++;
         // Simulate slow load
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         return {
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
               return new MockChannelAdapter();
             }
           },
@@ -122,9 +129,7 @@ describe("Channel Loading Integration", () => {
       });
 
       // Start 5 concurrent loads
-      const promises = Array.from({ length: 5 }, () =>
-        registry.load("concurrent-test", {}),
-      );
+      const promises = Array.from({ length: 5 }, () => registry.load("concurrent-test", {}));
 
       const adapters = await Promise.all(promises);
 
@@ -144,10 +149,11 @@ describe("Channel Loading Integration", () => {
 
       registry.register("mixed", async () => {
         loadTimes.push(Date.now());
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise((resolve) => setTimeout(resolve, 20));
         return {
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
               return new MockChannelAdapter();
             }
           },
@@ -155,16 +161,10 @@ describe("Channel Loading Integration", () => {
       });
 
       // First batch (concurrent)
-      await Promise.all([
-        registry.load("mixed", {}),
-        registry.load("mixed", {}),
-      ]);
+      await Promise.all([registry.load("mixed", {}), registry.load("mixed", {})]);
 
       // Second batch (concurrent, but after first batch)
-      await Promise.all([
-        registry.load("mixed", {}),
-        registry.load("mixed", {}),
-      ]);
+      await Promise.all([registry.load("mixed", {}), registry.load("mixed", {})]);
 
       // Should only load once total (cached after first batch)
       expect(loadTimes).toHaveLength(1);
@@ -195,6 +195,7 @@ describe("Channel Loading Integration", () => {
         default: class {
           constructor() {
             // Return object missing required methods
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return {
               name: "broken",
               capabilities: {},
@@ -242,10 +243,12 @@ describe("Channel Loading Integration", () => {
 
       registry.register("bad-config", async () => ({
         default: class {
+          // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
           constructor(config: any) {
             if (!config.apiKey) {
               throw new Error("Missing required config: apiKey");
             }
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter();
           }
         },
@@ -277,6 +280,7 @@ describe("Channel Loading Integration", () => {
         return {
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
               return new MockChannelAdapter();
             }
           },
@@ -306,6 +310,7 @@ describe("Channel Loading Integration", () => {
         registry.register(`channel${i}`, async () => ({
           default: class {
             constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
               return mock;
             }
           },
@@ -329,11 +334,13 @@ describe("Channel Loading Integration", () => {
       const badAdapter = new MockChannelAdapter("bad");
 
       // Bad adapter throws on disconnect
+      // biome-ignore lint/suspicious/noExplicitAny: Mock method access
       (badAdapter.disconnect as any).mockRejectedValue(new Error("Disconnect failed"));
 
       registry.register("good", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return goodAdapter;
           }
         },
@@ -342,6 +349,7 @@ describe("Channel Loading Integration", () => {
       registry.register("bad", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
             return badAdapter;
           }
         },
@@ -364,6 +372,7 @@ describe("Channel Loading Integration", () => {
       registry.register("test", async () => ({
         default: class {
           constructor() {
+            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
             return new MockChannelAdapter();
           }
         },

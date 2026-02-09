@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MockChannelAdapter } from "../helpers/mock-channel.js";
 import { isChannelAdapter } from "../../type-guards.js";
+import { MockChannelAdapter } from "../helpers/mock-channel.js";
 
 describe("isChannelAdapter", () => {
   it("should return true for valid MockChannelAdapter", () => {
