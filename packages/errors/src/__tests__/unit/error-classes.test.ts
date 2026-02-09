@@ -1,15 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  TemplarError,
-  InternalError,
-  NotFoundError,
-  ValidationError,
-  AgentNotFoundError,
   AgentExecutionError,
-  TokenExpiredError,
-  QuotaExceededError,
-  isTemplarError,
+  AgentNotFoundError,
+  InternalError,
   isError,
+  isTemplarError,
+  NotFoundError,
+  QuotaExceededError,
+  TemplarError,
+  TokenExpiredError,
+  ValidationError,
 } from "../../index.js";
 
 describe("TemplarError base class", () => {

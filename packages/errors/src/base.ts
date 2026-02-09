@@ -95,10 +95,7 @@ export abstract class TemplarError extends Error {
    * Returns a string representation for logging
    */
   toString(): string {
-    const parts = [
-      `[${this.code}]`,
-      this.message,
-    ];
+    const parts = [`[${this.code}]`, this.message];
 
     if (this.metadata && Object.keys(this.metadata).length > 0) {
       parts.push(`(${JSON.stringify(this.metadata)})`);

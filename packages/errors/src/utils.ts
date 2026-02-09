@@ -1,5 +1,5 @@
-import { ERROR_CATALOG, type ErrorCode, type ErrorCatalogEntry } from "./catalog.js";
 import { TemplarError } from "./base.js";
+import { ERROR_CATALOG, type ErrorCatalogEntry, type ErrorCode } from "./catalog.js";
 import { InternalError } from "./classes.js";
 
 /**
@@ -108,14 +108,15 @@ export function validateCatalog(): { valid: boolean; errors: string[] } {
     }
 
     // Track domain + status combinations (for informational purposes, not strict error)
-    if (!domainStatusMap.has(entry.domain)) {
-      domainStatusMap.set(entry.domain, new Map());
+    let statusMap = domainStatusMap.get(entry.domain);
+    if (!statusMap) {
+      statusMap = new Map();
+      domainStatusMap.set(entry.domain, statusMap);
     }
-    const statusMap = domainStatusMap.get(entry.domain)!;
     if (!statusMap.has(entry.httpStatus)) {
       statusMap.set(entry.httpStatus, []);
     }
-    statusMap.get(entry.httpStatus)!.push(code as ErrorCode);
+    statusMap.get(entry.httpStatus)?.push(code as ErrorCode);
   }
 
   return {

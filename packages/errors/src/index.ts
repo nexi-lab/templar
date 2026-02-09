@@ -8,28 +8,28 @@
 // CORE EXPORTS
 // ============================================================================
 
-export { TemplarError, isTemplarError, isError, type ErrorJSON } from "./base.js";
+export { type ErrorJSON, isError, isTemplarError, TemplarError } from "./base.js";
 
 export {
   ERROR_CATALOG,
-  type ErrorCode,
   type ErrorCatalogEntry,
+  type ErrorCode,
   type ErrorDomain,
   type GrpcStatusCode,
   type HttpStatusCode,
 } from "./catalog.js";
 
 export {
-  getCatalogEntry,
-  isValidErrorCode,
   getAllErrorCodes,
+  getCatalogEntry,
   getErrorCodesByDomain,
-  wrapError,
   getErrorMessage,
-  isErrorStatus,
   isClientError,
+  isErrorStatus,
   isServerError,
+  isValidErrorCode,
   validateCatalog,
+  wrapError,
 } from "./utils.js";
 
 // ============================================================================
@@ -37,100 +37,83 @@ export {
 // ============================================================================
 
 // Internal errors
-export { InternalError, NotImplementedError, ServiceUnavailableError, TimeoutError } from "./classes.js";
-
 // Auth errors
+// Resource errors
+// Validation errors
+// Agent errors
+// Workflow errors
+// Deployment errors
+// Quota/Rate limit errors
 export {
+  AgentConfigurationError,
+  AgentExecutionError,
+  AgentInvalidStateError,
+  AgentNotFoundError,
+  AgentTimeoutError,
+  AlreadyExistsError,
+  DeploymentConfigError,
+  DeploymentError,
+  DeploymentNotFoundError,
+  ForbiddenError,
+  InsufficientScopeError,
+  InternalError,
+  InvalidFormatError,
+  NotFoundError,
+  NotImplementedError,
+  OutOfRangeError,
+  PayloadTooLargeError,
+  QuotaExceededError,
+  RateLimitExceededError,
+  RequiredFieldError,
+  ResourceConflictError,
+  ResourceGoneError,
+  ServiceUnavailableError,
+  TimeoutError,
   TokenExpiredError,
   TokenInvalidError,
   TokenMissingError,
-  InsufficientScopeError,
-  ForbiddenError,
-} from "./classes.js";
-
-// Resource errors
-export {
-  NotFoundError,
-  AlreadyExistsError,
-  ResourceConflictError,
-  ResourceGoneError,
-} from "./classes.js";
-
-// Validation errors
-export {
   ValidationError,
-  RequiredFieldError,
-  InvalidFormatError,
-  OutOfRangeError,
   type ValidationIssue,
-} from "./classes.js";
-
-// Agent errors
-export {
-  AgentNotFoundError,
-  AgentExecutionError,
-  AgentTimeoutError,
-  AgentInvalidStateError,
-  AgentConfigurationError,
-} from "./classes.js";
-
-// Workflow errors
-export {
-  WorkflowNotFoundError,
   WorkflowExecutionError,
   WorkflowInvalidStateError,
+  WorkflowNotFoundError,
   WorkflowStepError,
-} from "./classes.js";
-
-// Deployment errors
-export {
-  DeploymentError,
-  DeploymentNotFoundError,
-  DeploymentConfigError,
-} from "./classes.js";
-
-// Quota/Rate limit errors
-export {
-  QuotaExceededError,
-  RateLimitExceededError,
-  PayloadTooLargeError,
 } from "./classes.js";
 
 // ============================================================================
 // WIRE FORMATS
 // ============================================================================
 
-// RFC 9457 (REST/HTTP)
-export {
-  type ProblemDetails,
-  type ValidationIssue as ProblemDetailsValidationIssue,
-  ProblemDetailsSchema,
-  ProblemDetailsPartialSchema,
-  ValidationIssueSchema,
-} from "./wire/rfc9457.js";
-
 // gRPC
 export {
-  type GrpcStatus,
-  type GrpcErrorDetail,
-  type GrpcStatusCodeValue,
-  GRPC_STATUS_CODES,
   GRPC_ERROR_TYPES,
-  GrpcStatusSchema,
+  GRPC_STATUS_CODES,
+  type GrpcErrorDetail,
   GrpcErrorDetailSchema,
+  type GrpcStatus,
   GrpcStatusCodeSchema,
+  type GrpcStatusCodeValue,
+  GrpcStatusSchema,
   getGrpcStatusCode,
   getGrpcStatusName,
 } from "./wire/grpc.js";
+// RFC 9457 (REST/HTTP)
+export {
+  type ProblemDetails,
+  ProblemDetailsPartialSchema,
+  ProblemDetailsSchema,
+  type ValidationIssue as ProblemDetailsValidationIssue,
+  ValidationIssueSchema,
+} from "./wire/rfc9457.js";
 
 // WebSocket
 export {
   type WebSocketErrorMessage,
-  type WebSocketSuccessMessage,
-  type WebSocketMessage,
   WebSocketErrorMessageSchema,
-  WebSocketSuccessMessageSchema,
+  type WebSocketMessage,
   WebSocketMessageSchema,
+  type WebSocketSuccessMessage,
+  WebSocketSuccessMessageSchema,
 } from "./wire/websocket.js";
 
 // ============================================================================
@@ -138,14 +121,14 @@ export {
 // ============================================================================
 
 export {
-  serializeToRFC9457,
-  deserializeFromRFC9457,
-  serializeToGrpc,
   deserializeFromGrpc,
-  serializeToWebSocket,
+  deserializeFromRFC9457,
   deserializeFromWebSocket,
-  serializeError,
   safeDeserialize,
+  serializeError,
+  serializeToGrpc,
+  serializeToRFC9457,
+  serializeToWebSocket,
 } from "./serialization.js";
 
 // ============================================================================

@@ -77,7 +77,7 @@ export class InsufficientScopeError extends TemplarError {
     public readonly requiredScopes: string[],
     public readonly actualScopes: string[],
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(message, metadata, traceId);
   }
@@ -106,7 +106,7 @@ export class NotFoundError extends TemplarError {
     public readonly resourceType: string,
     public readonly resourceId: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`${resourceType} with ID '${resourceId}' not found`, metadata, traceId);
   }
@@ -123,7 +123,7 @@ export class AlreadyExistsError extends TemplarError {
     public readonly resourceType: string,
     public readonly resourceId: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`${resourceType} with ID '${resourceId}' already exists`, metadata, traceId);
   }
@@ -160,7 +160,7 @@ export class ValidationError extends TemplarError {
     message: string,
     public readonly issues: ValidationIssue[],
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(message, metadata, traceId);
   }
@@ -183,7 +183,7 @@ export class RequiredFieldError extends TemplarError {
   constructor(
     public readonly fieldName: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Required field '${fieldName}' is missing`, metadata, traceId);
   }
@@ -200,7 +200,7 @@ export class InvalidFormatError extends TemplarError {
     public readonly fieldName: string,
     public readonly expectedFormat: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Field '${fieldName}' has invalid format, expected ${expectedFormat}`, metadata, traceId);
   }
@@ -219,15 +219,16 @@ export class OutOfRangeError extends TemplarError {
     public readonly min?: number,
     public readonly max?: number,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
-    const range = min !== undefined && max !== undefined
-      ? `between ${min} and ${max}`
-      : min !== undefined
-      ? `at least ${min}`
-      : max !== undefined
-      ? `at most ${max}`
-      : "within acceptable range";
+    const range =
+      min !== undefined && max !== undefined
+        ? `between ${min} and ${max}`
+        : min !== undefined
+          ? `at least ${min}`
+          : max !== undefined
+            ? `at most ${max}`
+            : "within acceptable range";
     super(`Field '${fieldName}' value ${value} is out of range (${range})`, metadata, traceId);
   }
 }
@@ -246,7 +247,7 @@ export class AgentNotFoundError extends TemplarError {
   constructor(
     public readonly agentId: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Agent '${agentId}' not found`, metadata, traceId);
   }
@@ -264,7 +265,7 @@ export class AgentExecutionError extends TemplarError {
     message: string,
     public readonly cause?: Error,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Agent '${agentId}' execution failed: ${message}`, metadata, traceId);
   }
@@ -281,7 +282,7 @@ export class AgentTimeoutError extends TemplarError {
     public readonly agentId: string,
     public readonly timeoutMs: number,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Agent '${agentId}' execution timed out after ${timeoutMs}ms`, metadata, traceId);
   }
@@ -299,12 +300,12 @@ export class AgentInvalidStateError extends TemplarError {
     public readonly currentState: string,
     public readonly expectedState: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(
       `Agent '${agentId}' is in state '${currentState}', expected '${expectedState}'`,
       metadata,
-      traceId
+      traceId,
     );
   }
 }
@@ -331,7 +332,7 @@ export class WorkflowNotFoundError extends TemplarError {
   constructor(
     public readonly workflowId: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Workflow '${workflowId}' not found`, metadata, traceId);
   }
@@ -349,7 +350,7 @@ export class WorkflowExecutionError extends TemplarError {
     message: string,
     public readonly cause?: Error,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Workflow '${workflowId}' execution failed: ${message}`, metadata, traceId);
   }
@@ -367,12 +368,12 @@ export class WorkflowInvalidStateError extends TemplarError {
     public readonly currentState: string,
     public readonly expectedState: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(
       `Workflow '${workflowId}' is in state '${currentState}', expected '${expectedState}'`,
       metadata,
-      traceId
+      traceId,
     );
   }
 }
@@ -390,7 +391,7 @@ export class WorkflowStepError extends TemplarError {
     message: string,
     public readonly cause?: Error,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Workflow '${workflowId}' step '${stepName}' failed: ${message}`, metadata, traceId);
   }
@@ -418,7 +419,7 @@ export class DeploymentNotFoundError extends TemplarError {
   constructor(
     public readonly deploymentId: string,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`Deployment '${deploymentId}' not found`, metadata, traceId);
   }
@@ -448,7 +449,7 @@ export class QuotaExceededError extends TemplarError {
     public readonly limit: number,
     public readonly current: number,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     super(`${quotaType} quota exceeded (${current}/${limit})`, metadata, traceId);
   }
@@ -464,7 +465,7 @@ export class RateLimitExceededError extends TemplarError {
   constructor(
     public readonly retryAfterSeconds?: number,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
     const retryMsg = retryAfterSeconds ? ` Retry after ${retryAfterSeconds} seconds.` : "";
     super(`Rate limit exceeded.${retryMsg}`, metadata, traceId);
@@ -482,8 +483,12 @@ export class PayloadTooLargeError extends TemplarError {
     public readonly sizeBytes: number,
     public readonly maxSizeBytes: number,
     metadata?: Record<string, string>,
-    traceId?: string
+    traceId?: string,
   ) {
-    super(`Payload size ${sizeBytes} bytes exceeds limit of ${maxSizeBytes} bytes`, metadata, traceId);
+    super(
+      `Payload size ${sizeBytes} bytes exceeds limit of ${maxSizeBytes} bytes`,
+      metadata,
+      traceId,
+    );
   }
 }

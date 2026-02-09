@@ -10,36 +10,30 @@
 import { TemplarError } from "./base.js";
 import { ERROR_CATALOG, type ErrorCode } from "./catalog.js";
 import {
+  AgentExecutionError,
+  AgentNotFoundError,
+  AlreadyExistsError,
+  ForbiddenError,
+  InsufficientScopeError,
   InternalError,
   NotFoundError,
-  ValidationError,
-  AgentNotFoundError,
-  AgentExecutionError,
-  WorkflowNotFoundError,
   TokenExpiredError,
   TokenInvalidError,
   TokenMissingError,
-  InsufficientScopeError,
-  ForbiddenError,
-  AlreadyExistsError,
+  ValidationError,
   type ValidationIssue,
+  WorkflowNotFoundError,
 } from "./classes.js";
+import { isValidErrorCode, wrapError } from "./utils.js";
 import {
-  ProblemDetailsSchema,
-  type ProblemDetails,
-} from "./wire/rfc9457.js";
-import {
-  GrpcStatusSchema,
-  type GrpcStatus,
-  type GrpcErrorDetail,
   GRPC_ERROR_TYPES,
   GRPC_STATUS_CODES,
+  type GrpcErrorDetail,
+  type GrpcStatus,
+  GrpcStatusSchema,
 } from "./wire/grpc.js";
-import {
-  WebSocketErrorMessageSchema,
-  type WebSocketErrorMessage,
-} from "./wire/websocket.js";
-import { isValidErrorCode, wrapError } from "./utils.js";
+import { type ProblemDetails, ProblemDetailsSchema } from "./wire/rfc9457.js";
+import { type WebSocketErrorMessage, WebSocketErrorMessageSchema } from "./wire/websocket.js";
 
 // ============================================================================
 // RFC 9457 SERIALIZATION
@@ -87,7 +81,7 @@ export function deserializeFromRFC9457(raw: unknown): TemplarError {
     return new InternalError(
       parsed.detail || parsed.title || "Unknown error",
       parsed.metadata,
-      parsed.traceId
+      parsed.traceId,
     );
   }
 
@@ -114,7 +108,7 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
         metadata?.resourceType || "Resource",
         metadata?.resourceId || "unknown",
         metadata,
-        traceId
+        traceId,
       );
 
     case "AGENT_NOT_FOUND":
@@ -123,7 +117,7 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
     case "WORKFLOW_NOT_FOUND":
       return new WorkflowNotFoundError(metadata?.workflowId || "unknown", metadata, traceId);
 
-    case "VALIDATION_FAILED":
+    case "VALIDATION_FAILED": {
       const issues: ValidationIssue[] = (data.errors || []).map((e) => ({
         field: e.field,
         message: e.message,
@@ -131,6 +125,7 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
         value: e.value,
       }));
       return new ValidationError(message, issues, metadata, traceId);
+    }
 
     case "AGENT_EXECUTION_FAILED":
       return new AgentExecutionError(
@@ -138,7 +133,7 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
         message,
         undefined,
         metadata,
-        traceId
+        traceId,
       );
 
     case "WORKFLOW_EXECUTION_FAILED":
@@ -166,7 +161,7 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
         metadata?.resourceType || "Resource",
         metadata?.resourceId || "unknown",
         metadata,
-        traceId
+        traceId,
       );
 
     // For all other errors, create a generic InternalError
@@ -222,7 +217,7 @@ export function deserializeFromGrpc(raw: unknown): TemplarError {
     return new InternalError(
       parsed.message,
       { grpcCode: String(parsed.code) },
-      errorInfo?.metadata.traceId
+      errorInfo?.metadata.traceId,
     );
   }
 
@@ -255,7 +250,7 @@ export function deserializeFromGrpc(raw: unknown): TemplarError {
  */
 export function serializeToWebSocket(
   error: TemplarError,
-  requestId?: string
+  requestId?: string,
 ): WebSocketErrorMessage {
   return {
     type: "error",
@@ -292,7 +287,10 @@ export function serializeError(error: unknown, traceId?: string): ProblemDetails
 /**
  * Safe deserialization that returns InternalError if parsing fails
  */
-export function safeDeserialize(raw: unknown, format: "rfc9457" | "grpc" | "websocket"): TemplarError {
+export function safeDeserialize(
+  raw: unknown,
+  format: "rfc9457" | "grpc" | "websocket",
+): TemplarError {
   try {
     switch (format) {
       case "rfc9457":
@@ -303,9 +301,9 @@ export function safeDeserialize(raw: unknown, format: "rfc9457" | "grpc" | "webs
         return deserializeFromWebSocket(raw);
     }
   } catch (err) {
-    return new InternalError(
-      "Failed to deserialize error from wire format",
-      { format, parseError: String(err) }
-    );
+    return new InternalError("Failed to deserialize error from wire format", {
+      format,
+      parseError: String(err),
+    });
   }
 }

@@ -3,13 +3,13 @@
  */
 
 import {
+  AgentExecutionError,
+  AgentNotFoundError,
   InternalError,
   NotFoundError,
-  ValidationError,
-  AgentNotFoundError,
-  AgentExecutionError,
-  TokenExpiredError,
   QuotaExceededError,
+  TokenExpiredError,
+  ValidationError,
   WorkflowStepError,
 } from "../../src/index.js";
 
@@ -26,7 +26,7 @@ export const sampleErrors = {
       { field: "password", message: "Password required", code: "required" },
     ],
     { userId: "user-456" },
-    "trace-003"
+    "trace-003",
   ),
 
   agentNotFound: new AgentNotFoundError("deep-research-agent", { version: "v1.2" }, "trace-004"),
@@ -36,13 +36,13 @@ export const sampleErrors = {
     "Model inference failed",
     new Error("CUDA out of memory"),
     { gpu: "0", batchSize: "32" },
-    "trace-005"
+    "trace-005",
   ),
 
   tokenExpired: new TokenExpiredError(
     "JWT token expired",
     { userId: "user-789", issuedAt: "2026-01-01" },
-    "trace-006"
+    "trace-006",
   ),
 
   quotaExceeded: new QuotaExceededError(
@@ -50,7 +50,7 @@ export const sampleErrors = {
     1000,
     1050,
     { plan: "free", userId: "user-999" },
-    "trace-007"
+    "trace-007",
   ),
 
   workflowStep: new WorkflowStepError(
@@ -59,7 +59,7 @@ export const sampleErrors = {
     "Transformation failed due to invalid schema",
     new Error("Schema validation failed"),
     { inputRows: "1000", failedRows: "42" },
-    "trace-008"
+    "trace-008",
   ),
 };
 

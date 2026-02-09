@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  TemplarError,
+  AgentNotFoundError,
   InternalError,
   NotFoundError,
-  ValidationError,
-  AgentNotFoundError,
+  type TemplarError,
   TokenExpiredError,
+  ValidationError,
 } from "../../index.js";
 
 describe("Exhaustive type checking with _tag discriminant", () => {
@@ -76,10 +76,11 @@ describe("Exhaustive type checking with _tag discriminant", () => {
           return "rate_limit";
         case "PayloadTooLargeError":
           return "payload_too_large";
-        default:
+        default: {
           // This line would cause a compile error if we missed a case
           const _exhaustive: never = error;
           return _exhaustive;
+        }
       }
     }
 
@@ -116,9 +117,7 @@ describe("Exhaustive type checking with _tag discriminant", () => {
   });
 
   it("should work with discriminated union patterns", () => {
-    type ErrorResult<T> =
-      | { success: true; data: T }
-      | { success: false; error: TemplarError };
+    type ErrorResult<T> = { success: true; data: T } | { success: false; error: TemplarError };
 
     function processResult<T>(result: ErrorResult<T>): T {
       if (result.success) {

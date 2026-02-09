@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ERROR_CATALOG,
   getAllErrorCodes,
-  getErrorCodesByDomain,
   getCatalogEntry,
+  getErrorCodesByDomain,
+  isClientError,
+  isErrorStatus,
+  isServerError,
   isValidErrorCode,
   validateCatalog,
-  isErrorStatus,
-  isClientError,
-  isServerError,
 } from "../../index.js";
 
 describe("ERROR_CATALOG", () => {
@@ -26,7 +26,7 @@ describe("ERROR_CATALOG", () => {
   });
 
   it("should have valid HTTP status codes for all entries", () => {
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       expect(entry.httpStatus).toBeGreaterThanOrEqual(100);
       expect(entry.httpStatus).toBeLessThan(600);
       expect(entry.httpStatus).toBe(Math.floor(entry.httpStatus)); // integer
@@ -54,7 +54,7 @@ describe("ERROR_CATALOG", () => {
       "UNAUTHENTICATED",
     ];
 
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       expect(validGrpcCodes).toContain(entry.grpcCode);
     }
   });
@@ -66,7 +66,7 @@ describe("ERROR_CATALOG", () => {
   });
 
   it("should have titles and descriptions for all entries", () => {
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       expect(entry.title).toBeTruthy();
       expect(entry.description).toBeTruthy();
       expect(typeof entry.title).toBe("string");
@@ -79,7 +79,7 @@ describe("ERROR_CATALOG", () => {
     // - quota domain includes: QUOTA_, RATE_, PAYLOAD_
     const exceptions = new Set([
       "RATE_LIMIT_EXCEEDED", // quota domain, but RATE prefix
-      "PAYLOAD_TOO_LARGE",   // quota domain, but PAYLOAD prefix
+      "PAYLOAD_TOO_LARGE", // quota domain, but PAYLOAD prefix
     ]);
 
     for (const [code, entry] of Object.entries(ERROR_CATALOG)) {

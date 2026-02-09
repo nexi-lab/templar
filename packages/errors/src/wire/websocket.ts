@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { ProblemDetailsSchema, type ProblemDetails } from "./rfc9457.js";
+import { type ProblemDetails, ProblemDetailsSchema } from "./rfc9457.js";
 
 /**
  * WebSocket error message envelope

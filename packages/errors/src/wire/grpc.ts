@@ -154,7 +154,9 @@ export function getGrpcStatusCode(name: keyof typeof GRPC_STATUS_CODES): GrpcSta
 /**
  * Map numeric gRPC status code to name
  */
-export function getGrpcStatusName(code: GrpcStatusCodeValue): keyof typeof GRPC_STATUS_CODES | undefined {
+export function getGrpcStatusName(
+  code: GrpcStatusCodeValue,
+): keyof typeof GRPC_STATUS_CODES | undefined {
   const entry = Object.entries(GRPC_STATUS_CODES).find(([, value]) => value === code);
   return entry ? (entry[0] as keyof typeof GRPC_STATUS_CODES) : undefined;
 }
