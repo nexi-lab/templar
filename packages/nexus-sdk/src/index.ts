@@ -21,7 +21,6 @@ export { NexusClient } from "./client.js";
 export {
   NexusAPIError,
   NexusNetworkError,
-  NexusSDKError,
   NexusTimeoutError,
   NexusValidationError,
 } from "./errors.js";
