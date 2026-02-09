@@ -1,10 +1,21 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: {
+    index: "src/index.ts",
+    "resources/agents": "src/resources/agents.ts",
+    "resources/tools": "src/resources/tools.ts",
+    "resources/channels": "src/resources/channels.ts",
+    "http/index": "src/http/index.ts",
+  },
   format: ["esm"],
-  dts: true,
+  dts: {
+    compilerOptions: {
+      composite: false,
+    },
+  },
   clean: true,
   treeshake: true,
-  target: "node22",
+  splitting: true,
+  target: "node18",
 });
