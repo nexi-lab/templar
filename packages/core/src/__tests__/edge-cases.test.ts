@@ -3,6 +3,17 @@ import { describe, expect, it } from "vitest";
 import { type AgentManifest, createTemplar } from "../index.js";
 import type { NexusClient, TemplarConfig } from "../types.js";
 
+function createMockNexusClient(): NexusClient {
+  return {
+    agents: {},
+    tools: {},
+    channels: {},
+    memory: {},
+    withRetry: () => createMockNexusClient(),
+    withTimeout: () => createMockNexusClient(),
+  } as unknown as NexusClient;
+}
+
 describe("Edge cases", () => {
   describe("empty and minimal configs", () => {
     it("should handle completely empty config", () => {
@@ -92,7 +103,7 @@ describe("Edge cases", () => {
         manifest: {} as AgentManifest, // Also invalid - missing required fields
       };
 
-      expect(() => createTemplar(config)).toThrow(/connect\(\) method|disconnect\(\) method/);
+      expect(() => createTemplar(config)).toThrow(/'agents' resource/);
     });
 
     it("should validate all fields even with multiple errors", () => {
@@ -129,14 +140,9 @@ describe("Edge cases", () => {
     });
 
     it("should handle Nexus middleware with empty custom middleware", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
       const config: TemplarConfig = {
         model: "gpt-4",
-        nexus: nexusClient,
+        nexus: createMockNexusClient(),
         middleware: [],
       };
 
@@ -145,14 +151,9 @@ describe("Edge cases", () => {
     });
 
     it("should handle Nexus middleware with multiple custom middleware", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
       const config: TemplarConfig = {
         model: "gpt-4",
-        nexus: nexusClient,
+        nexus: createMockNexusClient(),
         middleware: [{ name: "custom1" }, { name: "custom2" }],
       };
 
@@ -238,15 +239,10 @@ describe("Edge cases", () => {
 
   describe("combined scenarios", () => {
     it("should handle maximum config complexity", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
       const config: TemplarConfig = {
         model: "gpt-4",
         agentType: "high",
-        nexus: nexusClient,
+        nexus: createMockNexusClient(),
         manifest: {
           name: "complex-agent",
           version: "1.0.0-beta.1+build.123",

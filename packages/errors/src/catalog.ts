@@ -184,6 +184,45 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // MEMORY ERRORS - Agent memory operations
+  // ============================================================================
+  MEMORY_NOT_FOUND: {
+    domain: "memory",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Memory not found",
+    description: "The specified memory does not exist",
+  },
+  MEMORY_STORE_FAILED: {
+    domain: "memory",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Memory store failed",
+    description: "Failed to persist memory to the Nexus Memory API",
+  },
+  MEMORY_SEARCH_FAILED: {
+    domain: "memory",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Memory search failed",
+    description: "The memory search operation failed",
+  },
+  MEMORY_CONFIGURATION_INVALID: {
+    domain: "memory",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid memory configuration",
+    description: "The memory middleware configuration is invalid",
+  },
+  MEMORY_BATCH_PARTIAL: {
+    domain: "memory",
+    httpStatus: 207,
+    grpcCode: "INTERNAL" as const,
+    title: "Partial batch failure",
+    description: "Some memories in the batch failed to store",
+  },
+
+  // ============================================================================
   // WORKFLOW ERRORS - Workflow orchestration
   // ============================================================================
   WORKFLOW_NOT_FOUND: {

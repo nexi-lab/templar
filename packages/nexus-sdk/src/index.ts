@@ -30,6 +30,7 @@ export { HttpClient } from "./http/index.js";
 export { AgentsResource } from "./resources/agents.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
+export { MemoryResource } from "./resources/memory.js";
 export { ToolsResource } from "./resources/tools.js";
 export type {
   Agent,
@@ -59,6 +60,26 @@ export type {
   RequestOptions,
   RetryOptions,
 } from "./types/index.js";
+export type {
+  BatchStoreError,
+  BatchStoreMemoriesParams,
+  BatchStoreMemoriesResponse,
+  DeleteMemoryParams,
+  DeleteMemoryResponse,
+  GetMemoryParams,
+  MemoryEntry,
+  MemoryScope,
+  MemoryState,
+  MemoryStoreResponse,
+  MemoryVersion,
+  MemoryWithHistory,
+  QueryMemoriesParams,
+  QueryMemoriesResponse,
+  SearchMemoriesParams,
+  SearchMemoriesResponse,
+  SearchMode,
+  StoreMemoryParams,
+} from "./types/memory.js";
 export type {
   CreateToolParams,
   ListToolsParams,

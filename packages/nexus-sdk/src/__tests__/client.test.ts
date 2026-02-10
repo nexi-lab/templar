@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NexusClient } from "../client.js";
 import { AgentsResource } from "../resources/agents.js";
 import { ChannelsResource } from "../resources/channels.js";
+import { MemoryResource } from "../resources/memory.js";
 import { ToolsResource } from "../resources/tools.js";
 
 describe("NexusClient", () => {
@@ -23,6 +24,7 @@ describe("NexusClient", () => {
       expect(client.agents).toBeInstanceOf(AgentsResource);
       expect(client.tools).toBeInstanceOf(ToolsResource);
       expect(client.channels).toBeInstanceOf(ChannelsResource);
+      expect(client.memory).toBeInstanceOf(MemoryResource);
     });
 
     it("should create client with API key", () => {
@@ -72,26 +74,31 @@ describe("NexusClient", () => {
   });
 
   describe("builder methods", () => {
-    it("should return same instance from withRetry", () => {
+    it("should return new instance from withRetry", () => {
       const client = new NexusClient({ apiKey: "test-key" });
       const updatedClient = client.withRetry({ maxAttempts: 5 });
 
-      expect(updatedClient).toBe(client);
+      expect(updatedClient).not.toBe(client);
+      expect(updatedClient).toBeInstanceOf(NexusClient);
+      expect(updatedClient.agents).toBeInstanceOf(AgentsResource);
+      expect(updatedClient.memory).toBeInstanceOf(MemoryResource);
     });
 
-    it("should return same instance from withTimeout", () => {
+    it("should return new instance from withTimeout", () => {
       const client = new NexusClient({ apiKey: "test-key" });
       const updatedClient = client.withTimeout(10000);
 
-      expect(updatedClient).toBe(client);
+      expect(updatedClient).not.toBe(client);
+      expect(updatedClient).toBeInstanceOf(NexusClient);
     });
 
     it("should support method chaining", () => {
-      const client = new NexusClient({ apiKey: "test-key" })
-        .withRetry({ maxAttempts: 5 })
-        .withTimeout(10000);
+      const original = new NexusClient({ apiKey: "test-key" });
+      const chained = original.withRetry({ maxAttempts: 5 }).withTimeout(10000);
 
-      expect(client).toBeDefined();
+      expect(chained).toBeDefined();
+      expect(chained).toBeInstanceOf(NexusClient);
+      expect(chained).not.toBe(original);
     });
   });
 
@@ -264,6 +271,11 @@ describe("NexusClient", () => {
     it("should provide access to channels resource", () => {
       const client = new NexusClient({});
       expect(client.channels).toBeInstanceOf(ChannelsResource);
+    });
+
+    it("should provide access to memory resource", () => {
+      const client = new NexusClient({});
+      expect(client.memory).toBeInstanceOf(MemoryResource);
     });
   });
 });

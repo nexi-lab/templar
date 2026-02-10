@@ -32,10 +32,14 @@ describe("Type exports", () => {
     });
 
     it("should accept config with all optional fields", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
+      const nexusClient = {
+        agents: {},
+        tools: {},
+        channels: {},
+        memory: {},
+        withRetry: () => nexusClient,
+        withTimeout: () => nexusClient,
+      } as unknown as NexusClient;
 
       const manifest: AgentManifest = {
         name: "test",
@@ -105,20 +109,14 @@ describe("Type exports", () => {
 
   describe("NexusClient", () => {
     it("should accept valid client", () => {
-      const client: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-      expect(client).toBeDefined();
-    });
-
-    it("should allow additional properties", () => {
-      const client: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-        apiKey: "xxx",
-        baseUrl: "https://api.example.com",
-      };
+      const client = {
+        agents: {},
+        tools: {},
+        channels: {},
+        memory: {},
+        withRetry: () => client,
+        withTimeout: () => client,
+      } as unknown as NexusClient;
       expect(client).toBeDefined();
     });
   });
@@ -291,11 +289,11 @@ describe("Type exports", () => {
       expect(middleware).toBeDefined();
     });
 
-    it("should accept middleware with additional properties", () => {
+    it("should accept middleware with lifecycle hooks", () => {
       const middleware: TemplarMiddleware = {
         name: "logger",
-        level: "info",
-        handler: async () => {},
+        onSessionStart: async () => {},
+        onAfterTurn: async () => {},
       };
       expect(middleware).toBeDefined();
     });

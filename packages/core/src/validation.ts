@@ -40,13 +40,12 @@ export function validateNexusClient(
     throw new NexusClientError(`Nexus client must be an object. Received: ${typeof client}`);
   }
 
-  // Check for required client methods (based on typical SDK structure)
-  // This will need to be updated when @nexus/sdk is implemented
-  const requiredMethods = ["connect", "disconnect"];
-  for (const method of requiredMethods) {
-    if (typeof (client as Record<string, unknown>)[method] !== "function") {
+  // Check for required resource properties (from @nexus/sdk NexusClient)
+  const requiredResources = ["agents", "memory"];
+  for (const resource of requiredResources) {
+    if (typeof (client as unknown as Record<string, unknown>)[resource] !== "object") {
       throw new NexusClientError(
-        `Nexus client must have a ${method}() method. Client appears to be uninitialized.`,
+        `Nexus client must have a '${resource}' resource. Client appears to be uninitialized.`,
       );
     }
   }

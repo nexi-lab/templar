@@ -1,6 +1,13 @@
 // Re-export types from DeepAgents (will be added when dependency is available)
 // For now, define placeholder types that match the expected API
 
+import type { NexusClient as _NexusClient } from "@nexus/sdk";
+
+/**
+ * Re-export NexusClient from @nexus/sdk for consumers
+ */
+export type NexusClient = _NexusClient;
+
 /**
  * Placeholder for DeepAgentConfig from 'deepagents' package
  * Will be replaced with actual import when dependency is added
@@ -8,15 +15,6 @@
 export interface DeepAgentConfig {
   model?: string;
   middleware?: unknown[];
-  [key: string]: unknown;
-}
-
-/**
- * Placeholder for NexusClient from '@nexus/sdk' package
- */
-export interface NexusClient {
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
   [key: string]: unknown;
 }
 
@@ -131,10 +129,55 @@ export interface ChannelAdapter {
 }
 
 /**
- * Middleware interface — extended from DeepAgents
+ * Session context — passed to middleware on session start/end
+ */
+export interface SessionContext {
+  /** Unique session identifier */
+  sessionId: string;
+  /** Agent identifier */
+  agentId?: string;
+  /** User identifier */
+  userId?: string;
+  /** Memory scope override */
+  scope?: string;
+  /** Arbitrary metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Turn context — passed to middleware before/after each turn
+ */
+export interface TurnContext {
+  /** Session this turn belongs to */
+  sessionId: string;
+  /** Sequential turn number (1-based) */
+  turnNumber: number;
+  /** Turn input (user message, tool result, etc.) */
+  input?: unknown;
+  /** Turn output (agent response, tool call, etc.) */
+  output?: unknown;
+  /** Arbitrary metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Middleware interface — lifecycle hooks for DeepAgents integration
+ *
+ * All hooks are optional. Implement only the hooks your middleware needs.
  */
 export interface TemplarMiddleware {
-  name: string;
-  // ... follows DeepAgents middleware contract
-  [key: string]: unknown;
+  /** Unique middleware name */
+  readonly name: string;
+
+  /** Called when a session starts, before any turns */
+  onSessionStart?(context: SessionContext): Promise<void>;
+
+  /** Called before each turn is processed */
+  onBeforeTurn?(context: TurnContext): Promise<void>;
+
+  /** Called after each turn is processed */
+  onAfterTurn?(context: TurnContext): Promise<void>;
+
+  /** Called when a session ends, after all turns */
+  onSessionEnd?(context: SessionContext): Promise<void>;
 }

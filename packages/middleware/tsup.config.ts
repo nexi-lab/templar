@@ -1,9 +1,17 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/memory.ts", "src/pay.ts"],
+  entry: {
+    index: "src/index.ts",
+    memory: "src/memory/index.ts",
+    pay: "src/pay.ts",
+  },
   format: ["esm"],
-  dts: true,
+  dts: {
+    compilerOptions: {
+      composite: false,
+    },
+  },
   clean: true,
   treeshake: true,
   target: "node22",

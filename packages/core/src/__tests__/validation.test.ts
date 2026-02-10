@@ -39,10 +39,14 @@ describe("validation", () => {
     });
 
     it("should accept valid client", () => {
-      const validClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
+      const validClient = {
+        agents: {},
+        tools: {},
+        channels: {},
+        memory: {},
+        withRetry: () => validClient,
+        withTimeout: () => validClient,
+      } as unknown as NexusClient;
       expect(() => validateNexusClient(validClient)).not.toThrow();
     });
 
@@ -59,28 +63,28 @@ describe("validation", () => {
       );
     });
 
-    it("should reject client missing connect method", () => {
+    it("should reject client missing agents resource", () => {
       const invalidClient = {
-        disconnect: async () => {},
+        memory: {},
       } as unknown as NexusClient;
 
       expect(() => validateNexusClient(invalidClient)).toThrow(NexusClientError);
-      expect(() => validateNexusClient(invalidClient)).toThrow("must have a connect() method");
+      expect(() => validateNexusClient(invalidClient)).toThrow("'agents' resource");
     });
 
-    it("should reject client missing disconnect method", () => {
+    it("should reject client missing memory resource", () => {
       const invalidClient = {
-        connect: async () => {},
+        agents: {},
       } as unknown as NexusClient;
 
       expect(() => validateNexusClient(invalidClient)).toThrow(NexusClientError);
-      expect(() => validateNexusClient(invalidClient)).toThrow("must have a disconnect() method");
+      expect(() => validateNexusClient(invalidClient)).toThrow("'memory' resource");
     });
 
-    it("should reject client with non-function methods", () => {
+    it("should reject client with non-object resources", () => {
       const invalidClient = {
-        connect: "not a function",
-        disconnect: async () => {},
+        agents: "not an object",
+        memory: {},
       } as unknown as NexusClient;
 
       expect(() => validateNexusClient(invalidClient)).toThrow(NexusClientError);

@@ -319,6 +319,95 @@ export class AgentConfigurationError extends TemplarError {
 }
 
 // ============================================================================
+// MEMORY ERRORS
+// ============================================================================
+
+export class MemoryNotFoundError extends TemplarError {
+  readonly _tag = "MemoryNotFoundError" as const;
+  readonly code = "MEMORY_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.MEMORY_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MEMORY_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.MEMORY_NOT_FOUND.domain;
+
+  constructor(
+    public readonly memoryId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Memory '${memoryId}' not found`, metadata, traceId);
+  }
+}
+
+export class MemoryStoreError extends TemplarError {
+  readonly _tag = "MemoryStoreError" as const;
+  readonly code = "MEMORY_STORE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MEMORY_STORE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MEMORY_STORE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MEMORY_STORE_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Memory store failed: ${message}`, metadata, traceId);
+  }
+}
+
+export class MemorySearchError extends TemplarError {
+  readonly _tag = "MemorySearchError" as const;
+  readonly code = "MEMORY_SEARCH_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MEMORY_SEARCH_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MEMORY_SEARCH_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MEMORY_SEARCH_FAILED.domain;
+
+  constructor(
+    public readonly query: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Memory search failed for query '${query}'`, metadata, traceId);
+  }
+}
+
+export class MemoryConfigurationError extends TemplarError {
+  readonly _tag = "MemoryConfigurationError" as const;
+  readonly code = "MEMORY_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.MEMORY_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MEMORY_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.MEMORY_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid memory configuration: ${message}`, metadata, traceId);
+  }
+}
+
+export class MemoryBatchError extends TemplarError {
+  readonly _tag = "MemoryBatchError" as const;
+  readonly code = "MEMORY_BATCH_PARTIAL" as const;
+  readonly httpStatus = ERROR_CATALOG.MEMORY_BATCH_PARTIAL.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MEMORY_BATCH_PARTIAL.grpcCode;
+  readonly domain = ERROR_CATALOG.MEMORY_BATCH_PARTIAL.domain;
+
+  constructor(
+    public readonly stored: number,
+    public readonly failed: number,
+    public readonly errors: Array<{ index: number; error: string }>,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Batch store partial failure: ${stored} stored, ${failed} failed`, metadata, traceId);
+  }
+}
+
+// ============================================================================
 // WORKFLOW ERRORS
 // ============================================================================
 
