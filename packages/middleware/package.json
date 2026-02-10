@@ -27,5 +27,8 @@
     "@templar/core": "workspace:*",
     "@nexus/sdk": "workspace:*",
     "@templar/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2"
   }
 }

@@ -6,6 +6,7 @@ export default defineConfig({
     "resources/agents": "src/resources/agents.ts",
     "resources/tools": "src/resources/tools.ts",
     "resources/channels": "src/resources/channels.ts",
+    "resources/memory": "src/resources/memory.ts",
     "http/index": "src/http/index.ts",
   },
   format: ["esm"],

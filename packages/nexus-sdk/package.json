@@ -21,6 +21,10 @@
       "types": "./dist/resources/channels.d.ts",
       "import": "./dist/resources/channels.js"
     },
+    "./memory": {
+      "types": "./dist/resources/memory.d.ts",
+      "import": "./dist/resources/memory.js"
+    },
     "./http": {
       "types": "./dist/http/index.d.ts",
       "import": "./dist/http/index.js"

@@ -36,6 +36,9 @@ importers:
         specifier: ^1.0.0
         version: 1.7.2(zod-to-json-schema@3.25.1(zod@4.3.6))
     devDependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
@@ -75,6 +78,10 @@ importers:
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
 
   packages/model-router:
     dependencies:

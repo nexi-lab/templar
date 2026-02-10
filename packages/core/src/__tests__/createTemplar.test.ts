@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { type AgentManifest, createTemplar } from "../index.js";
 import type { NexusClient, TemplarConfig } from "../types.js";
 
+/**
+ * Create a mock NexusClient that satisfies the real SDK shape.
+ */
+function createMockNexusClient(): NexusClient {
+  return {
+    agents: {},
+    tools: {},
+    channels: {},
+    memory: {},
+    withRetry: () => createMockNexusClient(),
+    withTimeout: () => createMockNexusClient(),
+  } as unknown as NexusClient;
+}
+
 describe("createTemplar", () => {
   describe("basic functionality", () => {
     it("should create agent with minimal config", () => {
@@ -74,15 +88,10 @@ describe("createTemplar", () => {
   });
 
   describe("Nexus client handling", () => {
-    const validNexusClient: NexusClient = {
-      connect: async () => {},
-      disconnect: async () => {},
-    };
-
     it("should accept valid Nexus client", () => {
       const config: TemplarConfig = {
         model: "gpt-4",
-        nexus: validNexusClient,
+        nexus: createMockNexusClient(),
       };
 
       const agent = createTemplar(config);
@@ -98,9 +107,9 @@ describe("createTemplar", () => {
       expect(agent).toBeDefined();
     });
 
-    it("should throw on invalid Nexus client (missing connect)", () => {
+    it("should throw on invalid Nexus client (missing agents resource)", () => {
       const invalidClient = {
-        disconnect: async () => {},
+        memory: {},
       } as unknown as NexusClient;
 
       const config: TemplarConfig = {
@@ -108,7 +117,20 @@ describe("createTemplar", () => {
         nexus: invalidClient,
       };
 
-      expect(() => createTemplar(config)).toThrow("connect() method");
+      expect(() => createTemplar(config)).toThrow("'agents' resource");
+    });
+
+    it("should throw on invalid Nexus client (missing memory resource)", () => {
+      const invalidClient = {
+        agents: {},
+      } as unknown as NexusClient;
+
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        nexus: invalidClient,
+      };
+
+      expect(() => createTemplar(config)).toThrow("'memory' resource");
     });
 
     it("should throw on invalid Nexus client (null)", () => {
@@ -240,34 +262,11 @@ describe("createTemplar", () => {
       expect(agent).toBeDefined();
     });
 
-    it("should inject Nexus middleware when client provided", () => {
-      const validNexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
+    it("should accept nexus client alongside middleware", () => {
       const config: TemplarConfig = {
         model: "gpt-4",
-        nexus: validNexusClient,
-      };
-
-      const agent = createTemplar(config);
-      expect(agent).toBeDefined();
-      // Note: In the placeholder implementation, we can't verify middleware order
-      // This will be tested properly once createDeepAgent is actually called
-    });
-
-    it("should merge Nexus and custom middleware", () => {
-      const validNexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
-      const customMiddleware = { name: "custom" };
-      const config: TemplarConfig = {
-        model: "gpt-4",
-        nexus: validNexusClient,
-        middleware: [customMiddleware],
+        nexus: createMockNexusClient(),
+        middleware: [{ name: "custom" }],
       };
 
       const agent = createTemplar(config);
@@ -277,15 +276,10 @@ describe("createTemplar", () => {
 
   describe("edge cases", () => {
     it("should handle config with all features", () => {
-      const validNexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
       const config: TemplarConfig = {
         model: "gpt-4",
         agentType: "high",
-        nexus: validNexusClient,
+        nexus: createMockNexusClient(),
         manifest: {
           name: "test-agent",
           version: "1.0.0",

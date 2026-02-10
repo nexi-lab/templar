@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { createTemplar } from "../index.js";
 import type { NexusClient, TemplarConfig } from "../types.js";
 
+function createMockNexusClient(): NexusClient {
+  return {
+    agents: {},
+    tools: {},
+    channels: {},
+    memory: {},
+    withRetry: () => createMockNexusClient(),
+    withTimeout: () => createMockNexusClient(),
+  } as unknown as NexusClient;
+}
+
 /**
  * Performance benchmarks for createTemplar
  *
@@ -37,15 +48,10 @@ describe("Performance benchmarks", () => {
     });
 
     it("should handle complex configs without significant overhead", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
-
       const config: TemplarConfig = {
         model: "gpt-4",
         agentType: "high",
-        nexus: nexusClient,
+        nexus: createMockNexusClient(),
         manifest: {
           name: "benchmark-agent",
           version: "1.0.0",
@@ -87,10 +93,7 @@ describe("Performance benchmarks", () => {
         { agentType: "high" },
         { agentType: "dark" },
         {
-          nexus: {
-            connect: async () => {},
-            disconnect: async () => {},
-          },
+          nexus: createMockNexusClient(),
         },
         {
           manifest: {
@@ -162,10 +165,7 @@ describe("Performance benchmarks", () => {
     });
 
     it("should handle middleware array creation efficiently", () => {
-      const nexusClient: NexusClient = {
-        connect: async () => {},
-        disconnect: async () => {},
-      };
+      const nexusClient = createMockNexusClient();
 
       // Create multiple middleware arrays
       const configs = Array.from({ length: 100 }, (_, i) => ({

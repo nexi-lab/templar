@@ -20,9 +20,11 @@ export type {
   NexusClient,
   OutboundMessage,
   PermissionConfig,
+  SessionContext,
   TemplarConfig,
   TemplarMiddleware,
   ToolConfig,
+  TurnContext,
 } from "./types.js";
 // Export validation functions
 export {
@@ -30,15 +32,6 @@ export {
   validateManifest,
   validateNexusClient,
 } from "./validation.js";
-
-/**
- * Placeholder for getDefaultNexusMiddleware
- * Will be implemented in @templar/middleware package
- */
-function getDefaultNexusMiddleware(_client: unknown): unknown[] {
-  // TODO: Implement when @templar/middleware is ready
-  return [];
-}
 
 /**
  * Placeholder for createDeepAgent from 'deepagents' package
@@ -54,8 +47,12 @@ function createDeepAgent(config: unknown): unknown {
  *
  * This is a thin wrapper around createDeepAgent that:
  * - Validates configuration
- * - Injects Nexus middleware if nexus client provided
+ * - Merges user-provided middleware
  * - Provides Templar-specific defaults
+ *
+ * Note: Nexus middleware (memory, pay, etc.) is passed explicitly
+ * via config.middleware. Use createNexusMemoryMiddleware() from
+ * @templar/middleware to create memory middleware.
  *
  * @param config - Templar configuration
  * @returns Compiled LangGraph agent (same as createDeepAgent)
@@ -73,11 +70,11 @@ function createDeepAgent(config: unknown): unknown {
  *   agentType: 'high'
  * });
  *
- * // With Nexus middleware
- * const agentWithNexus = createTemplar({
+ * // With explicit middleware
+ * const agentWithMemory = createTemplar({
  *   model: 'gpt-4',
- *   nexus: nexusClient,
- *   agentType: 'high'
+ *   agentType: 'high',
+ *   middleware: [memoryMiddleware],
  * });
  *
  * // With manifest
@@ -97,11 +94,8 @@ export function createTemplar(config: TemplarConfig): unknown {
   validateNexusClient(config.nexus);
   validateManifest(config.manifest);
 
-  // Inject Nexus middleware if nexus client provided
-  const middleware = [
-    ...(config.nexus ? getDefaultNexusMiddleware(config.nexus) : []),
-    ...(config.middleware ?? []),
-  ];
+  // Middleware is always explicitly provided via config
+  const middleware = [...(config.middleware ?? [])];
 
   // Create DeepAgent with merged config
   try {

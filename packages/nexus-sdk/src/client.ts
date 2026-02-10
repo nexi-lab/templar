@@ -5,6 +5,7 @@
 import { HttpClient } from "./http/index.js";
 import { AgentsResource } from "./resources/agents.js";
 import { ChannelsResource } from "./resources/channels.js";
+import { MemoryResource } from "./resources/memory.js";
 import { ToolsResource } from "./resources/tools.js";
 import type { ClientConfig, RetryOptions } from "./types/index.js";
 
@@ -27,15 +28,24 @@ import type { ClientConfig, RetryOptions } from "./types/index.js";
  *   model: { provider: 'openai', name: 'gpt-4' },
  * });
  *
- * // List tools
- * const tools = await client.tools.list({ limit: 10 });
+ * // Store a memory
+ * const memory = await client.memory.store({
+ *   content: 'User prefers TypeScript',
+ *   scope: 'agent',
+ *   memory_type: 'preference',
+ * });
  * ```
  */
 export class NexusClient {
   /**
+   * Original config for creating new instances
+   */
+  private readonly _config: ClientConfig;
+
+  /**
    * HTTP client instance
    */
-  private _http: HttpClient;
+  private readonly _http: HttpClient;
 
   /**
    * Agents resource
@@ -53,6 +63,11 @@ export class NexusClient {
   public readonly channels: ChannelsResource;
 
   /**
+   * Memory resource
+   */
+  public readonly memory: MemoryResource;
+
+  /**
    * Create a new Nexus client
    *
    * @param config - Client configuration
@@ -65,55 +80,55 @@ export class NexusClient {
    * ```
    */
   constructor(config: ClientConfig) {
+    this._config = config;
     this._http = new HttpClient(config);
     this.agents = new AgentsResource(this._http);
     this.tools = new ToolsResource(this._http);
     this.channels = new ChannelsResource(this._http);
+    this.memory = new MemoryResource(this._http);
   }
 
   /**
    * Create a new client with updated retry options
    *
-   * Returns a new instance with the same configuration but different retry settings.
+   * Returns a new instance — the original client is not modified.
    *
    * @param options - Retry options
    * @returns New client instance with updated retry settings
    *
    * @example
    * ```typescript
-   * const client = new NexusClient({ apiKey: 'xxx' })
-   *   .withRetry({ maxAttempts: 5, initialDelay: 2000 });
+   * const client = new NexusClient({ apiKey: 'xxx' });
+   * const resilientClient = client.withRetry({ maxAttempts: 5, initialDelay: 2000 });
+   * // client is unchanged, resilientClient has new retry settings
    * ```
    */
-  withRetry(options: RetryOptions): this {
-    this._http = this._http.withRetry(options);
-    // Recreate resources with updated HttpClient
-    (this as { agents: AgentsResource }).agents = new AgentsResource(this._http);
-    (this as { tools: ToolsResource }).tools = new ToolsResource(this._http);
-    (this as { channels: ChannelsResource }).channels = new ChannelsResource(this._http);
-    return this;
+  withRetry(options: RetryOptions): NexusClient {
+    return new NexusClient({
+      ...this._config,
+      retry: { ...this._config.retry, ...options },
+    });
   }
 
   /**
    * Create a new client with updated timeout
    *
-   * Returns a new instance with the same configuration but different timeout.
+   * Returns a new instance — the original client is not modified.
    *
    * @param ms - Timeout in milliseconds
    * @returns New client instance with updated timeout
    *
    * @example
    * ```typescript
-   * const client = new NexusClient({ apiKey: 'xxx' })
-   *   .withTimeout(60000); // 60 second timeout
+   * const client = new NexusClient({ apiKey: 'xxx' });
+   * const slowClient = client.withTimeout(60000);
+   * // client is unchanged, slowClient has 60s timeout
    * ```
    */
-  withTimeout(ms: number): this {
-    this._http = this._http.withTimeout(ms);
-    // Recreate resources with updated HttpClient
-    (this as { agents: AgentsResource }).agents = new AgentsResource(this._http);
-    (this as { tools: ToolsResource }).tools = new ToolsResource(this._http);
-    (this as { channels: ChannelsResource }).channels = new ChannelsResource(this._http);
-    return this;
+  withTimeout(ms: number): NexusClient {
+    return new NexusClient({
+      ...this._config,
+      timeout: ms,
+    });
   }
 }
