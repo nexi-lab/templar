@@ -30,6 +30,7 @@ export { HttpClient } from "./http/index.js";
 export { AgentsResource } from "./resources/agents.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
+export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
 export { ToolsResource } from "./resources/tools.js";
@@ -52,6 +53,12 @@ export type {
   ListChannelsParams,
   UpdateChannelParams,
 } from "./types/channels.js";
+export type {
+  EventLogBatchWriteParams,
+  EventLogBatchWriteResponse,
+  EventLogWriteParams,
+  EventLogWriteResponse,
+} from "./types/eventlog.js";
 // Re-export all types
 export type {
   ClientConfig,

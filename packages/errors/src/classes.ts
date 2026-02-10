@@ -745,6 +745,116 @@ export class ManifestValidationError extends TemplarError {
   }
 }
 
+// ============================================================================
+// AUDIT ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a single audit event fails to write to the Nexus Event Log
+ */
+export class AuditWriteError extends TemplarError {
+  readonly _tag = "AuditWriteError" as const;
+  readonly code = "AUDIT_WRITE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_WRITE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_WRITE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_WRITE_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit write failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a batch of audit events fails to write
+ */
+export class AuditBatchWriteError extends TemplarError {
+  readonly _tag = "AuditBatchWriteError" as const;
+  readonly code = "AUDIT_BATCH_WRITE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.domain;
+
+  constructor(
+    public readonly eventCount: number,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit batch write failed (${eventCount} events): ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the audit event buffer exceeds its maximum capacity
+ */
+export class AuditBufferOverflowError extends TemplarError {
+  readonly _tag = "AuditBufferOverflowError" as const;
+  readonly code = "AUDIT_BUFFER_OVERFLOW" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.domain;
+
+  constructor(
+    public readonly bufferSize: number,
+    public readonly maxSize: number,
+    public readonly droppedCount: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Audit buffer overflow: ${bufferSize}/${maxSize} events, dropped ${droppedCount}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when audit middleware configuration is invalid
+ */
+export class AuditConfigurationError extends TemplarError {
+  readonly _tag = "AuditConfigurationError" as const;
+  readonly code = "AUDIT_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid audit configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when secret/PII redaction fails on an audit event
+ */
+export class AuditRedactionError extends TemplarError {
+  readonly _tag = "AuditRedactionError" as const;
+  readonly code = "AUDIT_REDACTION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_REDACTION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_REDACTION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_REDACTION_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit redaction failed: ${message}`, metadata, traceId);
+  }
+}
+
 /**
  * Thrown when a channel type is not registered in the ChannelRegistry
  */

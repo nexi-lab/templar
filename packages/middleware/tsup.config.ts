@@ -5,6 +5,7 @@ export default defineConfig({
     index: "src/index.ts",
     memory: "src/memory/index.ts",
     pay: "src/pay/index.ts",
+    audit: "src/audit/index.ts",
   },
   format: ["esm"],
   dts: {
