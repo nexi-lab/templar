@@ -124,18 +124,16 @@ describe("Type exports", () => {
   describe("ChannelAdapter", () => {
     it("should accept valid adapter", () => {
       const capabilities: ChannelCapabilities = {
-        text: true,
-        richText: true,
-        images: true,
-        files: true,
-        buttons: true,
-        threads: true,
-        reactions: true,
-        typingIndicator: true,
-        readReceipts: true,
-        voiceMessages: false,
-        groups: true,
-        maxMessageLength: 4000,
+        text: { supported: true, maxLength: 4000 },
+        richText: { supported: true, formats: ["markdown"] },
+        images: { supported: true, maxSize: 10_000_000, formats: ["png", "jpg"] },
+        files: { supported: true, maxSize: 50_000_000 },
+        buttons: { supported: true, maxButtons: 5 },
+        threads: { supported: true, nested: false },
+        reactions: { supported: true },
+        typingIndicator: { supported: true },
+        readReceipts: { supported: true },
+        groups: { supported: true, maxMembers: 100 },
       };
 
       const adapter: ChannelAdapter = {
@@ -243,22 +241,35 @@ describe("Type exports", () => {
   });
 
   describe("OutboundMessage", () => {
-    it("should accept minimal message", () => {
+    it("should accept minimal message with blocks", () => {
       const message: OutboundMessage = {
-        content: "Hello, world!",
         channelId: "channel-123",
+        blocks: [{ type: "text", content: "Hello, world!" }],
       };
       expect(message).toBeDefined();
     });
 
-    it("should accept message with metadata", () => {
+    it("should accept message with metadata and threadId", () => {
       const message: OutboundMessage = {
-        content: "Hello, world!",
         channelId: "channel-123",
+        blocks: [{ type: "text", content: "Hello, world!" }],
+        threadId: "thread-456",
         metadata: {
           userId: "user-123",
           timestamp: Date.now(),
         },
+      };
+      expect(message).toBeDefined();
+    });
+
+    it("should accept message with mixed content blocks", () => {
+      const message: OutboundMessage = {
+        channelId: "channel-123",
+        blocks: [
+          { type: "text", content: "Check this out" },
+          { type: "image", url: "https://example.com/img.png", alt: "An image" },
+          { type: "button", buttons: [{ label: "OK", action: "confirm", style: "primary" }] },
+        ],
       };
       expect(message).toBeDefined();
     });
@@ -324,39 +335,32 @@ describe("Type exports", () => {
   });
 
   describe("ChannelCapabilities", () => {
-    it("should accept full capabilities", () => {
+    it("should accept full capabilities with grouped structure", () => {
       const capabilities: ChannelCapabilities = {
-        text: true,
-        richText: true,
-        images: true,
-        files: true,
-        buttons: true,
-        threads: true,
-        reactions: true,
-        typingIndicator: true,
-        readReceipts: true,
-        voiceMessages: true,
-        groups: true,
-        maxMessageLength: 4000,
+        text: { supported: true, maxLength: 4000 },
+        richText: { supported: true, formats: ["markdown", "html"] },
+        images: { supported: true, maxSize: 10_000_000, formats: ["png", "jpg", "gif", "webp"] },
+        files: { supported: true, maxSize: 50_000_000 },
+        buttons: { supported: true, maxButtons: 5 },
+        threads: { supported: true, nested: false },
+        reactions: { supported: true },
+        typingIndicator: { supported: true },
+        readReceipts: { supported: true },
+        voiceMessages: { supported: true, maxDuration: 300, formats: ["ogg", "mp3"] },
+        groups: { supported: true, maxMembers: 100 },
       };
       expect(capabilities).toBeDefined();
     });
 
-    it("should accept minimal capabilities", () => {
+    it("should accept minimal capabilities (text-only)", () => {
       const capabilities: ChannelCapabilities = {
-        text: true,
-        richText: false,
-        images: false,
-        files: false,
-        buttons: false,
-        threads: false,
-        reactions: false,
-        typingIndicator: false,
-        readReceipts: false,
-        voiceMessages: false,
-        groups: false,
-        maxMessageLength: 1000,
+        text: { supported: true, maxLength: 160 },
       };
+      expect(capabilities).toBeDefined();
+    });
+
+    it("should accept empty capabilities (no features)", () => {
+      const capabilities: ChannelCapabilities = {};
       expect(capabilities).toBeDefined();
     });
   });

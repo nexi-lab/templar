@@ -54,6 +54,7 @@ export {
   AgentTimeoutError,
   AlreadyExistsError,
   BudgetExhaustedError,
+  CapabilityNotSupportedError,
   ChannelLoadError,
   ChannelNotFoundError,
   DeploymentConfigError,

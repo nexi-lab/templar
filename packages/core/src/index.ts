@@ -5,27 +5,50 @@ import { validateAgentType, validateManifest, validateNexusClient } from "./vali
 export const PACKAGE_NAME = "@templar/core" as const;
 
 // Export channel loading infrastructure
-export { ChannelRegistry } from "./channel-registry.js";
-export { isChannelAdapter } from "./type-guards.js";
+export { CapabilityGuard } from "./capability-guard.js";
+export { type ChannelLoadOptions, ChannelRegistry } from "./channel-registry.js";
+export { hashConfig } from "./config-hash.js";
+export { isChannelAdapter, isChannelCapabilities } from "./type-guards.js";
 // Export types
 export type {
   AgentManifest,
+  Button,
+  ButtonBlock,
+  ButtonCapability,
+  CapabilityKey,
   ChannelAdapter,
   ChannelCapabilities,
   ChannelConfig,
+  ChannelModule,
+  ContentBlock,
   DeepAgentConfig,
+  FileBlock,
+  FileCapability,
+  GroupCapability,
+  ImageBlock,
+  ImageCapability,
+  InboundMessage,
   MessageHandler,
   MiddlewareConfig,
   ModelConfig,
   NexusClient,
   OutboundMessage,
   PermissionConfig,
+  ReactionCapability,
+  ReadReceiptCapability,
+  RichTextCapability,
   SessionContext,
   TemplarConfig,
   TemplarMiddleware,
+  TextBlock,
+  TextCapability,
+  ThreadCapability,
   ToolConfig,
   TurnContext,
+  TypingIndicatorCapability,
+  VoiceMessageCapability,
 } from "./types.js";
+export { BLOCK_TYPE_TO_CAPABILITY } from "./types.js";
 // Export validation functions
 export {
   validateAgentType,

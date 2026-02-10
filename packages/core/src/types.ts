@@ -87,37 +87,176 @@ export interface TemplarConfig extends DeepAgentConfig {
   agentType?: "high" | "dark";
 }
 
+// ---------------------------------------------------------------------------
+// Channel Capability Groups
+// ---------------------------------------------------------------------------
+
 /**
- * Channel capabilities
+ * Each capability group has `supported: true` plus type-specific constraints.
+ * Capabilities absent from ChannelCapabilities are unsupported.
+ */
+
+export interface TextCapability {
+  readonly supported: true;
+  readonly maxLength: number;
+}
+
+export interface RichTextCapability {
+  readonly supported: true;
+  readonly formats: readonly string[]; // 'markdown', 'html', etc.
+}
+
+export interface ImageCapability {
+  readonly supported: true;
+  readonly maxSize: number; // bytes
+  readonly formats: readonly string[]; // 'png', 'jpg', 'gif', 'webp'
+}
+
+export interface FileCapability {
+  readonly supported: true;
+  readonly maxSize: number; // bytes
+  readonly allowedTypes?: readonly string[]; // MIME types; undefined = all
+}
+
+export interface ButtonCapability {
+  readonly supported: true;
+  readonly maxButtons: number;
+}
+
+export interface ThreadCapability {
+  readonly supported: true;
+  readonly nested: boolean;
+}
+
+export interface ReactionCapability {
+  readonly supported: true;
+}
+
+export interface TypingIndicatorCapability {
+  readonly supported: true;
+}
+
+export interface ReadReceiptCapability {
+  readonly supported: true;
+}
+
+export interface VoiceMessageCapability {
+  readonly supported: true;
+  readonly maxDuration: number; // seconds
+  readonly formats: readonly string[];
+}
+
+export interface GroupCapability {
+  readonly supported: true;
+  readonly maxMembers: number;
+}
+
+/**
+ * Channel capabilities — only present keys are supported.
+ * Absent keys mean the channel does not support that capability.
  */
 export interface ChannelCapabilities {
-  text: boolean;
-  richText: boolean;
-  images: boolean;
-  files: boolean;
-  buttons: boolean;
-  threads: boolean;
-  reactions: boolean;
-  typingIndicator: boolean;
-  readReceipts: boolean;
-  voiceMessages: boolean;
-  groups: boolean;
-  maxMessageLength: number;
+  readonly text?: TextCapability;
+  readonly richText?: RichTextCapability;
+  readonly images?: ImageCapability;
+  readonly files?: FileCapability;
+  readonly buttons?: ButtonCapability;
+  readonly threads?: ThreadCapability;
+  readonly reactions?: ReactionCapability;
+  readonly typingIndicator?: TypingIndicatorCapability;
+  readonly readReceipts?: ReadReceiptCapability;
+  readonly voiceMessages?: VoiceMessageCapability;
+  readonly groups?: GroupCapability;
 }
 
+/** All recognized capability keys */
+export type CapabilityKey = keyof ChannelCapabilities;
+
+// ---------------------------------------------------------------------------
+// Content Blocks (discriminated union)
+// ---------------------------------------------------------------------------
+
+export interface TextBlock {
+  readonly type: "text";
+  readonly content: string;
+}
+
+export interface ImageBlock {
+  readonly type: "image";
+  readonly url: string;
+  readonly alt?: string;
+  readonly mimeType?: string;
+  readonly size?: number; // bytes
+}
+
+export interface FileBlock {
+  readonly type: "file";
+  readonly url: string;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly size?: number; // bytes
+}
+
+export interface Button {
+  readonly label: string;
+  readonly action: string;
+  readonly style?: "primary" | "secondary" | "danger";
+}
+
+export interface ButtonBlock {
+  readonly type: "button";
+  readonly buttons: readonly Button[];
+}
+
+export type ContentBlock = TextBlock | ImageBlock | FileBlock | ButtonBlock;
+
 /**
- * Message types
+ * Maps content block type discriminant to the capability key that gates it
+ */
+export const BLOCK_TYPE_TO_CAPABILITY: Readonly<Record<ContentBlock["type"], CapabilityKey>> = {
+  text: "text",
+  image: "images",
+  file: "files",
+  button: "buttons",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
+
+/**
+ * Outbound message with typed content blocks
  */
 export interface OutboundMessage {
-  content: string;
-  channelId: string;
-  metadata?: Record<string, unknown>;
+  readonly channelId: string;
+  readonly blocks: readonly ContentBlock[];
+  readonly threadId?: string;
+  readonly replyTo?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export type MessageHandler = (message: unknown) => void | Promise<void>;
+/**
+ * Inbound message received from a channel
+ */
+export interface InboundMessage {
+  readonly channelType: string;
+  readonly channelId: string;
+  readonly senderId: string;
+  readonly blocks: readonly ContentBlock[];
+  readonly threadId?: string;
+  readonly timestamp: number;
+  readonly messageId: string;
+  readonly raw: unknown; // adapter-specific escape hatch
+}
+
+export type MessageHandler = (message: InboundMessage) => void | Promise<void>;
+
+// ---------------------------------------------------------------------------
+// Channel Adapter
+// ---------------------------------------------------------------------------
 
 /**
- * Channel adapter interface — implemented by @templar/channel-*
+ * Channel adapter interface — implemented by @templar/channel-* packages
  */
 export interface ChannelAdapter {
   readonly name: string;
@@ -126,6 +265,13 @@ export interface ChannelAdapter {
   disconnect(): Promise<void>;
   send(message: OutboundMessage): Promise<void>;
   onMessage(handler: MessageHandler): void;
+}
+
+/**
+ * Expected module shape of a @templar/channel-* package
+ */
+export interface ChannelModule {
+  readonly default: new (config: Readonly<Record<string, unknown>>) => ChannelAdapter;
 }
 
 /**
