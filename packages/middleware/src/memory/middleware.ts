@@ -1,20 +1,8 @@
 import type { MemoryEntry, MemoryScope, NexusClient, StoreMemoryParams } from "@nexus/sdk";
 import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
 import { MemoryConfigurationError } from "@templar/errors";
+import { withTimeout } from "../utils.js";
 import { DEFAULT_CONFIG, type NexusMemoryConfig } from "./types.js";
-
-/**
- * Race a promise against a timeout.
- * Returns the promise result or undefined on timeout.
- */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
-  return Promise.race([
-    promise,
-    new Promise<undefined>((resolve) => {
-      setTimeout(() => resolve(undefined), ms);
-    }),
-  ]);
-}
 
 /**
  * Extract key facts from turn output using simple heuristics.

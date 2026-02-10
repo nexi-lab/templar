@@ -1,37 +1,15 @@
-import type { NexusClient } from "@nexus/sdk";
 import { MemoryConfigurationError } from "@templar/errors";
+import { createMockNexusClient } from "@templar/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createNexusMemoryMiddleware } from "../index.js";
 import { NexusMemoryMiddleware } from "../middleware.js";
 import type { NexusMemoryConfig } from "../types.js";
 
-function createMockClient() {
-  const mockMemory = {
-    store: vi.fn(),
-    get: vi.fn(),
-    query: vi.fn(),
-    search: vi.fn(),
-    batchStore: vi.fn(),
-    delete: vi.fn(),
-  };
-
-  const client = {
-    memory: mockMemory,
-    agents: {},
-    tools: {},
-    channels: {},
-    withRetry: () => client,
-    withTimeout: () => client,
-  } as unknown as NexusClient;
-
-  return { client, mockMemory };
-}
-
 describe("Edge cases", () => {
-  let mock: ReturnType<typeof createMockClient>;
+  let mock: ReturnType<typeof createMockNexusClient>;
 
   beforeEach(() => {
-    mock = createMockClient();
+    mock = createMockNexusClient();
     vi.restoreAllMocks();
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });

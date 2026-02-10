@@ -1,5 +1,5 @@
-import type { NexusClient } from "@nexus/sdk";
 import type { SessionContext, TurnContext } from "@templar/core";
+import { createMockNexusClient } from "@templar/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NexusMemoryMiddleware } from "../middleware.js";
 import type { NexusMemoryConfig } from "../types.js";
@@ -7,28 +7,6 @@ import type { NexusMemoryConfig } from "../types.js";
 /**
  * Full lifecycle integration tests
  */
-
-function createMockClient() {
-  const mockMemory = {
-    store: vi.fn(),
-    get: vi.fn(),
-    query: vi.fn(),
-    search: vi.fn(),
-    batchStore: vi.fn(),
-    delete: vi.fn(),
-  };
-
-  const client = {
-    memory: mockMemory,
-    agents: {},
-    tools: {},
-    channels: {},
-    withRetry: () => client,
-    withTimeout: () => client,
-  } as unknown as NexusClient;
-
-  return { client, mockMemory };
-}
 
 function sessionCtx(id = "session-1"): SessionContext {
   return { sessionId: id, agentId: "agent-1", userId: "user-1" };
@@ -43,10 +21,10 @@ function turnCtx(turnNumber: number, sessionId = "session-1"): TurnContext {
 }
 
 describe("Lifecycle integration tests", () => {
-  let mock: ReturnType<typeof createMockClient>;
+  let mock: ReturnType<typeof createMockNexusClient>;
 
   beforeEach(() => {
-    mock = createMockClient();
+    mock = createMockNexusClient();
     vi.restoreAllMocks();
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });

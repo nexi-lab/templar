@@ -4,7 +4,7 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     memory: "src/memory/index.ts",
-    pay: "src/pay.ts",
+    pay: "src/pay/index.ts",
   },
   format: ["esm"],
   dts: {

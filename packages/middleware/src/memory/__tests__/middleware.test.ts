@@ -1,34 +1,9 @@
-import type { NexusClient } from "@nexus/sdk";
 import type { SessionContext, TurnContext } from "@templar/core";
 import { MemoryConfigurationError } from "@templar/errors";
+import { createMockNexusClient } from "@templar/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NexusMemoryMiddleware, validateMemoryConfig } from "../middleware.js";
 import type { NexusMemoryConfig } from "../types.js";
-
-/**
- * Create a mock NexusClient with typed memory mocks
- */
-function createMockClient() {
-  const mockMemory = {
-    store: vi.fn(),
-    get: vi.fn(),
-    query: vi.fn(),
-    search: vi.fn(),
-    batchStore: vi.fn(),
-    delete: vi.fn(),
-  };
-
-  const client = {
-    memory: mockMemory,
-    agents: {},
-    tools: {},
-    channels: {},
-    withRetry: () => client,
-    withTimeout: () => client,
-  } as unknown as NexusClient;
-
-  return { client, mockMemory };
-}
 
 function createSessionContext(overrides: Partial<SessionContext> = {}): SessionContext {
   return {
@@ -56,10 +31,10 @@ function createConfig(overrides: Partial<NexusMemoryConfig> = {}): NexusMemoryCo
 }
 
 describe("NexusMemoryMiddleware", () => {
-  let mockClient: ReturnType<typeof createMockClient>;
+  let mockClient: ReturnType<typeof createMockNexusClient>;
 
   beforeEach(() => {
-    mockClient = createMockClient();
+    mockClient = createMockNexusClient();
     vi.restoreAllMocks();
   });
 
