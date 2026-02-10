@@ -341,6 +341,44 @@ export const ERROR_CATALOG = {
     title: "Reservation expired",
     description: "The credit reservation has expired and cannot be committed",
   },
+  // ============================================================================
+  // AUDIT ERRORS — Compliance logging via Nexus Event Log
+  // ============================================================================
+  AUDIT_WRITE_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit write failed",
+    description: "Failed to write audit event to the Nexus Event Log",
+  },
+  AUDIT_BATCH_WRITE_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit batch write failed",
+    description: "Failed to write batch of audit events to the Nexus Event Log",
+  },
+  AUDIT_BUFFER_OVERFLOW: {
+    domain: "audit",
+    httpStatus: 507,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Audit buffer overflow",
+    description: "The audit event buffer exceeded its maximum capacity",
+  },
+  AUDIT_CONFIGURATION_INVALID: {
+    domain: "audit",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid audit configuration",
+    description: "The audit middleware configuration is invalid",
+  },
+  AUDIT_REDACTION_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit redaction failed",
+    description: "Failed to redact sensitive data from audit event",
+  },
 } as const;
 
 // ============================================================================

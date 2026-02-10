@@ -5,6 +5,7 @@ export {
   createMockNexusClient,
   type MockAgentsResource,
   type MockChannelsResource,
+  type MockEventLogResource,
   type MockMemoryResource,
   type MockNexusClient,
   type MockPayResource,
