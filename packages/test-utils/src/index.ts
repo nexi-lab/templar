@@ -9,3 +9,5 @@ export {
   type MockPayResource,
   type MockToolsResource,
 } from "./mocks/nexus-client.js";
+
+export { MockChannelAdapter } from "./channel.js";
