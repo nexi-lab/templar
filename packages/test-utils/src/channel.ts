@@ -12,6 +12,10 @@ import { vi } from "vitest";
  * Provides a spy-based implementation of ChannelAdapter interface.
  * All methods are vitest mock functions that can be asserted against.
  *
+ * Capabilities use the grouped structure (Issue #15):
+ * - Absent key = unsupported
+ * - Present key = `{ supported: true, ...constraints }`
+ *
  * @example
  * ```typescript
  * import { MockChannelAdapter } from '@templar/test-utils';
@@ -21,8 +25,8 @@ import { vi } from "vitest";
  * await mock.connect();
  * expect(mock.connect).toHaveBeenCalled();
  *
- * await mock.send({ content: 'hello', channelId: 'test' });
- * expect(mock.send).toHaveBeenCalledWith({ content: 'hello', channelId: 'test' });
+ * await mock.send({ channelId: 'test', blocks: [{ type: 'text', content: 'hello' }] });
+ * expect(mock.send).toHaveBeenCalled();
  * ```
  */
 export class MockChannelAdapter implements ChannelAdapter {
@@ -49,22 +53,10 @@ export class MockChannelAdapter implements ChannelAdapter {
     },
   );
 
-  constructor(name = "mock-channel", capabilities?: Partial<ChannelCapabilities>) {
+  constructor(name = "mock-channel", capabilities?: ChannelCapabilities) {
     this.name = name;
-    this.capabilities = {
-      text: true,
-      richText: false,
-      images: false,
-      files: false,
-      buttons: false,
-      threads: false,
-      reactions: false,
-      typingIndicator: false,
-      readReceipts: false,
-      voiceMessages: false,
-      groups: false,
-      maxMessageLength: 1000,
-      ...capabilities,
+    this.capabilities = capabilities ?? {
+      text: { supported: true, maxLength: 1000 },
     };
   }
 

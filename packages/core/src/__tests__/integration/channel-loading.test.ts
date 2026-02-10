@@ -1,75 +1,106 @@
-import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
+import {
+  CapabilityNotSupportedError,
+  ChannelLoadError,
+  ChannelNotFoundError,
+} from "@templar/errors";
 import { describe, expect, it, vi } from "vitest";
+import { CapabilityGuard } from "../../capability-guard.js";
 import { ChannelRegistry } from "../../channel-registry.js";
 import { isChannelAdapter } from "../../type-guards.js";
+import type { ChannelCapabilities, OutboundMessage } from "../../types.js";
 import { MockChannelAdapter } from "../helpers/mock-channel.js";
+
+/** Minimal text-only capabilities */
+const TEXT_CAPS: ChannelCapabilities = { text: { supported: true, maxLength: 4000 } };
 
 describe("Channel Loading Integration", () => {
   describe("full load flow", () => {
     it("should successfully load and connect a channel end-to-end", async () => {
       const registry = new ChannelRegistry();
-      const mockAdapter = new MockChannelAdapter("slack");
+      const mockAdapter = new MockChannelAdapter("slack", {
+        text: true,
+        images: true,
+        threads: true,
+      });
 
-      // Simulate @templar/channel-slack package structure
-      registry.register("slack", async () => ({
-        default: class SlackAdapter {
-          name = "slack";
-          capabilities = mockAdapter.capabilities;
-          connect = mockAdapter.connect;
-          disconnect = mockAdapter.disconnect;
-          send = mockAdapter.send;
-          onMessage = mockAdapter.onMessage;
+      registry.register(
+        "slack",
+        async () => ({
+          default: class SlackAdapter {
+            name = mockAdapter.name;
+            capabilities = mockAdapter.capabilities;
+            connect = mockAdapter.connect;
+            disconnect = mockAdapter.disconnect;
+            send = mockAdapter.send;
+            onMessage = mockAdapter.onMessage;
+          },
+        }),
+        {
+          text: { supported: true, maxLength: 4000 },
+          images: { supported: true, maxSize: 10_000_000, formats: ["png", "jpg"] },
+          threads: { supported: true, nested: false },
         },
-      }));
+      );
 
-      // Load channel
       const adapter = await registry.load("slack", { token: "xoxb-test" });
 
-      // Verify it's a valid adapter
       expect(isChannelAdapter(adapter)).toBe(true);
 
-      // Connect and use
       await adapter.connect();
-      await adapter.send({ content: "Hello", channelId: "C123" });
+      await adapter.send({
+        channelId: "C123",
+        blocks: [{ type: "text", content: "Hello" }],
+      });
 
       expect(mockAdapter.connect).toHaveBeenCalled();
       expect(mockAdapter.send).toHaveBeenCalledWith({
-        content: "Hello",
         channelId: "C123",
+        blocks: [{ type: "text", content: "Hello" }],
       });
     });
 
     it("should load multiple channels in parallel", async () => {
       const registry = new ChannelRegistry();
 
-      registry.register("slack", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter("slack");
-          }
-        },
-      }));
+      registry.register(
+        "slack",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter("slack");
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
-      registry.register("discord", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter("discord");
-          }
-        },
-      }));
+      registry.register(
+        "discord",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter("discord");
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
-      registry.register("teams", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter("teams");
-          }
-        },
-      }));
+      registry.register(
+        "teams",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter("teams");
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
-      // Load all channels in parallel
       const [slack, discord, teams] = await Promise.all([
         registry.load("slack", { token: "slack-token" }),
         registry.load("discord", { token: "discord-token" }),
@@ -86,16 +117,20 @@ describe("Channel Loading Integration", () => {
       // biome-ignore lint/suspicious/noExplicitAny: Test helper variable
       let receivedConfig: any;
 
-      registry.register("custom", async () => ({
-        default: class {
-          // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
-          constructor(config: any) {
-            receivedConfig = config;
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter("custom");
-          }
-        },
-      }));
+      registry.register(
+        "custom",
+        async () => ({
+          default: class {
+            // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
+            constructor(config: any) {
+              receivedConfig = config;
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter("custom");
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
       const config = {
         apiKey: "secret-key",
@@ -114,29 +149,28 @@ describe("Channel Loading Integration", () => {
       const registry = new ChannelRegistry();
       let loadCount = 0;
 
-      registry.register("concurrent-test", async () => {
-        loadCount++;
-        // Simulate slow load
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        return {
-          default: class {
-            constructor() {
-              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-              return new MockChannelAdapter();
-            }
-          },
-        };
-      });
+      registry.register(
+        "concurrent-test",
+        async () => {
+          loadCount++;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return {
+            default: class {
+              constructor() {
+                // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+                return new MockChannelAdapter();
+              }
+            },
+          };
+        },
+        TEXT_CAPS,
+      );
 
-      // Start 5 concurrent loads
       const promises = Array.from({ length: 5 }, () => registry.load("concurrent-test", {}));
-
       const adapters = await Promise.all(promises);
 
-      // Should only load once
       expect(loadCount).toBe(1);
 
-      // All should get same instance
       const firstAdapter = adapters[0];
       for (const adapter of adapters) {
         expect(adapter).toBe(firstAdapter);
@@ -147,26 +181,26 @@ describe("Channel Loading Integration", () => {
       const registry = new ChannelRegistry();
       const loadTimes: number[] = [];
 
-      registry.register("mixed", async () => {
-        loadTimes.push(Date.now());
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        return {
-          default: class {
-            constructor() {
-              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-              return new MockChannelAdapter();
-            }
-          },
-        };
-      });
+      registry.register(
+        "mixed",
+        async () => {
+          loadTimes.push(Date.now());
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          return {
+            default: class {
+              constructor() {
+                // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+                return new MockChannelAdapter();
+              }
+            },
+          };
+        },
+        TEXT_CAPS,
+      );
 
-      // First batch (concurrent)
+      await Promise.all([registry.load("mixed", {}), registry.load("mixed", {})]);
       await Promise.all([registry.load("mixed", {}), registry.load("mixed", {})]);
 
-      // Second batch (concurrent, but after first batch)
-      await Promise.all([registry.load("mixed", {}), registry.load("mixed", {})]);
-
-      // Should only load once total (cached after first batch)
       expect(loadTimes).toHaveLength(1);
     });
   });
@@ -191,19 +225,21 @@ describe("Channel Loading Integration", () => {
     it("should provide detailed error when adapter is invalid", async () => {
       const registry = new ChannelRegistry();
 
-      registry.register("broken-adapter", async () => ({
-        default: class {
-          constructor() {
-            // Return object missing required methods
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-            return {
-              name: "broken",
-              capabilities: {},
-              // Missing: connect, disconnect, send, onMessage
-            };
-          }
-        },
-      }));
+      registry.register(
+        "broken-adapter",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return {
+                name: "broken",
+                capabilities: {},
+              };
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
       try {
         await registry.load("broken-adapter", {});
@@ -221,9 +257,13 @@ describe("Channel Loading Integration", () => {
     it("should handle import failure with helpful message", async () => {
       const registry = new ChannelRegistry();
 
-      registry.register("import-fails", async () => {
-        throw new Error("Cannot find module '@templar/channel-import-fails'");
-      });
+      registry.register(
+        "import-fails",
+        async () => {
+          throw new Error("Cannot find module '@templar/channel-import-fails'");
+        },
+        TEXT_CAPS,
+      );
 
       try {
         await registry.load("import-fails", {});
@@ -241,18 +281,22 @@ describe("Channel Loading Integration", () => {
     it("should handle constructor errors with context", async () => {
       const registry = new ChannelRegistry();
 
-      registry.register("bad-config", async () => ({
-        default: class {
-          // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
-          constructor(config: any) {
-            if (!config.apiKey) {
-              throw new Error("Missing required config: apiKey");
+      registry.register(
+        "bad-config",
+        async () => ({
+          default: class {
+            // biome-ignore lint/suspicious/noExplicitAny: Test mock constructor
+            constructor(config: any) {
+              if (!config.apiKey) {
+                throw new Error("Missing required config: apiKey");
+              }
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter();
             }
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter();
-          }
-        },
-      }));
+          },
+        }),
+        TEXT_CAPS,
+      );
 
       try {
         await registry.load("bad-config", {});
@@ -272,25 +316,27 @@ describe("Channel Loading Integration", () => {
       const registry = new ChannelRegistry();
       let attempt = 0;
 
-      registry.register("retry-test", async () => {
-        attempt++;
-        if (attempt === 1) {
-          throw new Error("First attempt fails");
-        }
-        return {
-          default: class {
-            constructor() {
-              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-              return new MockChannelAdapter();
-            }
-          },
-        };
-      });
+      registry.register(
+        "retry-test",
+        async () => {
+          attempt++;
+          if (attempt === 1) {
+            throw new Error("First attempt fails");
+          }
+          return {
+            default: class {
+              constructor() {
+                // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+                return new MockChannelAdapter();
+              }
+            },
+          };
+        },
+        TEXT_CAPS,
+      );
 
-      // First attempt fails
       await expect(registry.load("retry-test", {})).rejects.toThrow();
 
-      // Second attempt succeeds
       const adapter = await registry.load("retry-test", {});
       expect(adapter).toBeDefined();
       expect(attempt).toBe(2);
@@ -302,27 +348,28 @@ describe("Channel Loading Integration", () => {
       const registry = new ChannelRegistry();
       const adapters: MockChannelAdapter[] = [];
 
-      // Register and load 3 channels
       for (let i = 1; i <= 3; i++) {
         const mock = new MockChannelAdapter(`channel-${i}`);
         adapters.push(mock);
 
-        registry.register(`channel${i}`, async () => ({
-          default: class {
-            constructor() {
-              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-              return mock;
-            }
-          },
-        }));
+        registry.register(
+          `channel${i}`,
+          async () => ({
+            default: class {
+              constructor() {
+                // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+                return mock;
+              }
+            },
+          }),
+          TEXT_CAPS,
+        );
 
         await registry.load(`channel${i}`, {});
       }
 
-      // Clear registry
       await registry.clear();
 
-      // All adapters should be disconnected
       for (const adapter of adapters) {
         expect(adapter.disconnect).toHaveBeenCalled();
       }
@@ -333,35 +380,40 @@ describe("Channel Loading Integration", () => {
       const goodAdapter = new MockChannelAdapter("good");
       const badAdapter = new MockChannelAdapter("bad");
 
-      // Bad adapter throws on disconnect
       // biome-ignore lint/suspicious/noExplicitAny: Mock method access
       (badAdapter.disconnect as any).mockRejectedValue(new Error("Disconnect failed"));
 
-      registry.register("good", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-            return goodAdapter;
-          }
-        },
-      }));
+      registry.register(
+        "good",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return goodAdapter;
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
-      registry.register("bad", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-            return badAdapter;
-          }
-        },
-      }));
+      registry.register(
+        "bad",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return badAdapter;
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
       await registry.load("good", {});
       await registry.load("bad", {});
 
-      // Should not throw despite one disconnect failing
       await expect(registry.clear()).resolves.toBeUndefined();
 
-      // Both should have been attempted
       expect(goodAdapter.disconnect).toHaveBeenCalled();
       expect(badAdapter.disconnect).toHaveBeenCalled();
     });
@@ -369,16 +421,19 @@ describe("Channel Loading Integration", () => {
     it("should allow loading after clear", async () => {
       const registry = new ChannelRegistry();
 
-      registry.register("test", async () => ({
-        default: class {
-          constructor() {
-            // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
-            return new MockChannelAdapter();
-          }
-        },
-      }));
+      registry.register(
+        "test",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern for mocking
+              return new MockChannelAdapter();
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
 
-      // Load, clear, load again
       await registry.load("test", {});
       await registry.clear();
       const adapter = await registry.load("test", {});
@@ -390,8 +445,7 @@ describe("Channel Loading Integration", () => {
   describe("registry queries", () => {
     it("should check if channel type is registered", () => {
       const registry = new ChannelRegistry();
-
-      registry.register("slack", vi.fn());
+      registry.register("slack", vi.fn(), TEXT_CAPS);
 
       expect(registry.has("slack")).toBe(true);
       expect(registry.has("discord")).toBe(false);
@@ -399,10 +453,9 @@ describe("Channel Loading Integration", () => {
 
     it("should list all registered channel types", () => {
       const registry = new ChannelRegistry();
-
-      registry.register("slack", vi.fn());
-      registry.register("discord", vi.fn());
-      registry.register("teams", vi.fn());
+      registry.register("slack", vi.fn(), TEXT_CAPS);
+      registry.register("discord", vi.fn(), TEXT_CAPS);
+      registry.register("teams", vi.fn(), TEXT_CAPS);
 
       const types = registry.getRegisteredTypes();
 
@@ -410,6 +463,118 @@ describe("Channel Loading Integration", () => {
       expect(types).toContain("slack");
       expect(types).toContain("discord");
       expect(types).toContain("teams");
+    });
+  });
+
+  describe("guarded message flow", () => {
+    it("should pass supported content through to adapter", async () => {
+      const registry = new ChannelRegistry();
+      const mockAdapter = new MockChannelAdapter("slack", {
+        text: true,
+        images: true,
+      });
+
+      registry.register(
+        "slack",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return mockAdapter;
+            }
+          },
+        }),
+        {
+          text: { supported: true, maxLength: 4000 },
+          images: { supported: true, maxSize: 10_000_000, formats: ["png", "jpg"] },
+        },
+      );
+
+      const adapter = await registry.load("slack", {});
+      const message: OutboundMessage = {
+        channelId: "C123",
+        blocks: [
+          { type: "text", content: "Check this image" },
+          { type: "image", url: "https://example.com/img.png" },
+        ],
+      };
+
+      await adapter.send(message);
+      expect(mockAdapter.send).toHaveBeenCalledWith(message);
+    });
+
+    it("should reject unsupported content with CapabilityNotSupportedError", async () => {
+      const registry = new ChannelRegistry();
+
+      registry.register(
+        "sms",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return new MockChannelAdapter("sms");
+            }
+          },
+        }),
+        { text: { supported: true, maxLength: 160 } },
+      );
+
+      const adapter = await registry.load("sms", {});
+      const message: OutboundMessage = {
+        channelId: "C123",
+        blocks: [{ type: "image", url: "https://example.com/img.png" }],
+      };
+
+      await expect(adapter.send(message)).rejects.toThrow(CapabilityNotSupportedError);
+      await expect(adapter.send(message)).rejects.toThrow("does not support 'image' content");
+    });
+
+    it("should reject on first unsupported block in mixed message", async () => {
+      const registry = new ChannelRegistry();
+
+      registry.register(
+        "sms",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return new MockChannelAdapter("sms");
+            }
+          },
+        }),
+        { text: { supported: true, maxLength: 160 } },
+      );
+
+      const adapter = await registry.load("sms", {});
+      const message: OutboundMessage = {
+        channelId: "C123",
+        blocks: [
+          { type: "text", content: "Hello" },
+          { type: "image", url: "https://example.com/img.png" },
+        ],
+      };
+
+      await expect(adapter.send(message)).rejects.toThrow("does not support 'image' content");
+    });
+
+    it("should wrap loaded adapters in CapabilityGuard", async () => {
+      const registry = new ChannelRegistry();
+
+      registry.register(
+        "test",
+        async () => ({
+          default: class {
+            constructor() {
+              // biome-ignore lint/correctness/noConstructorReturn: Test pattern
+              return new MockChannelAdapter("test");
+            }
+          },
+        }),
+        TEXT_CAPS,
+      );
+
+      const adapter = await registry.load("test", {});
+      expect(adapter).toBeInstanceOf(CapabilityGuard);
     });
   });
 });

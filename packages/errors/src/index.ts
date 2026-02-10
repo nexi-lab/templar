@@ -59,6 +59,7 @@ export {
   AuditRedactionError,
   AuditWriteError,
   BudgetExhaustedError,
+  CapabilityNotSupportedError,
   ChannelLoadError,
   ChannelNotFoundError,
   DeploymentConfigError,

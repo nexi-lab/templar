@@ -379,6 +379,17 @@ export const ERROR_CATALOG = {
     title: "Audit redaction failed",
     description: "Failed to redact sensitive data from audit event",
   },
+
+  // ============================================================================
+  // CHANNEL ERRORS - Channel capability and communication
+  // ============================================================================
+  VALIDATION_CAPABILITY_NOT_SUPPORTED: {
+    domain: "validation",
+    httpStatus: 422,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    title: "Capability not supported",
+    description: "The channel does not support the requested capability",
+  },
 } as const;
 
 // ============================================================================
