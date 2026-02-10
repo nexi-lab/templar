@@ -616,6 +616,120 @@ export class NexusClientError extends TemplarError {
   }
 }
 
+// ============================================================================
+// PAY ERRORS
+// ============================================================================
+
+/**
+ * Thrown when agent budget is exhausted and hard limit is active
+ */
+export class BudgetExhaustedError extends TemplarError {
+  readonly _tag = "BudgetExhaustedError" as const;
+  readonly code = "PAY_BUDGET_EXHAUSTED" as const;
+  readonly httpStatus = ERROR_CATALOG.PAY_BUDGET_EXHAUSTED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PAY_BUDGET_EXHAUSTED.grpcCode;
+  readonly domain = ERROR_CATALOG.PAY_BUDGET_EXHAUSTED.domain;
+
+  constructor(
+    public readonly budget: number,
+    public readonly spent: number,
+    public readonly remaining: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Budget exhausted: spent ${spent} of ${budget} credits (${remaining} remaining)`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when a credit transfer (reserve/commit/release) fails
+ */
+export class PayTransferError extends TemplarError {
+  readonly _tag = "PayTransferError" as const;
+  readonly code = "PAY_TRANSFER_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PAY_TRANSFER_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PAY_TRANSFER_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PAY_TRANSFER_FAILED.domain;
+
+  constructor(
+    public readonly phase: string,
+    message: string,
+    public readonly transferId?: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Transfer ${phase} failed${transferId ? ` (${transferId})` : ""}: ${message}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when balance check fails
+ */
+export class PayBalanceCheckError extends TemplarError {
+  readonly _tag = "PayBalanceCheckError" as const;
+  readonly code = "PAY_BALANCE_CHECK_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PAY_BALANCE_CHECK_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PAY_BALANCE_CHECK_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PAY_BALANCE_CHECK_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Balance check failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when pay middleware configuration is invalid
+ */
+export class PayConfigurationError extends TemplarError {
+  readonly _tag = "PayConfigurationError" as const;
+  readonly code = "PAY_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.PAY_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PAY_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.PAY_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid pay configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a credit reservation has expired
+ */
+export class PayReservationExpiredError extends TemplarError {
+  readonly _tag = "PayReservationExpiredError" as const;
+  readonly code = "PAY_RESERVATION_EXPIRED" as const;
+  readonly httpStatus = ERROR_CATALOG.PAY_RESERVATION_EXPIRED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PAY_RESERVATION_EXPIRED.grpcCode;
+  readonly domain = ERROR_CATALOG.PAY_RESERVATION_EXPIRED.domain;
+
+  constructor(
+    public readonly transferId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Credit reservation '${transferId}' has expired`, metadata, traceId);
+  }
+}
+
 /**
  * Thrown when agent manifest validation fails
  */

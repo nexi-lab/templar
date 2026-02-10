@@ -149,3 +149,15 @@ export interface PaginatedResponse<T> {
    */
   hasMore: boolean;
 }
+
+// Re-export pay types
+export type {
+  BalanceResponse,
+  DebitParams,
+  DebitResponse,
+  TokenUsage,
+  TransferParams,
+  TransferPhase,
+  TransferResponse,
+  TransferStatus,
+} from "./pay.js";

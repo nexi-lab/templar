@@ -16,6 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@nexus/sdk": "workspace:*",
     "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*"
   },

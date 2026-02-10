@@ -29,6 +29,7 @@
     "@templar/errors": "workspace:*"
   },
   "devDependencies": {
+    "@templar/test-utils": "workspace:*",
     "@types/node": "^25.2.2"
   }
 }

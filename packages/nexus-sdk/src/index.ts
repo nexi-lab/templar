@@ -31,6 +31,7 @@ export { AgentsResource } from "./resources/agents.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
 export { MemoryResource } from "./resources/memory.js";
+export { PayResource } from "./resources/pay.js";
 export { ToolsResource } from "./resources/tools.js";
 export type {
   Agent,
@@ -80,6 +81,16 @@ export type {
   SearchMode,
   StoreMemoryParams,
 } from "./types/memory.js";
+export type {
+  BalanceResponse,
+  DebitParams,
+  DebitResponse,
+  TokenUsage,
+  TransferParams,
+  TransferPhase,
+  TransferResponse,
+  TransferStatus,
+} from "./types/pay.js";
 export type {
   CreateToolParams,
   ListToolsParams,

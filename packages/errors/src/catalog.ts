@@ -303,6 +303,44 @@ export const ERROR_CATALOG = {
     title: "Payload too large",
     description: "The request payload exceeds the size limit",
   },
+  // ============================================================================
+  // PAY ERRORS - Budget tracking and cost management
+  // ============================================================================
+  PAY_BUDGET_EXHAUSTED: {
+    domain: "pay",
+    httpStatus: 403,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Budget exhausted",
+    description: "The agent budget has been exhausted and the hard limit is active",
+  },
+  PAY_TRANSFER_FAILED: {
+    domain: "pay",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Transfer failed",
+    description: "The credit transfer operation failed",
+  },
+  PAY_BALANCE_CHECK_FAILED: {
+    domain: "pay",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Balance check failed",
+    description: "Failed to retrieve the agent wallet balance",
+  },
+  PAY_CONFIGURATION_INVALID: {
+    domain: "pay",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid pay configuration",
+    description: "The pay middleware configuration is invalid",
+  },
+  PAY_RESERVATION_EXPIRED: {
+    domain: "pay",
+    httpStatus: 409,
+    grpcCode: "ABORTED" as const,
+    title: "Reservation expired",
+    description: "The credit reservation has expired and cannot be committed",
+  },
 } as const;
 
 // ============================================================================

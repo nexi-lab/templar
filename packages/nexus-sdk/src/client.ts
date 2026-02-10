@@ -6,6 +6,7 @@ import { HttpClient } from "./http/index.js";
 import { AgentsResource } from "./resources/agents.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { MemoryResource } from "./resources/memory.js";
+import { PayResource } from "./resources/pay.js";
 import { ToolsResource } from "./resources/tools.js";
 import type { ClientConfig, RetryOptions } from "./types/index.js";
 
@@ -68,6 +69,11 @@ export class NexusClient {
   public readonly memory: MemoryResource;
 
   /**
+   * Pay resource (budget tracking and cost management)
+   */
+  public readonly pay: PayResource;
+
+  /**
    * Create a new Nexus client
    *
    * @param config - Client configuration
@@ -86,6 +92,7 @@ export class NexusClient {
     this.tools = new ToolsResource(this._http);
     this.channels = new ChannelsResource(this._http);
     this.memory = new MemoryResource(this._http);
+    this.pay = new PayResource(this._http);
   }
 
   /**

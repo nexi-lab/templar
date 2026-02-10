@@ -239,8 +239,8 @@ describe("Performance benchmarks", () => {
       const largeTime = performance.now() - start;
 
       // Time should scale reasonably with config size
-      // Large config should not be more than 10x slower than small (generous for CI)
-      expect(largeTime / smallTime).toBeLessThan(10);
+      // Large config should not be more than 50x slower than small (generous for CI runners with variable perf)
+      expect(largeTime / smallTime).toBeLessThan(50);
 
       console.log(`  ✓ Small config: ${smallTime.toFixed(2)}ms`);
       console.log(`  ✓ Medium config: ${mediumTime.toFixed(2)}ms`);

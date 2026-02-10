@@ -79,6 +79,9 @@ importers:
         specifier: workspace:*
         version: link:../errors
     devDependencies:
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
@@ -116,6 +119,9 @@ importers:
 
   packages/test-utils:
     dependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
       '@templar/core':
         specifier: workspace:*
         version: link:../core
