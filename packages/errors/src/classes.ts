@@ -779,3 +779,23 @@ export class ChannelLoadError extends TemplarError {
     super(`Failed to load channel '${channelType}': ${reason}`, undefined, undefined, options);
   }
 }
+
+/**
+ * Thrown when a message contains content blocks the channel does not support
+ */
+export class CapabilityNotSupportedError extends TemplarError {
+  readonly _tag = "CapabilityNotSupportedError" as const;
+  readonly code = "VALIDATION_CAPABILITY_NOT_SUPPORTED" as const;
+  readonly httpStatus = ERROR_CATALOG.VALIDATION_CAPABILITY_NOT_SUPPORTED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.VALIDATION_CAPABILITY_NOT_SUPPORTED.grpcCode;
+  readonly domain = ERROR_CATALOG.VALIDATION_CAPABILITY_NOT_SUPPORTED.domain;
+
+  constructor(channelName: string, blockType: string, options?: ErrorOptions) {
+    super(
+      `Channel '${channelName}' does not support '${blockType}' content. Check adapter capabilities before sending.`,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+}
