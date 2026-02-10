@@ -1,5 +1,6 @@
 export const PACKAGE_NAME = "@templar/test-utils" as const;
 
+export { MockChannelAdapter } from "./channel.js";
 export {
   createMockNexusClient,
   type MockAgentsResource,
@@ -9,5 +10,3 @@ export {
   type MockPayResource,
   type MockToolsResource,
 } from "./mocks/nexus-client.js";
-
-export { MockChannelAdapter } from "./channel.js";
