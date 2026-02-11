@@ -32,9 +32,9 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result).toBeDefined();
-      expect(result!.channelType).toBe("telegram");
-      expect(result!.blocks).toHaveLength(1);
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.channelType).toBe("telegram");
+      expect(result?.blocks).toHaveLength(1);
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "Hello world",
       });
@@ -45,9 +45,9 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("hi", { chatId: 999, userId: 777 });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.senderId).toBe("777");
-      expect(result!.channelId).toBe("999");
-      expect(result!.messageId).toBeDefined();
+      expect(result?.senderId).toBe("777");
+      expect(result?.channelId).toBe("999");
+      expect(result?.messageId).toBeDefined();
     });
 
     it("converts timestamp from Unix seconds to milliseconds", async () => {
@@ -56,7 +56,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       // Timestamp should be in milliseconds
-      expect(result!.timestamp).toBeGreaterThan(1_000_000_000_000);
+      expect(result?.timestamp).toBeGreaterThan(1_000_000_000_000);
     });
 
     it("stores raw update", async () => {
@@ -64,7 +64,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("hi");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.raw).toBe(update);
+      expect(result?.raw).toBe(update);
     });
   });
 
@@ -79,7 +79,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("Hello world", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<b>Hello</b> world",
       });
@@ -91,7 +91,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("Hello world", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "Hello <i>world</i>",
       });
@@ -103,7 +103,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("Use foo here", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "Use <code>foo</code> here",
       });
@@ -117,7 +117,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("Click here now", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: 'Click <a href="https://example.com">here</a> now',
       });
@@ -129,7 +129,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("delete this", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<s>delete</s> this",
       });
@@ -141,7 +141,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("important text", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<u>important</u> text",
       });
@@ -153,7 +153,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("secret info", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<tg-spoiler>secret</tg-spoiler> info",
       });
@@ -165,7 +165,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("quoted text.", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<blockquote>quoted text.</blockquote>",
       });
@@ -179,7 +179,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("const x =1", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: '<pre><code class="language-typescript">const x =1</code></pre>',
       });
@@ -194,7 +194,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("Hello world", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<b>Hello</b> <i>world</i>",
       });
@@ -206,7 +206,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       // Plain text (no entities) passes through without HTML escaping
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "a < b && c > d",
       });
@@ -218,7 +218,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("a<b>c test", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "<b>a&lt;b&gt;c</b> test",
       });
@@ -230,7 +230,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("@testuser hello", { entities });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[0]).toEqual({
+      expect(result?.blocks[0]).toEqual({
         type: "text",
         content: "@testuser hello",
       });
@@ -247,8 +247,8 @@ describe("normalizeUpdate", () => {
       const update = createPhotoUpdate("photo_123");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
+      expect(result?.blocks).toHaveLength(1);
+      const block = result?.blocks[0]!;
       expect(block.type).toBe("image");
       expect((block as { url: string }).url).toContain("photo_123");
 
@@ -256,7 +256,7 @@ describe("normalizeUpdate", () => {
       const getFileCalls = calls.filter((c) => c.method === "getFile");
       expect(getFileCalls).toHaveLength(1);
       // grammY passes file_id as positional arg
-      expect(getFileCalls[0]!.payload._args).toContain("photo_123");
+      expect(getFileCalls[0]?.payload._args).toContain("photo_123");
     });
 
     it("stores file_id in alt field", async () => {
@@ -264,7 +264,7 @@ describe("normalizeUpdate", () => {
       const update = createPhotoUpdate("photo_abc");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      const block = result!.blocks[0] as { alt: string };
+      const block = result?.blocks[0] as { alt: string };
       expect(block.alt).toBe("photo:photo_abc");
     });
 
@@ -273,7 +273,7 @@ describe("normalizeUpdate", () => {
       const update = createPhotoUpdate("photo_123");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      const block = result!.blocks[0] as { size?: number };
+      const block = result?.blocks[0] as { size?: number };
       expect(block.size).toBe(50000);
     });
 
@@ -284,9 +284,9 @@ describe("normalizeUpdate", () => {
       });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks).toHaveLength(2);
-      expect(result!.blocks[0]!.type).toBe("image");
-      expect(result!.blocks[1]).toEqual({
+      expect(result?.blocks).toHaveLength(2);
+      expect(result?.blocks[0]?.type).toBe("image");
+      expect(result?.blocks[1]).toEqual({
         type: "text",
         content: "Nice photo",
       });
@@ -301,7 +301,7 @@ describe("normalizeUpdate", () => {
       });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks[1]).toEqual({
+      expect(result?.blocks[1]).toEqual({
         type: "text",
         content: "<b>Nice</b> photo",
       });
@@ -322,8 +322,8 @@ describe("normalizeUpdate", () => {
       });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
+      expect(result?.blocks).toHaveLength(1);
+      const block = result?.blocks[0]!;
       expect(block.type).toBe("file");
       expect((block as { filename: string }).filename).toBe("report.pdf");
       expect((block as { mimeType: string }).mimeType).toBe("application/pdf");
@@ -338,7 +338,7 @@ describe("normalizeUpdate", () => {
       const update = createDocumentUpdate("doc_456");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      const block = result!.blocks[0]!;
+      const block = result?.blocks[0]!;
       expect((block as { filename: string }).filename).toBe("test.pdf");
     });
   });
@@ -353,8 +353,8 @@ describe("normalizeUpdate", () => {
       const update = createVoiceUpdate("voice_123", { duration: 10 });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
+      expect(result?.blocks).toHaveLength(1);
+      const block = result?.blocks[0]!;
       expect(block.type).toBe("file");
       expect((block as { filename: string }).filename).toBe("voice.ogg");
       expect((block as { mimeType: string }).mimeType).toBe("audio/ogg");
@@ -372,7 +372,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result).toBeDefined();
-      expect(result!.blocks).toHaveLength(0);
+      expect(result?.blocks).toHaveLength(0);
     });
 
     it("returns undefined for update without message", async () => {
@@ -402,7 +402,7 @@ describe("normalizeUpdate", () => {
       const update = createGroupUpdate("hello", { threadId: 42 });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.threadId).toBe("42");
+      expect(result?.threadId).toBe("42");
     });
 
     it("omits threadId when not present", async () => {
@@ -410,7 +410,7 @@ describe("normalizeUpdate", () => {
       const update = createTextUpdate("hello");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.threadId).toBeUndefined();
+      expect(result?.threadId).toBeUndefined();
     });
 
     it("uses group chat id as channelId", async () => {
@@ -418,7 +418,7 @@ describe("normalizeUpdate", () => {
       const update = createGroupUpdate("hello", { chatId: -100999 });
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      expect(result!.channelId).toBe("-100999");
+      expect(result?.channelId).toBe("-100999");
     });
   });
 });

@@ -4,6 +4,8 @@ import { validateAgentType, validateManifest, validateNexusClient } from "./vali
 
 export const PACKAGE_NAME = "@templar/core" as const;
 
+// Export block utilities
+export { coalesceBlocks, splitText } from "./block-utils.js";
 // Export channel loading infrastructure
 export { CapabilityGuard } from "./capability-guard.js";
 export { type ChannelLoadOptions, ChannelRegistry } from "./channel-registry.js";

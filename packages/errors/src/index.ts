@@ -57,6 +57,7 @@ export {
   CapabilityNotSupportedError,
   ChannelLoadError,
   ChannelNotFoundError,
+  ChannelSendError,
   DeploymentConfigError,
   DeploymentError,
   DeploymentNotFoundError,

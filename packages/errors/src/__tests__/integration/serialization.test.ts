@@ -108,11 +108,11 @@ describe("gRPC serialization round-trips", () => {
     expect(grpcStatus.code).toBe(5); // NOT_FOUND
     expect(grpcStatus.message).toBe("Agent 'agent-123' not found");
     expect(grpcStatus.details).toHaveLength(1);
-    expect(grpcStatus.details[0]!["@type"]).toBe("type.googleapis.com/google.rpc.ErrorInfo");
-    expect(grpcStatus.details[0]!.reason).toBe("AGENT_NOT_FOUND");
-    expect(grpcStatus.details[0]!.domain).toBe("agent.templar.com");
-    expect(grpcStatus.details[0]!.metadata.traceId).toBe("trace-xyz");
-    expect(grpcStatus.details[0]!.metadata.userId).toBe("user-1");
+    expect(grpcStatus.details[0]?.["@type"]).toBe("type.googleapis.com/google.rpc.ErrorInfo");
+    expect(grpcStatus.details[0]?.reason).toBe("AGENT_NOT_FOUND");
+    expect(grpcStatus.details[0]?.domain).toBe("agent.templar.com");
+    expect(grpcStatus.details[0]?.metadata.traceId).toBe("trace-xyz");
+    expect(grpcStatus.details[0]?.metadata.userId).toBe("user-1");
   });
 
   it("should round-trip through gRPC format", () => {
