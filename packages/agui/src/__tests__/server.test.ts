@@ -229,8 +229,9 @@ describe("AgUiServer", () => {
 
   it("returns 405 for GET requests", async () => {
     const result = await new Promise<number>((resolve, reject) => {
-      const req = http.get({ hostname: "127.0.0.1", port, path: "/" }, (res: http.IncomingMessage) =>
-        resolve(res.statusCode ?? 0),
+      const req = http.get(
+        { hostname: "127.0.0.1", port, path: "/" },
+        (res: http.IncomingMessage) => resolve(res.statusCode ?? 0),
       );
       req.on("error", reject);
     });
