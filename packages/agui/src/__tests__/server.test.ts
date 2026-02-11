@@ -1,8 +1,8 @@
-import http from "node:http";
+import * as http from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AgUiEvent } from "../protocol/types.js";
 import { EventType } from "../protocol/types.js";
-import { AgUiServer } from "../server/agui-server.js";
+import { AgUiServer, type RunHandler } from "../server/agui-server.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,7 +30,7 @@ async function collectEvents(
           "Content-Length": Buffer.byteLength(payload),
         },
       },
-      (res) => {
+      (res: http.IncomingMessage) => {
         const events: AgUiEvent[] = [];
         let buffer = "";
 
@@ -74,7 +74,7 @@ async function collectEvents(
       signal.addEventListener("abort", () => req.destroy());
     }
 
-    req.on("error", (err) => {
+    req.on("error", (err: Error) => {
       // ECONNRESET is expected when we abort
       if ((err as NodeJS.ErrnoException).code === "ECONNRESET") {
         resolve({ status: 0, headers: {}, events: [] });
@@ -112,12 +112,9 @@ describe("AgUiServer", () => {
   /**
    * Simple run handler that emits a text message.
    */
-  const echoHandler = async (
-    input: { threadId: string; runId: string; messages: Array<{ content?: string }> },
-    emit: (event: AgUiEvent) => void,
-  ) => {
-    const content =
-      typeof input.messages[0]?.content === "string" ? input.messages[0].content : "no content";
+  const echoHandler: RunHandler = async (input, emit) => {
+    const firstMsg = input.messages[0] as Record<string, unknown> | undefined;
+    const content = typeof firstMsg?.content === "string" ? firstMsg.content : "no content";
 
     emit({
       type: EventType.TEXT_MESSAGE_START,
@@ -232,7 +229,7 @@ describe("AgUiServer", () => {
 
   it("returns 405 for GET requests", async () => {
     const result = await new Promise<number>((resolve, reject) => {
-      const req = http.get({ hostname: "127.0.0.1", port, path: "/" }, (res) =>
+      const req = http.get({ hostname: "127.0.0.1", port, path: "/" }, (res: http.IncomingMessage) =>
         resolve(res.statusCode ?? 0),
       );
       req.on("error", reject);
