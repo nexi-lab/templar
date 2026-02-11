@@ -14,11 +14,11 @@ let mockApp: MockAppInstance;
 vi.mock("@slack/bolt", () => {
   return {
     App: class MockBoltApp {
-      start: MockAppInstance["start"];
-      stop: MockAppInstance["stop"];
-      client: MockAppInstance["client"];
-      message: MockAppInstance["message"];
-      error: MockAppInstance["error"];
+      start!: MockAppInstance["start"];
+      stop!: MockAppInstance["stop"];
+      client!: MockAppInstance["client"];
+      message!: MockAppInstance["message"];
+      error!: MockAppInstance["error"];
 
       constructor() {
         // biome-ignore lint/correctness/noConstructorReturn: Test pattern
