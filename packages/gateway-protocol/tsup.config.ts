@@ -1,14 +1,13 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/sessions/index.ts"],
+  entry: ["src/index.ts"],
   format: ["esm"],
   dts: {
     compilerOptions: {
       composite: false,
     },
   },
-  external: ["ws", "chokidar"],
   sourcemap: true,
   clean: true,
   treeshake: true,

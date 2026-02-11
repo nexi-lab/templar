@@ -999,3 +999,198 @@ export class CapabilityNotSupportedError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// GATEWAY ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a node is not registered with the gateway
+ */
+export class GatewayNodeNotFoundError extends TemplarError {
+  readonly _tag = "GatewayNodeNotFoundError" as const;
+  readonly code = "GATEWAY_NODE_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' is not registered with the gateway`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when attempting to register a node that already exists
+ */
+export class GatewayNodeAlreadyRegisteredError extends TemplarError {
+  readonly _tag = "GatewayNodeAlreadyRegisteredError" as const;
+  readonly code = "GATEWAY_NODE_ALREADY_REGISTERED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' is already registered with the gateway`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a node fails to authenticate with the gateway
+ */
+export class GatewayAuthFailedError extends TemplarError {
+  readonly _tag = "GatewayAuthFailedError" as const;
+  readonly code = "GATEWAY_AUTH_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_AUTH_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_AUTH_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_AUTH_FAILED.domain;
+
+  constructor(
+    public readonly reason: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Gateway authentication failed: ${reason}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a session has expired and cannot be resumed
+ */
+export class GatewaySessionExpiredError extends TemplarError {
+  readonly _tag = "GatewaySessionExpiredError" as const;
+  readonly code = "GATEWAY_SESSION_EXPIRED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.domain;
+
+  constructor(
+    public readonly sessionId: string,
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Session '${sessionId}' for node '${nodeId}' has expired`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a session state transition is invalid
+ */
+export class GatewaySessionInvalidTransitionError extends TemplarError {
+  readonly _tag = "GatewaySessionInvalidTransitionError" as const;
+  readonly code = "GATEWAY_SESSION_INVALID_TRANSITION" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.domain;
+
+  constructor(
+    public readonly currentState: string,
+    public readonly event: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Invalid session transition: cannot apply '${event}' in state '${currentState}'`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when a lane queue drops a message due to overflow
+ */
+export class GatewayLaneOverflowError extends TemplarError {
+  readonly _tag = "GatewayLaneOverflowError" as const;
+  readonly code = "GATEWAY_LANE_OVERFLOW" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.domain;
+
+  constructor(
+    public readonly lane: string,
+    public readonly nodeId: string,
+    public readonly capacity: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Lane '${lane}' for node '${nodeId}' overflow (capacity: ${capacity})`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when gateway configuration is invalid
+ */
+export class GatewayConfigInvalidError extends TemplarError {
+  readonly _tag = "GatewayConfigInvalidError" as const;
+  readonly code = "GATEWAY_CONFIG_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid gateway configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when config hot-reload fails
+ */
+export class GatewayConfigReloadFailedError extends TemplarError {
+  readonly _tag = "GatewayConfigReloadFailedError" as const;
+  readonly code = "GATEWAY_CONFIG_RELOAD_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.domain;
+
+  constructor(
+    public readonly configPath: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Config reload failed for '${configPath}': ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a node fails to respond to heartbeat
+ */
+export class GatewayHeartbeatTimeoutError extends TemplarError {
+  readonly _tag = "GatewayHeartbeatTimeoutError" as const;
+  readonly code = "GATEWAY_HEARTBEAT_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly intervalMs: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Node '${nodeId}' failed to respond to heartbeat within ${intervalMs}ms`,
+      metadata,
+      traceId,
+    );
+  }
+}
