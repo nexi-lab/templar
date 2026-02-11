@@ -178,7 +178,7 @@ describe("buildRenderPlan", () => {
     // typing + multiple sendMessage calls
     expect(plan.length).toBeGreaterThan(2);
     for (let i = 1; i < plan.length; i++) {
-      expect(plan[i]!.kind).toBe("sendMessage");
+      expect(plan[i]?.kind).toBe("sendMessage");
       expect(((plan[i] as any).text as string).length).toBeLessThanOrEqual(4096);
     }
   });
@@ -219,9 +219,9 @@ describe("renderMessage (integration)", () => {
 
     // typing + sendMessage + sendPhoto
     expect(calls).toHaveLength(3);
-    expect(calls[0]!.method).toBe("sendChatAction");
-    expect(calls[1]!.method).toBe("sendMessage");
-    expect(calls[2]!.method).toBe("sendPhoto");
+    expect(calls[0]?.method).toBe("sendChatAction");
+    expect(calls[1]?.method).toBe("sendMessage");
+    expect(calls[2]?.method).toBe("sendPhoto");
   });
 
   it("does nothing for empty blocks", async () => {
@@ -248,7 +248,7 @@ describe("renderMessage (integration)", () => {
     const sendCall = calls.find((c) => c.method === "sendMessage");
     expect(sendCall).toBeDefined();
     // The opts are passed as the 3rd argument
-    const opts = (sendCall!.payload._args as unknown[])?.[2] ?? sendCall!.payload;
+    const opts = (sendCall?.payload._args as unknown[])?.[2] ?? sendCall?.payload;
     expect((opts as any).message_thread_id).toBe(42);
   });
 
@@ -265,7 +265,7 @@ describe("renderMessage (integration)", () => {
     );
 
     const sendCall = calls.find((c) => c.method === "sendMessage");
-    const opts = (sendCall!.payload._args as unknown[])?.[2] ?? sendCall!.payload;
+    const opts = (sendCall?.payload._args as unknown[])?.[2] ?? sendCall?.payload;
     expect((opts as any).reply_to_message_id).toBe(99);
   });
 });

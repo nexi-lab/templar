@@ -297,7 +297,7 @@ describe("TelegramChannel", () => {
       adapter.onMessage(handler);
 
       // Get the registered handler
-      const registeredHandler = mockBotOn.mock.calls[0]![1] as (ctx: any) => Promise<void>;
+      const registeredHandler = mockBotOn.mock.calls[0]?.[1] as (ctx: any) => Promise<void>;
 
       // Simulate an incoming message
       const ctx = {
@@ -316,7 +316,7 @@ describe("TelegramChannel", () => {
       await registeredHandler(ctx);
 
       expect(handler).toHaveBeenCalledOnce();
-      const inbound = handler.mock.calls[0]![0] as InboundMessage;
+      const inbound = handler.mock.calls[0]?.[0] as InboundMessage;
       expect(inbound.channelType).toBe("telegram");
       expect(inbound.channelId).toBe("123");
       expect(inbound.senderId).toBe("456");
@@ -336,7 +336,7 @@ describe("TelegramChannel", () => {
       const handler = vi.fn().mockRejectedValue(new Error("handler error"));
       adapter.onMessage(handler);
 
-      const registeredHandler = mockBotOn.mock.calls[0]![1] as (ctx: any) => Promise<void>;
+      const registeredHandler = mockBotOn.mock.calls[0]?.[1] as (ctx: any) => Promise<void>;
 
       const ctx = {
         update: {

@@ -981,6 +981,21 @@ export class ChannelLoadError extends TemplarError {
 }
 
 /**
+ * Thrown when sending a message through a channel fails at runtime
+ */
+export class ChannelSendError extends TemplarError {
+  readonly _tag = "ChannelSendError" as const;
+  readonly code = "CHANNEL_SEND_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.CHANNEL_SEND_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.CHANNEL_SEND_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.CHANNEL_SEND_ERROR.domain;
+
+  constructor(channelType: string, reason: string, options?: ErrorOptions) {
+    super(`Failed to send via '${channelType}': ${reason}`, undefined, undefined, options);
+  }
+}
+
+/**
  * Thrown when a message contains content blocks the channel does not support
  */
 export class CapabilityNotSupportedError extends TemplarError {

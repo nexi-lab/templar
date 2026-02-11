@@ -415,6 +415,13 @@ export const ERROR_CATALOG = {
   // ============================================================================
   // CHANNEL ERRORS - Channel capability and communication
   // ============================================================================
+  CHANNEL_SEND_ERROR: {
+    domain: "channel",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "Channel send error",
+    description: "Failed to send a message through the channel",
+  },
   VALIDATION_CAPABILITY_NOT_SUPPORTED: {
     domain: "validation",
     httpStatus: 422,

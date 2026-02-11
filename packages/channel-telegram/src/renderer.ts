@@ -1,4 +1,4 @@
-import type { ButtonBlock, ContentBlock, OutboundMessage } from "@templar/core";
+import { type ButtonBlock, coalesceBlocks, type OutboundMessage, splitText } from "@templar/core";
 import type { Api } from "grammy";
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from "grammy/types";
 
@@ -18,44 +18,6 @@ function buildInlineKeyboard(block: ButtonBlock): InlineKeyboardMarkup {
     { text: btn.label, callback_data: btn.action },
   ]);
   return { inline_keyboard: buttons };
-}
-
-// ---------------------------------------------------------------------------
-// Text splitting
-// ---------------------------------------------------------------------------
-
-/**
- * Split text into chunks that fit within Telegram's message length limit.
- * Tries to split at newlines, then spaces, then hard-cuts.
- */
-function splitText(text: string): readonly string[] {
-  if (text.length <= MAX_TEXT_LENGTH) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= MAX_TEXT_LENGTH) {
-      chunks.push(remaining);
-      break;
-    }
-
-    // Try to split at last newline within limit
-    let splitPos = remaining.lastIndexOf("\n", MAX_TEXT_LENGTH);
-    if (splitPos <= 0) {
-      // Try to split at last space within limit
-      splitPos = remaining.lastIndexOf(" ", MAX_TEXT_LENGTH);
-    }
-    if (splitPos <= 0) {
-      // Hard cut
-      splitPos = MAX_TEXT_LENGTH;
-    }
-
-    chunks.push(remaining.slice(0, splitPos));
-    remaining = remaining.slice(splitPos).trimStart();
-  }
-
-  return chunks;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +108,7 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
     }
 
     if (block.type === "text") {
-      const chunks = splitText(block.content);
+      const chunks = splitText(block.content, MAX_TEXT_LENGTH);
       for (let c = 0; c < chunks.length; c++) {
         const isLastChunk = c === chunks.length - 1;
         plan.push({
@@ -206,34 +168,6 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
   }
 
   return plan;
-}
-
-/**
- * Coalesce adjacent text blocks into a single text block.
- * Non-text blocks act as boundaries.
- */
-function coalesceBlocks(blocks: readonly ContentBlock[]): readonly ContentBlock[] {
-  const result: ContentBlock[] = [];
-  let textBuffer: string[] = [];
-
-  function flushTextBuffer() {
-    if (textBuffer.length > 0) {
-      result.push({ type: "text", content: textBuffer.join("\n") });
-      textBuffer = [];
-    }
-  }
-
-  for (const block of blocks) {
-    if (block.type === "text") {
-      textBuffer.push(block.content);
-    } else {
-      flushTextBuffer();
-      result.push(block);
-    }
-  }
-  flushTextBuffer();
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
