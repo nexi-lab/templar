@@ -1,1 +1,6 @@
-export const SESSIONS_MODULE = "@templar/gateway/sessions" as const;
+export {
+  type SessionEventHandler,
+  SessionManager,
+  type SessionManagerConfig,
+} from "./session-manager.js";
+export { type TransitionResult, transition } from "./state-machine.js";

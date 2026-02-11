@@ -422,6 +422,73 @@ export const ERROR_CATALOG = {
     title: "Capability not supported",
     description: "The channel does not support the requested capability",
   },
+
+  // ============================================================================
+  // GATEWAY ERRORS - WebSocket control plane
+  // ============================================================================
+  GATEWAY_NODE_NOT_FOUND: {
+    domain: "gateway",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Gateway node not found",
+    description: "The specified node is not registered with the gateway",
+  },
+  GATEWAY_NODE_ALREADY_REGISTERED: {
+    domain: "gateway",
+    httpStatus: 409,
+    grpcCode: "ALREADY_EXISTS" as const,
+    title: "Node already registered",
+    description: "A node with this identifier is already registered with the gateway",
+  },
+  GATEWAY_AUTH_FAILED: {
+    domain: "gateway",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    title: "Gateway authentication failed",
+    description: "The node failed to authenticate with the gateway",
+  },
+  GATEWAY_SESSION_EXPIRED: {
+    domain: "gateway",
+    httpStatus: 410,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Gateway session expired",
+    description: "The session has expired and can no longer be resumed",
+  },
+  GATEWAY_SESSION_INVALID_TRANSITION: {
+    domain: "gateway",
+    httpStatus: 409,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    title: "Invalid session transition",
+    description: "The session cannot transition from its current state with this event",
+  },
+  GATEWAY_LANE_OVERFLOW: {
+    domain: "gateway",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Lane queue overflow",
+    description: "The lane queue has reached capacity and a message was dropped",
+  },
+  GATEWAY_CONFIG_INVALID: {
+    domain: "gateway",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid gateway configuration",
+    description: "The gateway configuration is invalid",
+  },
+  GATEWAY_CONFIG_RELOAD_FAILED: {
+    domain: "gateway",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Config reload failed",
+    description: "Failed to reload the gateway configuration from file",
+  },
+  GATEWAY_HEARTBEAT_TIMEOUT: {
+    domain: "gateway",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Heartbeat timeout",
+    description: "The node failed to respond to a heartbeat within the expected interval",
+  },
 } as const;
 
 // ============================================================================

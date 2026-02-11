@@ -11,10 +11,6 @@
     "./sessions": {
       "types": "./dist/sessions/index.d.ts",
       "import": "./dist/sessions/index.js"
-    },
-    "./routing": {
-      "types": "./dist/routing/index.d.ts",
-      "import": "./dist/routing/index.js"
     }
   },
   "scripts": {
@@ -25,6 +21,25 @@
   },
   "dependencies": {
     "@templar/core": "workspace:*",
-    "@templar/errors": "workspace:*"
+    "@templar/errors": "workspace:*",
+    "@templar/gateway-protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "chokidar": ">=4.0.0",
+    "ws": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "chokidar": {
+      "optional": true
+    },
+    "ws": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2",
+    "@types/ws": "^8.18.1",
+    "chokidar": "^5.0.0",
+    "ws": "^8.19.0"
   }
 }

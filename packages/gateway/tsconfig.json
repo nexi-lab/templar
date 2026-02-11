@@ -2,8 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "isolatedDeclarations": false,
+    "types": ["node"]
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }, { "path": "../errors" }]
+  "include": ["src/**/*"],
+  "references": [{ "path": "../core" }, { "path": "../errors" }, { "path": "../gateway-protocol" }]
 }
