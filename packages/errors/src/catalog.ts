@@ -381,6 +381,38 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // PERMISSION ERRORS — Tool-level permission enforcement
+  // ============================================================================
+  PERMISSION_DENIED: {
+    domain: "permission",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    title: "Permission denied",
+    description: "The agent does not have permission to use this tool",
+  },
+  PERMISSION_CHECK_FAILED: {
+    domain: "permission",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Permission check failed",
+    description: "Failed to check permission against the Nexus ReBAC API",
+  },
+  PERMISSION_GRANT_FAILED: {
+    domain: "permission",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Permission grant failed",
+    description: "Failed to grant permission via the Nexus permissions API",
+  },
+  PERMISSION_CONFIGURATION_INVALID: {
+    domain: "permission",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid permission configuration",
+    description: "The permissions middleware configuration is invalid",
+  },
+
+  // ============================================================================
   // CHANNEL ERRORS - Channel capability and communication
   // ============================================================================
   VALIDATION_CAPABILITY_NOT_SUPPORTED: {

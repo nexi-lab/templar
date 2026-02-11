@@ -855,6 +855,96 @@ export class AuditRedactionError extends TemplarError {
   }
 }
 
+// ============================================================================
+// PERMISSION ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a tool call is denied by the permissions middleware
+ */
+export class PermissionDeniedError extends TemplarError {
+  readonly _tag = "PermissionDeniedError" as const;
+  readonly code = "PERMISSION_DENIED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_DENIED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_DENIED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_DENIED.domain;
+
+  constructor(
+    public readonly tool: string,
+    public readonly action: string,
+    public readonly reason?: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Permission denied: tool '${tool}' action '${action}'${reason ? ` — ${reason}` : ""}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when a permission check against the ReBAC API fails
+ */
+export class PermissionCheckFailedError extends TemplarError {
+  readonly _tag = "PermissionCheckFailedError" as const;
+  readonly code = "PERMISSION_CHECK_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_CHECK_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_CHECK_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_CHECK_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Permission check failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a permission grant via the Nexus API fails
+ */
+export class PermissionGrantFailedError extends TemplarError {
+  readonly _tag = "PermissionGrantFailedError" as const;
+  readonly code = "PERMISSION_GRANT_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_GRANT_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_GRANT_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_GRANT_FAILED.domain;
+
+  constructor(
+    public readonly tool: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Permission grant failed for tool '${tool}': ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when permissions middleware configuration is invalid
+ */
+export class PermissionConfigurationError extends TemplarError {
+  readonly _tag = "PermissionConfigurationError" as const;
+  readonly code = "PERMISSION_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid permission configuration: ${message}`, metadata, traceId);
+  }
+}
+
 /**
  * Thrown when a channel type is not registered in the ChannelRegistry
  */

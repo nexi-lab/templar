@@ -28,6 +28,13 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | und
  * @param sessionId - Session ID for log context
  * @returns Result on success, undefined on timeout or error
  */
+/**
+ * Log a warning with a consistent format: [tag] Session sessionId: message
+ */
+export function logWarn(tag: string, sessionId: string, message: string): void {
+  console.warn(`[${tag}] Session ${sessionId}: ${message}`);
+}
+
 export async function safeCall<T>(
   fn: () => Promise<T>,
   timeoutMs: number,
