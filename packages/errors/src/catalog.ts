@@ -541,6 +541,38 @@ export const ERROR_CATALOG = {
     title: "Connection limit reached",
     description: "The AG-UI server has reached its maximum concurrent connection limit",
   },
+
+  // ============================================================================
+  // HOOK ERRORS — Lifecycle hook system
+  // ============================================================================
+  HOOK_CONFIGURATION_INVALID: {
+    domain: "hook",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid hook configuration",
+    description: "The hook registry configuration is invalid",
+  },
+  HOOK_EXECUTION_FAILED: {
+    domain: "hook",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Hook execution failed",
+    description: "A hook handler threw an error during execution",
+  },
+  HOOK_TIMEOUT: {
+    domain: "hook",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Hook timeout",
+    description: "A hook handler exceeded the configured timeout",
+  },
+  HOOK_REENTRANCY_EXCEEDED: {
+    domain: "hook",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Hook re-entrancy exceeded",
+    description: "Hook emit() calls exceeded the maximum re-entrancy depth",
+  },
 } as const;
 
 // ============================================================================

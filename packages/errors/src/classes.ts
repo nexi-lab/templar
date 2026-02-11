@@ -1338,3 +1338,93 @@ export class AguiConnectionLimitReachedError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// HOOK ERRORS
+// ============================================================================
+
+/**
+ * Thrown when hook registry configuration is invalid
+ */
+export class HookConfigurationError extends TemplarError {
+  readonly _tag = "HookConfigurationError" as const;
+  readonly code = "HOOK_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.HOOK_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.HOOK_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.HOOK_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid hook configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a hook handler throws during execution
+ */
+export class HookExecutionError extends TemplarError {
+  readonly _tag = "HookExecutionError" as const;
+  readonly code = "HOOK_EXECUTION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.HOOK_EXECUTION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.HOOK_EXECUTION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.HOOK_EXECUTION_FAILED.domain;
+
+  constructor(
+    public readonly hookEvent: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Hook '${hookEvent}' execution failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a hook handler exceeds the configured timeout
+ */
+export class HookTimeoutError extends TemplarError {
+  readonly _tag = "HookTimeoutError" as const;
+  readonly code = "HOOK_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.HOOK_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.HOOK_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.HOOK_TIMEOUT.domain;
+
+  constructor(
+    public readonly hookEvent: string,
+    public readonly timeoutMs: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Hook '${hookEvent}' exceeded timeout of ${timeoutMs}ms`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when hook emit() calls exceed the maximum re-entrancy depth
+ */
+export class HookReentrancyError extends TemplarError {
+  readonly _tag = "HookReentrancyError" as const;
+  readonly code = "HOOK_REENTRANCY_EXCEEDED" as const;
+  readonly httpStatus = ERROR_CATALOG.HOOK_REENTRANCY_EXCEEDED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.HOOK_REENTRANCY_EXCEEDED.grpcCode;
+  readonly domain = ERROR_CATALOG.HOOK_REENTRANCY_EXCEEDED.domain;
+
+  constructor(
+    public readonly hookEvent: string,
+    public readonly depth: number,
+    public readonly maxDepth: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Hook '${hookEvent}' re-entrancy depth ${depth} exceeds maximum ${maxDepth}`,
+      metadata,
+      traceId,
+    );
+  }
+}
