@@ -33,6 +33,7 @@ export { ChannelsResource } from "./resources/channels.js";
 export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
+export { PermissionsResource } from "./resources/permissions.js";
 export { ToolsResource } from "./resources/tools.js";
 export type {
   Agent,
@@ -98,6 +99,14 @@ export type {
   TransferResponse,
   TransferStatus,
 } from "./types/pay.js";
+export type {
+  CheckPermissionParams,
+  CheckPermissionResponse,
+  GrantPermissionParams,
+  GrantPermissionResponse,
+  ListNamespaceToolsParams,
+  ListNamespaceToolsResponse,
+} from "./types/permissions.js";
 export type {
   CreateToolParams,
   ListToolsParams,

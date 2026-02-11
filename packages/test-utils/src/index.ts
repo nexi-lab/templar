@@ -9,5 +9,6 @@ export {
   type MockMemoryResource,
   type MockNexusClient,
   type MockPayResource,
+  type MockPermissionsResource,
   type MockToolsResource,
 } from "./mocks/nexus-client.js";
