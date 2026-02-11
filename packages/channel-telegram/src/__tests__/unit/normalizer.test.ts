@@ -248,7 +248,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result?.blocks[0]!;
+      const block = result!.blocks[0];
       expect(block.type).toBe("image");
       expect((block as { url: string }).url).toContain("photo_123");
 
@@ -323,7 +323,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result?.blocks[0]!;
+      const block = result!.blocks[0];
       expect(block.type).toBe("file");
       expect((block as { filename: string }).filename).toBe("report.pdf");
       expect((block as { mimeType: string }).mimeType).toBe("application/pdf");
@@ -338,7 +338,7 @@ describe("normalizeUpdate", () => {
       const update = createDocumentUpdate("doc_456");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      const block = result?.blocks[0]!;
+      const block = result!.blocks[0];
       expect((block as { filename: string }).filename).toBe("test.pdf");
     });
   });
@@ -354,7 +354,7 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result?.blocks[0]!;
+      const block = result!.blocks[0];
       expect(block.type).toBe("file");
       expect((block as { filename: string }).filename).toBe("voice.ogg");
       expect((block as { mimeType: string }).mimeType).toBe("audio/ogg");
