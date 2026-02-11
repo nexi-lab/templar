@@ -7,6 +7,8 @@ export default defineConfig({
     "resources/tools": "src/resources/tools.ts",
     "resources/channels": "src/resources/channels.ts",
     "resources/memory": "src/resources/memory.ts",
+    "resources/eventlog": "src/resources/eventlog.ts",
+    "resources/permissions": "src/resources/permissions.ts",
     "http/index": "src/http/index.ts",
   },
   format: ["esm"],

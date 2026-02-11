@@ -341,6 +341,76 @@ export const ERROR_CATALOG = {
     title: "Reservation expired",
     description: "The credit reservation has expired and cannot be committed",
   },
+  // ============================================================================
+  // AUDIT ERRORS — Compliance logging via Nexus Event Log
+  // ============================================================================
+  AUDIT_WRITE_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit write failed",
+    description: "Failed to write audit event to the Nexus Event Log",
+  },
+  AUDIT_BATCH_WRITE_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit batch write failed",
+    description: "Failed to write batch of audit events to the Nexus Event Log",
+  },
+  AUDIT_BUFFER_OVERFLOW: {
+    domain: "audit",
+    httpStatus: 507,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Audit buffer overflow",
+    description: "The audit event buffer exceeded its maximum capacity",
+  },
+  AUDIT_CONFIGURATION_INVALID: {
+    domain: "audit",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid audit configuration",
+    description: "The audit middleware configuration is invalid",
+  },
+  AUDIT_REDACTION_FAILED: {
+    domain: "audit",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Audit redaction failed",
+    description: "Failed to redact sensitive data from audit event",
+  },
+
+  // ============================================================================
+  // PERMISSION ERRORS — Tool-level permission enforcement
+  // ============================================================================
+  PERMISSION_DENIED: {
+    domain: "permission",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    title: "Permission denied",
+    description: "The agent does not have permission to use this tool",
+  },
+  PERMISSION_CHECK_FAILED: {
+    domain: "permission",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Permission check failed",
+    description: "Failed to check permission against the Nexus ReBAC API",
+  },
+  PERMISSION_GRANT_FAILED: {
+    domain: "permission",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Permission grant failed",
+    description: "Failed to grant permission via the Nexus permissions API",
+  },
+  PERMISSION_CONFIGURATION_INVALID: {
+    domain: "permission",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid permission configuration",
+    description: "The permissions middleware configuration is invalid",
+  },
 
   // ============================================================================
   // CHANNEL ERRORS - Channel capability and communication
@@ -358,6 +428,73 @@ export const ERROR_CATALOG = {
     grpcCode: "FAILED_PRECONDITION" as const,
     title: "Capability not supported",
     description: "The channel does not support the requested capability",
+  },
+
+  // ============================================================================
+  // GATEWAY ERRORS - WebSocket control plane
+  // ============================================================================
+  GATEWAY_NODE_NOT_FOUND: {
+    domain: "gateway",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Gateway node not found",
+    description: "The specified node is not registered with the gateway",
+  },
+  GATEWAY_NODE_ALREADY_REGISTERED: {
+    domain: "gateway",
+    httpStatus: 409,
+    grpcCode: "ALREADY_EXISTS" as const,
+    title: "Node already registered",
+    description: "A node with this identifier is already registered with the gateway",
+  },
+  GATEWAY_AUTH_FAILED: {
+    domain: "gateway",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    title: "Gateway authentication failed",
+    description: "The node failed to authenticate with the gateway",
+  },
+  GATEWAY_SESSION_EXPIRED: {
+    domain: "gateway",
+    httpStatus: 410,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Gateway session expired",
+    description: "The session has expired and can no longer be resumed",
+  },
+  GATEWAY_SESSION_INVALID_TRANSITION: {
+    domain: "gateway",
+    httpStatus: 409,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    title: "Invalid session transition",
+    description: "The session cannot transition from its current state with this event",
+  },
+  GATEWAY_LANE_OVERFLOW: {
+    domain: "gateway",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Lane queue overflow",
+    description: "The lane queue has reached capacity and a message was dropped",
+  },
+  GATEWAY_CONFIG_INVALID: {
+    domain: "gateway",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid gateway configuration",
+    description: "The gateway configuration is invalid",
+  },
+  GATEWAY_CONFIG_RELOAD_FAILED: {
+    domain: "gateway",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Config reload failed",
+    description: "Failed to reload the gateway configuration from file",
+  },
+  GATEWAY_HEARTBEAT_TIMEOUT: {
+    domain: "gateway",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Heartbeat timeout",
+    description: "The node failed to respond to a heartbeat within the expected interval",
   },
 } as const;
 

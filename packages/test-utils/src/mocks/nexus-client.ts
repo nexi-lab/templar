@@ -44,6 +44,17 @@ export interface MockChannelsResource {
   delete: ReturnType<typeof vi.fn>;
 }
 
+export interface MockEventLogResource {
+  write: ReturnType<typeof vi.fn>;
+  batchWrite: ReturnType<typeof vi.fn>;
+}
+
+export interface MockPermissionsResource {
+  checkPermission: ReturnType<typeof vi.fn>;
+  grantPermission: ReturnType<typeof vi.fn>;
+  listNamespaceTools: ReturnType<typeof vi.fn>;
+}
+
 export interface MockNexusClient {
   client: NexusClient;
   mockMemory: MockMemoryResource;
@@ -51,6 +62,8 @@ export interface MockNexusClient {
   mockAgents: MockAgentsResource;
   mockTools: MockToolsResource;
   mockChannels: MockChannelsResource;
+  mockEventLog: MockEventLogResource;
+  mockPermissions: MockPermissionsResource;
 }
 
 /**
@@ -106,15 +119,37 @@ export function createMockNexusClient(): MockNexusClient {
     delete: vi.fn(),
   };
 
+  const mockEventLog: MockEventLogResource = {
+    write: vi.fn(),
+    batchWrite: vi.fn(),
+  };
+
+  const mockPermissions: MockPermissionsResource = {
+    checkPermission: vi.fn(),
+    grantPermission: vi.fn(),
+    listNamespaceTools: vi.fn(),
+  };
+
   const client = {
     memory: mockMemory,
     pay: mockPay,
     agents: mockAgents,
     tools: mockTools,
     channels: mockChannels,
+    eventLog: mockEventLog,
+    permissions: mockPermissions,
     withRetry: () => client,
     withTimeout: () => client,
   } as unknown as NexusClient;
 
-  return { client, mockMemory, mockPay, mockAgents, mockTools, mockChannels };
+  return {
+    client,
+    mockMemory,
+    mockPay,
+    mockAgents,
+    mockTools,
+    mockChannels,
+    mockEventLog,
+    mockPermissions,
+  };
 }

@@ -15,6 +15,14 @@
     "./pay": {
       "types": "./dist/pay.d.ts",
       "import": "./dist/pay.js"
+    },
+    "./audit": {
+      "types": "./dist/audit.d.ts",
+      "import": "./dist/audit.js"
+    },
+    "./permissions": {
+      "types": "./dist/permissions.d.ts",
+      "import": "./dist/permissions.js"
     }
   },
   "scripts": {

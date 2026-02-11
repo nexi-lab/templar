@@ -5,8 +5,10 @@ export {
   createMockNexusClient,
   type MockAgentsResource,
   type MockChannelsResource,
+  type MockEventLogResource,
   type MockMemoryResource,
   type MockNexusClient,
   type MockPayResource,
+  type MockPermissionsResource,
   type MockToolsResource,
 } from "./mocks/nexus-client.js";

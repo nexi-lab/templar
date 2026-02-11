@@ -745,6 +745,206 @@ export class ManifestValidationError extends TemplarError {
   }
 }
 
+// ============================================================================
+// AUDIT ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a single audit event fails to write to the Nexus Event Log
+ */
+export class AuditWriteError extends TemplarError {
+  readonly _tag = "AuditWriteError" as const;
+  readonly code = "AUDIT_WRITE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_WRITE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_WRITE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_WRITE_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit write failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a batch of audit events fails to write
+ */
+export class AuditBatchWriteError extends TemplarError {
+  readonly _tag = "AuditBatchWriteError" as const;
+  readonly code = "AUDIT_BATCH_WRITE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_BATCH_WRITE_FAILED.domain;
+
+  constructor(
+    public readonly eventCount: number,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit batch write failed (${eventCount} events): ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the audit event buffer exceeds its maximum capacity
+ */
+export class AuditBufferOverflowError extends TemplarError {
+  readonly _tag = "AuditBufferOverflowError" as const;
+  readonly code = "AUDIT_BUFFER_OVERFLOW" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_BUFFER_OVERFLOW.domain;
+
+  constructor(
+    public readonly bufferSize: number,
+    public readonly maxSize: number,
+    public readonly droppedCount: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Audit buffer overflow: ${bufferSize}/${maxSize} events, dropped ${droppedCount}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when audit middleware configuration is invalid
+ */
+export class AuditConfigurationError extends TemplarError {
+  readonly _tag = "AuditConfigurationError" as const;
+  readonly code = "AUDIT_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid audit configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when secret/PII redaction fails on an audit event
+ */
+export class AuditRedactionError extends TemplarError {
+  readonly _tag = "AuditRedactionError" as const;
+  readonly code = "AUDIT_REDACTION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AUDIT_REDACTION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AUDIT_REDACTION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AUDIT_REDACTION_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Audit redaction failed: ${message}`, metadata, traceId);
+  }
+}
+
+// ============================================================================
+// PERMISSION ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a tool call is denied by the permissions middleware
+ */
+export class PermissionDeniedError extends TemplarError {
+  readonly _tag = "PermissionDeniedError" as const;
+  readonly code = "PERMISSION_DENIED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_DENIED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_DENIED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_DENIED.domain;
+
+  constructor(
+    public readonly tool: string,
+    public readonly action: string,
+    public readonly reason?: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Permission denied: tool '${tool}' action '${action}'${reason ? ` — ${reason}` : ""}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when a permission check against the ReBAC API fails
+ */
+export class PermissionCheckFailedError extends TemplarError {
+  readonly _tag = "PermissionCheckFailedError" as const;
+  readonly code = "PERMISSION_CHECK_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_CHECK_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_CHECK_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_CHECK_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Permission check failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a permission grant via the Nexus API fails
+ */
+export class PermissionGrantFailedError extends TemplarError {
+  readonly _tag = "PermissionGrantFailedError" as const;
+  readonly code = "PERMISSION_GRANT_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_GRANT_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_GRANT_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_GRANT_FAILED.domain;
+
+  constructor(
+    public readonly tool: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Permission grant failed for tool '${tool}': ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when permissions middleware configuration is invalid
+ */
+export class PermissionConfigurationError extends TemplarError {
+  readonly _tag = "PermissionConfigurationError" as const;
+  readonly code = "PERMISSION_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.PERMISSION_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid permission configuration: ${message}`, metadata, traceId);
+  }
+}
+
 /**
  * Thrown when a channel type is not registered in the ChannelRegistry
  */
@@ -811,6 +1011,201 @@ export class CapabilityNotSupportedError extends TemplarError {
       undefined,
       undefined,
       options,
+    );
+  }
+}
+
+// ============================================================================
+// GATEWAY ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a node is not registered with the gateway
+ */
+export class GatewayNodeNotFoundError extends TemplarError {
+  readonly _tag = "GatewayNodeNotFoundError" as const;
+  readonly code = "GATEWAY_NODE_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_NODE_NOT_FOUND.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' is not registered with the gateway`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when attempting to register a node that already exists
+ */
+export class GatewayNodeAlreadyRegisteredError extends TemplarError {
+  readonly _tag = "GatewayNodeAlreadyRegisteredError" as const;
+  readonly code = "GATEWAY_NODE_ALREADY_REGISTERED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_NODE_ALREADY_REGISTERED.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' is already registered with the gateway`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a node fails to authenticate with the gateway
+ */
+export class GatewayAuthFailedError extends TemplarError {
+  readonly _tag = "GatewayAuthFailedError" as const;
+  readonly code = "GATEWAY_AUTH_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_AUTH_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_AUTH_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_AUTH_FAILED.domain;
+
+  constructor(
+    public readonly reason: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Gateway authentication failed: ${reason}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a session has expired and cannot be resumed
+ */
+export class GatewaySessionExpiredError extends TemplarError {
+  readonly _tag = "GatewaySessionExpiredError" as const;
+  readonly code = "GATEWAY_SESSION_EXPIRED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_SESSION_EXPIRED.domain;
+
+  constructor(
+    public readonly sessionId: string,
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Session '${sessionId}' for node '${nodeId}' has expired`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a session state transition is invalid
+ */
+export class GatewaySessionInvalidTransitionError extends TemplarError {
+  readonly _tag = "GatewaySessionInvalidTransitionError" as const;
+  readonly code = "GATEWAY_SESSION_INVALID_TRANSITION" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_SESSION_INVALID_TRANSITION.domain;
+
+  constructor(
+    public readonly currentState: string,
+    public readonly event: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Invalid session transition: cannot apply '${event}' in state '${currentState}'`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when a lane queue drops a message due to overflow
+ */
+export class GatewayLaneOverflowError extends TemplarError {
+  readonly _tag = "GatewayLaneOverflowError" as const;
+  readonly code = "GATEWAY_LANE_OVERFLOW" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_LANE_OVERFLOW.domain;
+
+  constructor(
+    public readonly lane: string,
+    public readonly nodeId: string,
+    public readonly capacity: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Lane '${lane}' for node '${nodeId}' overflow (capacity: ${capacity})`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when gateway configuration is invalid
+ */
+export class GatewayConfigInvalidError extends TemplarError {
+  readonly _tag = "GatewayConfigInvalidError" as const;
+  readonly code = "GATEWAY_CONFIG_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_CONFIG_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid gateway configuration: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when config hot-reload fails
+ */
+export class GatewayConfigReloadFailedError extends TemplarError {
+  readonly _tag = "GatewayConfigReloadFailedError" as const;
+  readonly code = "GATEWAY_CONFIG_RELOAD_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_CONFIG_RELOAD_FAILED.domain;
+
+  constructor(
+    public readonly configPath: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Config reload failed for '${configPath}': ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a node fails to respond to heartbeat
+ */
+export class GatewayHeartbeatTimeoutError extends TemplarError {
+  readonly _tag = "GatewayHeartbeatTimeoutError" as const;
+  readonly code = "GATEWAY_HEARTBEAT_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.GATEWAY_HEARTBEAT_TIMEOUT.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly intervalMs: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Node '${nodeId}' failed to respond to heartbeat within ${intervalMs}ms`,
+      metadata,
+      traceId,
     );
   }
 }
