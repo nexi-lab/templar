@@ -496,6 +496,51 @@ export const ERROR_CATALOG = {
     title: "Heartbeat timeout",
     description: "The node failed to respond to a heartbeat within the expected interval",
   },
+  // ============================================================================
+  // AG-UI ERRORS - AG-UI SSE streaming
+  // ============================================================================
+  AGUI_INVALID_INPUT: {
+    domain: "agui",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid AG-UI input",
+    description: "The RunAgentInput payload failed validation",
+  },
+  AGUI_STREAM_INTERRUPTED: {
+    domain: "agui",
+    httpStatus: 499,
+    grpcCode: "CANCELLED" as const,
+    title: "Stream interrupted",
+    description: "The SSE stream was interrupted by a client disconnect",
+  },
+  AGUI_ENCODING_FAILED: {
+    domain: "agui",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Encoding failed",
+    description: "Failed to encode an AG-UI event for SSE transport",
+  },
+  AGUI_RUN_TIMEOUT: {
+    domain: "agui",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Run timeout",
+    description: "The agent run exceeded the maximum stream duration",
+  },
+  AGUI_RUN_FAILED: {
+    domain: "agui",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Run failed",
+    description: "The agent run failed during execution",
+  },
+  AGUI_CONNECTION_LIMIT_REACHED: {
+    domain: "agui",
+    httpStatus: 503,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Connection limit reached",
+    description: "The AG-UI server has reached its maximum concurrent connection limit",
+  },
 } as const;
 
 // ============================================================================

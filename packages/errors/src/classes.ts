@@ -1209,3 +1209,132 @@ export class GatewayHeartbeatTimeoutError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// AG-UI ERRORS
+// ============================================================================
+
+/**
+ * Thrown when RunAgentInput validation fails
+ */
+export class AguiInvalidInputError extends TemplarError {
+  readonly _tag = "AguiInvalidInputError" as const;
+  readonly code = "AGUI_INVALID_INPUT" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_INVALID_INPUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_INVALID_INPUT.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_INVALID_INPUT.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Invalid AG-UI input: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a client disconnects during an active SSE stream
+ */
+export class AguiStreamInterruptedError extends TemplarError {
+  readonly _tag = "AguiStreamInterruptedError" as const;
+  readonly code = "AGUI_STREAM_INTERRUPTED" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_STREAM_INTERRUPTED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_STREAM_INTERRUPTED.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_STREAM_INTERRUPTED.domain;
+
+  constructor(
+    public readonly runId: string,
+    public readonly threadId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Stream interrupted for run '${runId}' on thread '${threadId}'`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when SSE event encoding fails
+ */
+export class AguiEncodingFailedError extends TemplarError {
+  readonly _tag = "AguiEncodingFailedError" as const;
+  readonly code = "AGUI_ENCODING_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_ENCODING_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_ENCODING_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_ENCODING_FAILED.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`AG-UI encoding failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when an agent run exceeds the maximum stream duration
+ */
+export class AguiRunTimeoutError extends TemplarError {
+  readonly _tag = "AguiRunTimeoutError" as const;
+  readonly code = "AGUI_RUN_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_RUN_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_RUN_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_RUN_TIMEOUT.domain;
+
+  constructor(
+    public readonly runId: string,
+    public readonly maxDurationMs: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Run '${runId}' exceeded maximum duration of ${maxDurationMs}ms`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when an agent run fails during execution
+ */
+export class AguiRunFailedError extends TemplarError {
+  readonly _tag = "AguiRunFailedError" as const;
+  readonly code = "AGUI_RUN_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_RUN_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_RUN_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_RUN_FAILED.domain;
+
+  constructor(
+    public readonly runId: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Run '${runId}' failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the AG-UI server has reached its maximum concurrent connections
+ */
+export class AguiConnectionLimitReachedError extends TemplarError {
+  readonly _tag = "AguiConnectionLimitReachedError" as const;
+  readonly code = "AGUI_CONNECTION_LIMIT_REACHED" as const;
+  readonly httpStatus = ERROR_CATALOG.AGUI_CONNECTION_LIMIT_REACHED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.AGUI_CONNECTION_LIMIT_REACHED.grpcCode;
+  readonly domain = ERROR_CATALOG.AGUI_CONNECTION_LIMIT_REACHED.domain;
+
+  constructor(
+    public readonly maxConnections: number,
+    public readonly currentConnections: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Connection limit reached: ${currentConnections}/${maxConnections} active connections`,
+      metadata,
+      traceId,
+    );
+  }
+}
