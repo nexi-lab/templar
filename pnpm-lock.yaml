@@ -151,12 +151,25 @@ importers:
 
   packages/node:
     dependencies:
-      '@templar/core':
+      '@templar/gateway-protocol':
         specifier: workspace:*
-        version: link:../core
-      '@templar/errors':
+        version: link:../gateway-protocol
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
+    devDependencies:
+      '@templar/gateway':
         specifier: workspace:*
-        version: link:../errors
+        version: link:../gateway
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
 
   packages/sandbox:
     dependencies:

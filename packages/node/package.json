@@ -16,7 +16,21 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@templar/core": "workspace:*",
-    "@templar/errors": "workspace:*"
+    "@templar/gateway-protocol": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "ws": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@templar/gateway": "workspace:*",
+    "@types/node": "^25.2.2",
+    "@types/ws": "^8.18.1",
+    "ws": "^8.19.0"
   }
 }
