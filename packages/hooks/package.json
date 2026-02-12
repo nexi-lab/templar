@@ -17,5 +17,9 @@
   },
   "dependencies": {
     "@templar/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^4.0.0"
   }
 }
