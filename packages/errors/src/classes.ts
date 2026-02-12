@@ -1015,6 +1015,56 @@ export class CapabilityNotSupportedError extends TemplarError {
   }
 }
 
+/**
+ * Thrown when a channel's authentication session has expired (e.g., logged out, token revoked)
+ */
+export class ChannelAuthExpiredError extends TemplarError {
+  readonly _tag = "ChannelAuthExpiredError" as const;
+  readonly code = "CHANNEL_AUTH_EXPIRED" as const;
+  readonly httpStatus = ERROR_CATALOG.CHANNEL_AUTH_EXPIRED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.CHANNEL_AUTH_EXPIRED.grpcCode;
+  readonly domain = ERROR_CATALOG.CHANNEL_AUTH_EXPIRED.domain;
+
+  constructor(channelType: string, reason: string, options?: ErrorOptions) {
+    super(`Channel '${channelType}' auth expired: ${reason}`, undefined, undefined, options);
+  }
+}
+
+/**
+ * Thrown when a channel requires interactive authentication (e.g., QR scan)
+ */
+export class ChannelAuthRequiredError extends TemplarError {
+  readonly _tag = "ChannelAuthRequiredError" as const;
+  readonly code = "CHANNEL_AUTH_REQUIRED" as const;
+  readonly httpStatus = ERROR_CATALOG.CHANNEL_AUTH_REQUIRED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.CHANNEL_AUTH_REQUIRED.grpcCode;
+  readonly domain = ERROR_CATALOG.CHANNEL_AUTH_REQUIRED.domain;
+
+  constructor(channelType: string, reason: string, options?: ErrorOptions) {
+    super(
+      `Channel '${channelType}' requires authentication: ${reason}`,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+}
+
+/**
+ * Thrown when a channel session is replaced by another client
+ */
+export class ChannelSessionReplacedError extends TemplarError {
+  readonly _tag = "ChannelSessionReplacedError" as const;
+  readonly code = "CHANNEL_SESSION_REPLACED" as const;
+  readonly httpStatus = ERROR_CATALOG.CHANNEL_SESSION_REPLACED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.CHANNEL_SESSION_REPLACED.grpcCode;
+  readonly domain = ERROR_CATALOG.CHANNEL_SESSION_REPLACED.domain;
+
+  constructor(channelType: string, reason: string, options?: ErrorOptions) {
+    super(`Channel '${channelType}' session replaced: ${reason}`, undefined, undefined, options);
+  }
+}
+
 // ============================================================================
 // GATEWAY ERRORS
 // ============================================================================

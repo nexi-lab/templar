@@ -422,6 +422,27 @@ export const ERROR_CATALOG = {
     title: "Channel send error",
     description: "Failed to send a message through the channel",
   },
+  CHANNEL_AUTH_EXPIRED: {
+    domain: "channel",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    title: "Channel authentication expired",
+    description: "The channel authentication session has expired and must be re-established",
+  },
+  CHANNEL_AUTH_REQUIRED: {
+    domain: "channel",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    title: "Channel authentication required",
+    description: "The channel requires interactive authentication (e.g., QR scan, OAuth flow)",
+  },
+  CHANNEL_SESSION_REPLACED: {
+    domain: "channel",
+    httpStatus: 409,
+    grpcCode: "ABORTED" as const,
+    title: "Channel session replaced",
+    description: "The channel session was replaced by another client and cannot be resumed",
+  },
   VALIDATION_CAPABILITY_NOT_SUPPORTED: {
     domain: "validation",
     httpStatus: 422,
