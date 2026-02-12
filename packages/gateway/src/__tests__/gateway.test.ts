@@ -1,114 +1,6 @@
-import type { IncomingMessage } from "node:http";
-import type { GatewayConfig, GatewayFrame, NodeCapabilities } from "@templar/gateway-protocol";
+import type { GatewayFrame } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
-import { TemplarGateway } from "../gateway.js";
-import type { WebSocketLike, WebSocketServerLike, WsServerFactory } from "../server.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const DEFAULT_CONFIG: GatewayConfig = {
-  port: 0,
-  nexusUrl: "https://api.nexus.test",
-  nexusApiKey: "test-key",
-  sessionTimeout: 60_000,
-  suspendTimeout: 300_000,
-  healthCheckInterval: 30_000,
-  laneCapacity: 256,
-};
-
-const DEFAULT_CAPS: NodeCapabilities = {
-  agentTypes: ["high"],
-  tools: [],
-  maxConcurrency: 4,
-  channels: [],
-};
-
-function createMockWs(): WebSocketLike & {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-} {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  return {
-    handlers,
-    readyState: 1, // OPEN
-    send: vi.fn(),
-    close: vi.fn(),
-    on(event: string, handler: (...args: unknown[]) => unknown) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-  };
-}
-
-function createMockWss(): WebSocketServerLike & {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-  simulateConnection: (ws: WebSocketLike, req: Partial<IncomingMessage>) => void;
-} {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  return {
-    handlers,
-    clients: new Set<WebSocketLike>(),
-    on(event: string, handler: (...args: unknown[]) => void) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-    close(cb?: (err?: Error) => void) {
-      cb?.();
-    },
-    simulateConnection(ws: WebSocketLike, req: Partial<IncomingMessage>) {
-      const connectionHandlers = handlers.get("connection") ?? [];
-      for (const h of connectionHandlers) {
-        h(ws, req);
-      }
-    },
-  };
-}
-
-function createTestGateway(configOverrides: Partial<GatewayConfig> = {}): {
-  gateway: TemplarGateway;
-  wss: ReturnType<typeof createMockWss>;
-} {
-  const wss = createMockWss();
-  const factory: WsServerFactory = vi.fn().mockReturnValue(wss);
-  const config = { ...DEFAULT_CONFIG, ...configOverrides };
-  const gateway = new TemplarGateway(config, {
-    wsFactory: factory,
-    configWatcherDeps: {
-      watch: () => ({
-        on: vi.fn(),
-        close: vi.fn().mockResolvedValue(undefined),
-      }),
-    },
-  });
-  return { gateway, wss };
-}
-
-function simulateNodeConnection(
-  wss: ReturnType<typeof createMockWss>,
-  nodeId = "node-1",
-): ReturnType<typeof createMockWs> {
-  const ws = createMockWs();
-  wss.simulateConnection(ws, {
-    url: `/?nodeId=${nodeId}`,
-    headers: { host: "localhost" },
-  } as unknown as IncomingMessage);
-  return ws;
-}
-
-function sendFrame(ws: ReturnType<typeof createMockWs>, frame: GatewayFrame): void {
-  const messageHandlers = ws.handlers.get("message") ?? [];
-  for (const h of messageHandlers) {
-    h(JSON.stringify(frame));
-  }
-}
-
-function simulateClose(ws: ReturnType<typeof createMockWs>, code = 1000, reason = ""): void {
-  const closeHandlers = ws.handlers.get("close") ?? [];
-  for (const h of closeHandlers) {
-    h(code, reason);
-  }
-}
+import { closeWs, createTestGateway, DEFAULT_CAPS, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -152,7 +44,7 @@ describe("TemplarGateway", () => {
       gateway.onNodeRegistered(registeredHandler);
 
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       const registerFrame: GatewayFrame = {
         kind: "node.register",
@@ -182,7 +74,7 @@ describe("TemplarGateway", () => {
     it("sends error frame for duplicate registration", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       const registerFrame: GatewayFrame = {
         kind: "node.register",
@@ -217,7 +109,7 @@ describe("TemplarGateway", () => {
       gateway.onNodeDeregistered(deregisteredHandler);
 
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       // Register first
       sendFrame(ws, {
@@ -250,7 +142,7 @@ describe("TemplarGateway", () => {
     it("processes pong frames", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       // Register
       sendFrame(ws, {
@@ -279,10 +171,10 @@ describe("TemplarGateway", () => {
   // -------------------------------------------------------------------------
 
   describe("lane message routing", () => {
-    it("routes lane messages through the router", async () => {
+    it("routes lane messages and sends ack", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       // Register
       sendFrame(ws, {
@@ -308,10 +200,11 @@ describe("TemplarGateway", () => {
         },
       });
 
-      // Message should be in the dispatcher's queue
-      const _router = gateway.getRouter();
-      // We can't directly access the dispatcher, but the route didn't throw
-      // which means it was dispatched successfully
+      // Should have sent lane.message.ack
+      const ackFrame = ws.sentFrames().find((f) => f.kind === "lane.message.ack");
+      expect(ackFrame).toBeDefined();
+      expect(ackFrame?.kind === "lane.message.ack" && ackFrame.messageId).toBe("msg-1");
+
       expect(gateway.nodeCount).toBe(1);
 
       await gateway.stop();
@@ -326,7 +219,7 @@ describe("TemplarGateway", () => {
     it("handles WebSocket disconnect for registered node", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "agent-1");
+      const ws = wss.connect("agent-1");
 
       // Register using the WS nodeId
       sendFrame(ws, {
@@ -339,11 +232,9 @@ describe("TemplarGateway", () => {
       expect(gateway.getSessionManager().getSession("agent-1")).toBeDefined();
 
       // Simulate disconnect
-      simulateClose(ws, 1000, "Normal closure");
+      closeWs(ws, 1000, "Normal closure");
 
       // Session should have transitioned to disconnected and been cleaned up
-      // The disconnect handler calls sessionManager.handleEvent(nodeId, "disconnect")
-      // which transitions connected → disconnected and cleans up
       expect(gateway.getSessionManager().getSession("agent-1")).toBeUndefined();
 
       await gateway.stop();
@@ -352,10 +243,10 @@ describe("TemplarGateway", () => {
     it("does not throw for disconnect of unregistered connection", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "unknown-1");
+      const ws = wss.connect("unknown-1");
 
       // Disconnect without prior registration
-      expect(() => simulateClose(ws, 1000, "Normal")).not.toThrow();
+      expect(() => closeWs(ws, 1000, "Normal")).not.toThrow();
 
       await gateway.stop();
     });
@@ -369,7 +260,7 @@ describe("TemplarGateway", () => {
     it("binds and unbinds channels", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
-      const ws = simulateNodeConnection(wss, "ws-1");
+      const ws = wss.connect("ws-1");
 
       sendFrame(ws, {
         kind: "node.register",
@@ -393,11 +284,12 @@ describe("TemplarGateway", () => {
   // -------------------------------------------------------------------------
 
   describe("subsystem accessors", () => {
-    it("exposes registry, session manager, and router", () => {
+    it("exposes registry, session manager, router, and delivery tracker", () => {
       const { gateway } = createTestGateway();
       expect(gateway.getRegistry()).toBeDefined();
       expect(gateway.getSessionManager()).toBeDefined();
       expect(gateway.getRouter()).toBeDefined();
+      expect(gateway.getDeliveryTracker()).toBeDefined();
     });
   });
 });

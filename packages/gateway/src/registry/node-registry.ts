@@ -1,5 +1,6 @@
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
 import type { NodeCapabilities, TaskRequirements } from "@templar/gateway-protocol";
+import { mapDelete, mapSet } from "../utils/immutable-map.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,6 +17,15 @@ export interface RegisteredNode {
   readonly lastPong: number;
 }
 
+/**
+ * Pre-computed Sets for O(1) capability lookups.
+ */
+interface CapabilitySets {
+  readonly agentTypes: ReadonlySet<string>;
+  readonly tools: ReadonlySet<string>;
+  readonly channels: ReadonlySet<string>;
+}
+
 // ---------------------------------------------------------------------------
 // NodeRegistry
 // ---------------------------------------------------------------------------
@@ -25,6 +35,8 @@ export interface RegisteredNode {
  */
 export class NodeRegistry {
   private nodes: ReadonlyMap<string, RegisteredNode> = new Map();
+  /** Pre-computed capability Sets for O(1) membership checks */
+  private capSets: ReadonlyMap<string, CapabilitySets> = new Map();
 
   /**
    * Register a node with the gateway.
@@ -41,7 +53,13 @@ export class NodeRegistry {
       isAlive: true,
       lastPong: now,
     };
-    this.nodes = new Map([...this.nodes, [nodeId, node]]);
+    this.nodes = mapSet(this.nodes, nodeId, node);
+    // Pre-compute capability Sets for O(1) lookups
+    this.capSets = mapSet(this.capSets, nodeId, {
+      agentTypes: new Set(capabilities.agentTypes),
+      tools: new Set(capabilities.tools),
+      channels: new Set(capabilities.channels),
+    });
     return node;
   }
 
@@ -52,9 +70,8 @@ export class NodeRegistry {
     if (!this.nodes.has(nodeId)) {
       throw new GatewayNodeNotFoundError(nodeId);
     }
-    const next = new Map(this.nodes);
-    next.delete(nodeId);
-    this.nodes = next;
+    this.nodes = mapDelete(this.nodes, nodeId);
+    this.capSets = mapDelete(this.capSets, nodeId);
   }
 
   /**
@@ -66,18 +83,23 @@ export class NodeRegistry {
 
   /**
    * Find nodes matching task requirements.
+   * Uses pre-computed Sets for O(1) per-check lookups.
    */
   findByRequirements(requirements: TaskRequirements): readonly RegisteredNode[] {
     const results: RegisteredNode[] = [];
     for (const node of this.nodes.values()) {
       if (!node.isAlive) continue;
-      if (!node.capabilities.agentTypes.includes(requirements.agentType)) continue;
+
+      const sets = this.capSets.get(node.nodeId);
+      if (!sets) continue;
+
+      if (!sets.agentTypes.has(requirements.agentType)) continue;
       if (requirements.tools) {
-        const hasAllTools = requirements.tools.every((t) => node.capabilities.tools.includes(t));
+        const hasAllTools = requirements.tools.every((t) => sets.tools.has(t));
         if (!hasAllTools) continue;
       }
       if (requirements.channel) {
-        if (!node.capabilities.channels.includes(requirements.channel)) continue;
+        if (!sets.channels.has(requirements.channel)) continue;
       }
       results.push(node);
     }
@@ -102,7 +124,7 @@ export class NodeRegistry {
       isAlive: true,
       lastPong: Date.now(),
     };
-    this.nodes = new Map([...this.nodes, [nodeId, updated]]);
+    this.nodes = mapSet(this.nodes, nodeId, updated);
   }
 
   /**
@@ -115,7 +137,7 @@ export class NodeRegistry {
       ...node,
       isAlive: false,
     };
-    this.nodes = new Map([...this.nodes, [nodeId, updated]]);
+    this.nodes = mapSet(this.nodes, nodeId, updated);
   }
 
   /**
@@ -137,5 +159,6 @@ export class NodeRegistry {
    */
   clear(): void {
     this.nodes = new Map();
+    this.capSets = new Map();
   }
 }

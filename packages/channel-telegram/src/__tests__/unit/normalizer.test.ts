@@ -248,9 +248,10 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
-      expect(block.type).toBe("image");
-      expect((block as { url: string }).url).toContain("photo_123");
+      const block = result?.blocks[0];
+      expect(block).toBeDefined();
+      expect(block!.type).toBe("image");
+      expect((block as unknown as { url: string }).url).toContain("photo_123");
 
       // Should call getFile with the largest photo's file_id
       const getFileCalls = calls.filter((c) => c.method === "getFile");
@@ -323,9 +324,10 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
-      expect(block.type).toBe("file");
-      expect((block as { filename: string }).filename).toBe("report.pdf");
+      const block = result?.blocks[0];
+      expect(block).toBeDefined();
+      expect(block!.type).toBe("file");
+      expect((block as unknown as { filename: string }).filename).toBe("report.pdf");
       expect((block as { mimeType: string }).mimeType).toBe("application/pdf");
       expect((block as { size?: number }).size).toBe(2048);
 
@@ -338,8 +340,9 @@ describe("normalizeUpdate", () => {
       const update = createDocumentUpdate("doc_456");
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
-      const block = result!.blocks[0]!;
-      expect((block as { filename: string }).filename).toBe("test.pdf");
+      const block = result?.blocks[0];
+      expect(block).toBeDefined();
+      expect((block as unknown as { filename: string }).filename).toBe("test.pdf");
     });
   });
 
@@ -354,9 +357,10 @@ describe("normalizeUpdate", () => {
       const result = await normalizeUpdate(update, api, TOKEN, BOT_USERNAME);
 
       expect(result?.blocks).toHaveLength(1);
-      const block = result!.blocks[0]!;
-      expect(block.type).toBe("file");
-      expect((block as { filename: string }).filename).toBe("voice.ogg");
+      const block = result?.blocks[0];
+      expect(block).toBeDefined();
+      expect(block!.type).toBe("file");
+      expect((block as unknown as { filename: string }).filename).toBe("voice.ogg");
       expect((block as { mimeType: string }).mimeType).toBe("audio/ogg");
     });
   });

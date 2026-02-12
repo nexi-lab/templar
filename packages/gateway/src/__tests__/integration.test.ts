@@ -7,24 +7,13 @@
  * All subsystems are wired together via the orchestrator.
  */
 
-import type { GatewayConfig, GatewayFrame, NodeCapabilities } from "@templar/gateway-protocol";
+import type { NodeCapabilities } from "@templar/gateway-protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TemplarGateway } from "../gateway.js";
-import type { WebSocketLike, WebSocketServerLike, WsServerFactory } from "../server.js";
+import { closeWs, createTestGateway, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Test-specific fixtures
 // ---------------------------------------------------------------------------
-
-const DEFAULT_CONFIG: GatewayConfig = {
-  port: 0,
-  nexusUrl: "https://api.nexus.test",
-  nexusApiKey: "test-key",
-  sessionTimeout: 60_000,
-  suspendTimeout: 300_000,
-  healthCheckInterval: 30_000,
-  laneCapacity: 256,
-};
 
 const CAPS: NodeCapabilities = {
   agentTypes: ["high", "low"],
@@ -32,90 +21,6 @@ const CAPS: NodeCapabilities = {
   maxConcurrency: 8,
   channels: ["chat", "voice"],
 };
-
-interface MockWs extends WebSocketLike {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-  sentFrames: () => GatewayFrame[];
-}
-
-function createMockWs(): MockWs {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  const sendMock = vi.fn();
-  return {
-    handlers,
-    readyState: 1,
-    send: sendMock,
-    close: vi.fn(),
-    on(event: string, handler: (...args: unknown[]) => void) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-    sentFrames(): GatewayFrame[] {
-      return sendMock.mock.calls.map((call) => JSON.parse(String(call[0])) as GatewayFrame);
-    },
-  };
-}
-
-interface MockWss extends WebSocketServerLike {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-  connect: (nodeId: string) => MockWs;
-}
-
-function createMockWss(): MockWss {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  return {
-    handlers,
-    clients: new Set<WebSocketLike>(),
-    on(event: string, handler: (...args: unknown[]) => void) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-    close(cb?: (err?: Error) => void) {
-      cb?.();
-    },
-    connect(nodeId: string): MockWs {
-      const ws = createMockWs();
-      const connectionHandlers = handlers.get("connection") ?? [];
-      for (const h of connectionHandlers) {
-        h(ws, { url: `/?nodeId=${nodeId}`, headers: { host: "localhost" } });
-      }
-      return ws;
-    },
-  };
-}
-
-function sendFrame(ws: MockWs, frame: GatewayFrame): void {
-  const messageHandlers = ws.handlers.get("message") ?? [];
-  for (const h of messageHandlers) {
-    h(JSON.stringify(frame));
-  }
-}
-
-function closeWs(ws: MockWs, code = 1000, reason = ""): void {
-  const closeHandlers = ws.handlers.get("close") ?? [];
-  for (const h of closeHandlers) {
-    h(code, reason);
-  }
-}
-
-function createGateway(configOverrides: Partial<GatewayConfig> = {}): {
-  gateway: TemplarGateway;
-  wss: MockWss;
-} {
-  const wss = createMockWss();
-  const factory: WsServerFactory = vi.fn().mockReturnValue(wss);
-  const config = { ...DEFAULT_CONFIG, ...configOverrides };
-  const gateway = new TemplarGateway(config, {
-    wsFactory: factory,
-    configWatcherDeps: {
-      watch: () => ({
-        on: vi.fn(),
-        close: vi.fn().mockResolvedValue(undefined),
-      }),
-    },
-  });
-  return { gateway, wss };
-}
 
 // ---------------------------------------------------------------------------
 // Integration tests
@@ -136,7 +41,7 @@ describe("TemplarGateway integration", () => {
 
   describe("full node lifecycle", () => {
     it("connect → register → heartbeat → lane.message → deregister → disconnect", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       const events: string[] = [];
 
       gateway.onNodeRegistered((id) => events.push(`registered:${id}`));
@@ -183,7 +88,10 @@ describe("TemplarGateway integration", () => {
           timestamp: Date.now(),
         },
       });
-      // If it didn't throw, routing succeeded
+
+      // Should have sent lane.message.ack
+      const msgAck = ws.sentFrames().find((f) => f.kind === "lane.message.ack");
+      expect(msgAck).toBeDefined();
 
       // 5. Deregister
       sendFrame(ws, {
@@ -209,7 +117,7 @@ describe("TemplarGateway integration", () => {
 
   describe("multi-node scenarios", () => {
     it("handles multiple nodes registering and communicating independently", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       await gateway.start();
 
       // Register 3 nodes
@@ -275,7 +183,7 @@ describe("TemplarGateway integration", () => {
 
   describe("session state transitions", () => {
     it("transitions to idle after session timeout", async () => {
-      const { gateway, wss } = createGateway({ sessionTimeout: 1000 });
+      const { gateway, wss } = createTestGateway({ sessionTimeout: 1000 });
       await gateway.start();
 
       const ws = wss.connect("agent-1");
@@ -299,7 +207,7 @@ describe("TemplarGateway integration", () => {
     });
 
     it("resets idle timer on heartbeat activity", async () => {
-      const { gateway, wss } = createGateway({ sessionTimeout: 1000 });
+      const { gateway, wss } = createTestGateway({ sessionTimeout: 1000 });
       await gateway.start();
 
       const ws = wss.connect("agent-1");
@@ -332,7 +240,7 @@ describe("TemplarGateway integration", () => {
     });
 
     it("transitions idle → suspended → disconnected on suspend timeout", async () => {
-      const { gateway, wss } = createGateway({
+      const { gateway, wss } = createTestGateway({
         sessionTimeout: 500,
         suspendTimeout: 500,
       });
@@ -364,7 +272,7 @@ describe("TemplarGateway integration", () => {
 
   describe("health monitor integration", () => {
     it("detects and cleans up dead nodes", async () => {
-      const { gateway, wss } = createGateway({ healthCheckInterval: 1000 });
+      const { gateway, wss } = createTestGateway({ healthCheckInterval: 1000 });
       const deadHandler = vi.fn();
       gateway.onNodeDead(deadHandler);
 
@@ -396,7 +304,7 @@ describe("TemplarGateway integration", () => {
     });
 
     it("keeps nodes alive when pong is received between sweeps", async () => {
-      const { gateway, wss } = createGateway({ healthCheckInterval: 1000 });
+      const { gateway, wss } = createTestGateway({ healthCheckInterval: 1000 });
       const deadHandler = vi.fn();
       gateway.onNodeDead(deadHandler);
 
@@ -436,7 +344,7 @@ describe("TemplarGateway integration", () => {
 
   describe("lane priority and dispatch", () => {
     it("dispatches messages in priority order: steer → collect → followup", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       await gateway.start();
 
       const ws = wss.connect("agent-1");
@@ -465,10 +373,9 @@ describe("TemplarGateway integration", () => {
         });
       }
 
-      // Access the dispatcher through the router internals isn't possible
-      // directly, but we can verify the total queued count
-      // by checking the router still works (no overflow, no errors)
-      expect(gateway.nodeCount).toBe(1);
+      // Drain and verify priority ordering
+      const drained = gateway.drainNode("agent-1");
+      expect(drained.map((m) => m.lane)).toEqual(["steer", "collect", "followup"]);
 
       await gateway.stop();
     });
@@ -480,7 +387,7 @@ describe("TemplarGateway integration", () => {
 
   describe("error resilience", () => {
     it("continues operating after invalid frame from one connection", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       await gateway.start();
 
       const ws1 = wss.connect("agent-1");
@@ -518,7 +425,7 @@ describe("TemplarGateway integration", () => {
     });
 
     it("handles deregistration of already-deregistered node gracefully", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       await gateway.start();
 
       const ws = wss.connect("agent-1");
@@ -553,7 +460,7 @@ describe("TemplarGateway integration", () => {
 
   describe("cross-package type verification", () => {
     it("gateway-protocol types flow through the orchestrator correctly", async () => {
-      const { gateway, wss } = createGateway();
+      const { gateway, wss } = createTestGateway();
       await gateway.start();
 
       const ws = wss.connect("agent-1");
@@ -596,7 +503,7 @@ describe("TemplarGateway integration", () => {
     });
 
     it("error types from @templar/errors are thrown correctly in gateway context", async () => {
-      const { gateway } = createGateway();
+      const { gateway } = createTestGateway();
       await gateway.start();
 
       // Try to bind to non-existent node

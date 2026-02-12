@@ -1,6 +1,8 @@
 import type { IncomingMessage } from "node:http";
 import type { GatewayFrame } from "@templar/gateway-protocol";
 import { safeParseFrame } from "@templar/gateway-protocol";
+import { createEmitter, type Emitter } from "./utils/emitter.js";
+import { SlidingWindowRateLimiter } from "./utils/rate-limiter.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,6 +16,10 @@ export type DisconnectHandler = (nodeId: string, code: number, reason: string) =
 export interface GatewayServerConfig {
   readonly port: number;
   readonly validateToken: TokenValidator;
+  /** Max concurrent connections (default: 1024). 0 = unlimited. */
+  readonly maxConnections?: number;
+  /** Max frames per second per connection (default: 100). 0 = unlimited. */
+  readonly maxFramesPerSecond?: number;
 }
 
 export interface WebSocketLike {
@@ -42,24 +48,41 @@ export type WsServerFactory = (options: {
 }) => WebSocketServerLike;
 
 // ---------------------------------------------------------------------------
+// Server Events
+// ---------------------------------------------------------------------------
+
+type GatewayServerEvents = {
+  frame: [connectionId: string, frame: GatewayFrame];
+  connect: [connectionId: string];
+  disconnect: [connectionId: string, code: number, reason: string];
+};
+
+// ---------------------------------------------------------------------------
 // GatewayServer
 // ---------------------------------------------------------------------------
 
 /**
- * WebSocket server wrapper with auth, frame parsing, and event dispatch.
+ * WebSocket server wrapper with auth, frame parsing, rate limiting, and event dispatch.
+ *
+ * Connection IDs are ephemeral and auto-generated. They do NOT represent node identity —
+ * node identity is established via the node.register frame after connection.
  */
 export class GatewayServer {
   private wss: WebSocketServerLike | undefined;
   private connections: Map<string, WebSocketLike> = new Map();
-  private frameHandlers: readonly FrameHandler[] = [];
-  private connectHandlers: readonly ConnectionHandler[] = [];
-  private disconnectHandlers: readonly DisconnectHandler[] = [];
+  private readonly events: Emitter<GatewayServerEvents> = createEmitter();
   private readonly config: GatewayServerConfig;
   private readonly factory: WsServerFactory | undefined;
+  private readonly rateLimiter: SlidingWindowRateLimiter | undefined;
+  private connectionCounter = 0;
 
   constructor(config: GatewayServerConfig, factory?: WsServerFactory) {
     this.config = config;
     this.factory = factory;
+    const maxFps = config.maxFramesPerSecond ?? 0;
+    if (maxFps > 0) {
+      this.rateLimiter = new SlidingWindowRateLimiter(maxFps);
+    }
   }
 
   /**
@@ -119,6 +142,8 @@ export class GatewayServer {
 
       this.wss.close((err) => {
         this.wss = undefined;
+        this.events.clear();
+        this.rateLimiter?.clear();
         if (err) reject(err);
         else resolve();
       });
@@ -126,10 +151,10 @@ export class GatewayServer {
   }
 
   /**
-   * Send a frame to a specific node.
+   * Send a frame to a specific connection.
    */
-  sendFrame(nodeId: string, frame: GatewayFrame): void {
-    const ws = this.connections.get(nodeId);
+  sendFrame(connectionId: string, frame: GatewayFrame): void {
+    const ws = this.connections.get(connectionId);
     if (ws && ws.readyState === 1) {
       // OPEN
       ws.send(JSON.stringify(frame));
@@ -137,24 +162,24 @@ export class GatewayServer {
   }
 
   /**
-   * Register a frame handler.
+   * Register a frame handler. Returns a disposer function.
    */
-  onFrame(handler: FrameHandler): void {
-    this.frameHandlers = [...this.frameHandlers, handler];
+  onFrame(handler: FrameHandler): () => void {
+    return this.events.on("frame", handler);
   }
 
   /**
-   * Register a connection handler.
+   * Register a connection handler. Returns a disposer function.
    */
-  onConnect(handler: ConnectionHandler): void {
-    this.connectHandlers = [...this.connectHandlers, handler];
+  onConnect(handler: ConnectionHandler): () => void {
+    return this.events.on("connect", handler);
   }
 
   /**
-   * Register a disconnect handler.
+   * Register a disconnect handler. Returns a disposer function.
    */
-  onDisconnect(handler: DisconnectHandler): void {
-    this.disconnectHandlers = [...this.disconnectHandlers, handler];
+  onDisconnect(handler: DisconnectHandler): () => void {
+    return this.events.on("disconnect", handler);
   }
 
   /**
@@ -168,25 +193,45 @@ export class GatewayServer {
   // Private
   // -------------------------------------------------------------------------
 
-  private handleConnection(ws: WebSocketLike, req: IncomingMessage): void {
-    // Extract nodeId from query param or generate one
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    const nodeId = url.searchParams.get("nodeId") ?? `node-${Date.now()}`;
-
-    this.connections.set(nodeId, ws);
-
-    for (const handler of this.connectHandlers) {
-      handler(nodeId);
+  private handleConnection(ws: WebSocketLike, _req: IncomingMessage): void {
+    // Check max connections limit (Issue 16)
+    const maxConns = this.config.maxConnections ?? 0;
+    if (maxConns > 0 && this.connections.size >= maxConns) {
+      ws.close(1013, "Maximum connections reached");
+      return;
     }
 
+    // Generate ephemeral connection ID (Issue 2)
+    // Node identity is established via node.register frame, not the connection itself.
+    const connectionId = `conn-${++this.connectionCounter}`;
+
+    this.connections.set(connectionId, ws);
+
+    this.events.emit("connect", connectionId);
+
     ws.on("message", (data: unknown) => {
+      // Rate limiting (Issue 3)
+      if (this.rateLimiter && !this.rateLimiter.allow(connectionId)) {
+        ws.send(
+          JSON.stringify({
+            kind: "error",
+            error: {
+              type: "about:blank",
+              title: "Rate limited",
+              status: 429,
+              detail: "Too many frames per second",
+            },
+            timestamp: Date.now(),
+          }),
+        );
+        return;
+      }
+
       try {
         const raw: unknown = JSON.parse(String(data));
         const result = safeParseFrame(raw);
         if (result.success) {
-          for (const handler of this.frameHandlers) {
-            handler(nodeId, result.data as GatewayFrame);
-          }
+          this.events.emit("frame", connectionId, result.data as GatewayFrame);
         } else {
           // Send error frame back
           ws.send(
@@ -219,10 +264,9 @@ export class GatewayServer {
     });
 
     ws.on("close", (code: unknown, reason: unknown) => {
-      this.connections.delete(nodeId);
-      for (const handler of this.disconnectHandlers) {
-        handler(nodeId, Number(code) || 1000, String(reason ?? ""));
-      }
+      this.connections.delete(connectionId);
+      this.rateLimiter?.remove(connectionId);
+      this.events.emit("disconnect", connectionId, Number(code) || 1000, String(reason ?? ""));
     });
   }
 }

@@ -14,6 +14,8 @@ export {
   ConfigWatcher,
   type ConfigWatcherDeps,
 } from "./config-watcher.js";
+// Delivery tracking
+export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
 // Orchestrator
 export { type GatewayEventHandler, TemplarGateway, type TemplarGatewayDeps } from "./gateway.js";
 // Lanes
@@ -45,3 +47,6 @@ export {
   type WebSocketServerLike,
   type WsServerFactory,
 } from "./server.js";
+// Utils
+export { createEmitter, type Emitter, type EventMap } from "./utils/emitter.js";
+export { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";

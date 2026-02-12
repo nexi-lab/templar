@@ -32,16 +32,18 @@ describe("Slack send flow (integration)", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.method).toBe("chat.postMessage");
 
-    const payload = calls[0]!.payload;
+    const call = calls[0];
+    expect(call).toBeDefined();
+    const payload = call!.payload;
     expect(payload.channel).toBe("C123");
 
     // Verify Block Kit blocks
     const blocks = payload.blocks as Record<string, unknown>[];
     expect(blocks).toHaveLength(3);
-    expect(blocks[0]!.type).toBe("section");
-    expect(blocks[1]!.type).toBe("image");
-    expect(blocks[1]!.image_url).toBe("https://example.com/photo.jpg");
-    expect(blocks[2]!.type).toBe("actions");
+    expect(blocks[0]?.type).toBe("section");
+    expect(blocks[1]?.type).toBe("image");
+    expect(blocks[1]?.image_url).toBe("https://example.com/photo.jpg");
+    expect(blocks[2]?.type).toBe("actions");
     expect((blocks[2] as { elements: unknown[] }).elements).toHaveLength(2);
 
     // Verify fallback text is present
@@ -123,9 +125,9 @@ describe("Slack send flow (integration)", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.method).toBe("chat.postMessage");
-    const blocks = calls[0]!.payload.blocks as Record<string, unknown>[];
+    const blocks = calls[0]?.payload.blocks as Record<string, unknown>[];
     expect(blocks).toHaveLength(1);
-    expect(blocks[0]!.type).toBe("actions");
+    expect(blocks[0]?.type).toBe("actions");
   });
 
   it("handles message with multiple files", async () => {

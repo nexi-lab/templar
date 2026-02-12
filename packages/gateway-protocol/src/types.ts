@@ -54,11 +54,17 @@ export const HOT_RELOADABLE_FIELDS = [
   "suspendTimeout",
   "healthCheckInterval",
   "laneCapacity",
+  "maxFramesPerSecond",
 ] as const;
 export type HotReloadableField = (typeof HOT_RELOADABLE_FIELDS)[number];
 
 /** Fields that require gateway restart to take effect */
-export const RESTART_REQUIRED_FIELDS = ["port", "nexusUrl", "nexusApiKey"] as const;
+export const RESTART_REQUIRED_FIELDS = [
+  "port",
+  "nexusUrl",
+  "nexusApiKey",
+  "maxConnections",
+] as const;
 export type RestartRequiredField = (typeof RESTART_REQUIRED_FIELDS)[number];
 
 /**
@@ -79,6 +85,10 @@ export interface GatewayConfig {
   readonly healthCheckInterval: number;
   /** Max items per lane queue per node (default: 256) */
   readonly laneCapacity: number;
+  /** Max concurrent WebSocket connections (default: 1024) */
+  readonly maxConnections: number;
+  /** Max frames per second per connection before rate limiting (default: 100) */
+  readonly maxFramesPerSecond: number;
 }
 
 export const GatewayConfigSchema = z.object({
@@ -89,6 +99,8 @@ export const GatewayConfigSchema = z.object({
   suspendTimeout: z.number().int().positive(),
   healthCheckInterval: z.number().int().positive(),
   laneCapacity: z.number().int().positive(),
+  maxConnections: z.number().int().positive(),
+  maxFramesPerSecond: z.number().int().positive(),
 });
 
 /**
@@ -100,4 +112,6 @@ export const DEFAULT_GATEWAY_CONFIG: Omit<GatewayConfig, "nexusUrl" | "nexusApiK
   suspendTimeout: 300_000,
   healthCheckInterval: 30_000,
   laneCapacity: 256,
+  maxConnections: 1024,
+  maxFramesPerSecond: 100,
 } as const;

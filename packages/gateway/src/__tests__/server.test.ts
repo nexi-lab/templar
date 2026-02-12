@@ -1,55 +1,7 @@
-import type { IncomingMessage } from "node:http";
 import type { GatewayFrame } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
-import { GatewayServer, type WebSocketLike, type WebSocketServerLike } from "../server.js";
-
-// ---------------------------------------------------------------------------
-// Mock WebSocket
-// ---------------------------------------------------------------------------
-
-function createMockWs(): WebSocketLike & {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-} {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  return {
-    handlers,
-    readyState: 1, // OPEN
-    send: vi.fn(),
-    close: vi.fn(),
-    on(event: string, handler: (...args: unknown[]) => unknown) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-  };
-}
-
-function createMockWss(): WebSocketServerLike & {
-  handlers: Map<string, ((...args: unknown[]) => unknown)[]>;
-  simulateConnection: (ws: WebSocketLike, req: Partial<IncomingMessage>) => void;
-} {
-  const handlers = new Map<string, ((...args: unknown[]) => unknown)[]>();
-  return {
-    handlers,
-    clients: new Set(),
-    on(event: string, handler: (...args: unknown[]) => unknown) {
-      const existing = handlers.get(event) ?? [];
-      handlers.set(event, [...existing, handler]);
-    },
-    close(cb?: (err?: Error) => void) {
-      cb?.();
-    },
-    simulateConnection(ws: WebSocketLike, req: Partial<IncomingMessage>) {
-      const connectionHandlers = handlers.get("connection") ?? [];
-      for (const h of connectionHandlers) {
-        h(ws, req);
-      }
-    },
-  };
-}
-
-function createMockFactory(wss: WebSocketServerLike) {
-  return vi.fn().mockReturnValue(wss);
-}
+import { GatewayServer } from "../server.js";
+import { createMockFactory, createMockWs, createMockWss } from "./helpers.js";
 
 describe("GatewayServer", () => {
   // -------------------------------------------------------------------------
@@ -157,10 +109,7 @@ describe("GatewayServer", () => {
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
       // Simulate message
       const frame: GatewayFrame = { kind: "heartbeat.pong", timestamp: Date.now() };
@@ -169,8 +118,9 @@ describe("GatewayServer", () => {
         h(JSON.stringify(frame));
       }
 
+      // Connection ID is ephemeral (conn-X), not a node identity
       expect(frameHandler).toHaveBeenCalledWith(
-        "node-1",
+        expect.stringMatching(/^conn-\d+$/),
         expect.objectContaining({ kind: "heartbeat.pong" }),
       );
 
@@ -186,10 +136,7 @@ describe("GatewayServer", () => {
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
       const messageHandlers = ws.handlers.get("message") ?? [];
       for (const h of messageHandlers) {
@@ -210,10 +157,7 @@ describe("GatewayServer", () => {
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
       const messageHandlers = ws.handlers.get("message") ?? [];
       for (const h of messageHandlers) {
@@ -231,7 +175,7 @@ describe("GatewayServer", () => {
   // -------------------------------------------------------------------------
 
   describe("connection lifecycle", () => {
-    it("fires connect handler on new connection", async () => {
+    it("fires connect handler with ephemeral connection ID", async () => {
       const wss = createMockWss();
       const server = new GatewayServer(
         { port: 0, validateToken: () => true },
@@ -243,12 +187,10 @@ describe("GatewayServer", () => {
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
-      expect(connectHandler).toHaveBeenCalledWith("node-1");
+      // Connection IDs are ephemeral (conn-X), not derived from client input
+      expect(connectHandler).toHaveBeenCalledWith(expect.stringMatching(/^conn-\d+$/));
       expect(server.connectionCount).toBe(1);
 
       await server.stop();
@@ -261,15 +203,16 @@ describe("GatewayServer", () => {
         createMockFactory(wss),
       );
 
+      let connectionId: string | undefined;
+      server.onConnect((id) => {
+        connectionId = id;
+      });
       const disconnectHandler = vi.fn();
       server.onDisconnect(disconnectHandler);
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
       // Simulate close
       const closeHandlers = ws.handlers.get("close") ?? [];
@@ -277,7 +220,7 @@ describe("GatewayServer", () => {
         h(1000, "Normal closure");
       }
 
-      expect(disconnectHandler).toHaveBeenCalledWith("node-1", 1000, "Normal closure");
+      expect(disconnectHandler).toHaveBeenCalledWith(connectionId, 1000, "Normal closure");
       expect(server.connectionCount).toBe(0);
 
       await server.stop();
@@ -289,29 +232,32 @@ describe("GatewayServer", () => {
   // -------------------------------------------------------------------------
 
   describe("sendFrame()", () => {
-    it("sends JSON frame to connected node", async () => {
+    it("sends JSON frame to connected node via connection ID", async () => {
       const wss = createMockWss();
       const server = new GatewayServer(
         { port: 0, validateToken: () => true },
         createMockFactory(wss),
       );
+
+      let connectionId: string | undefined;
+      server.onConnect((id) => {
+        connectionId = id;
+      });
       await server.start();
 
       const ws = createMockWs();
-      wss.simulateConnection(ws, {
-        url: "/?nodeId=node-1",
-        headers: { host: "localhost" },
-      } as unknown as IncomingMessage);
+      wss.simulateConnection(ws);
 
       const frame: GatewayFrame = { kind: "heartbeat.ping", timestamp: Date.now() };
-      server.sendFrame("node-1", frame);
+      expect(connectionId).toBeDefined();
+      server.sendFrame(connectionId as string, frame);
 
       expect(ws.send).toHaveBeenCalledWith(JSON.stringify(frame));
 
       await server.stop();
     });
 
-    it("no-op for unknown nodeId", async () => {
+    it("no-op for unknown connection ID", async () => {
       const wss = createMockWss();
       const server = new GatewayServer(
         { port: 0, validateToken: () => true },
@@ -321,6 +267,69 @@ describe("GatewayServer", () => {
 
       // Should not throw
       server.sendFrame("unknown", { kind: "heartbeat.ping", timestamp: Date.now() });
+
+      await server.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Rate limiting
+  // -------------------------------------------------------------------------
+
+  describe("rate limiting", () => {
+    it("rejects frames when rate limit is exceeded", async () => {
+      const wss = createMockWss();
+      const server = new GatewayServer(
+        { port: 0, validateToken: () => true, maxFramesPerSecond: 2 },
+        createMockFactory(wss),
+      );
+      await server.start();
+
+      const ws = createMockWs();
+      wss.simulateConnection(ws);
+
+      const messageHandlers = ws.handlers.get("message") ?? [];
+      const frame: GatewayFrame = { kind: "heartbeat.pong", timestamp: Date.now() };
+
+      // Send 3 frames — 3rd should be rate limited
+      for (let i = 0; i < 3; i++) {
+        for (const h of messageHandlers) {
+          h(JSON.stringify(frame));
+        }
+      }
+
+      // Should have a rate limit error in the sent frames
+      const calls = (ws.send as ReturnType<typeof vi.fn>).mock.calls;
+      const rateLimitError = calls.find((c) => String(c[0]).includes("Rate limited"));
+      expect(rateLimitError).toBeDefined();
+
+      await server.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Max connections
+  // -------------------------------------------------------------------------
+
+  describe("max connections", () => {
+    it("rejects connections when maxConnections is reached", async () => {
+      const wss = createMockWss();
+      const server = new GatewayServer(
+        { port: 0, validateToken: () => true, maxConnections: 1 },
+        createMockFactory(wss),
+      );
+      await server.start();
+
+      // First connection succeeds
+      const ws1 = createMockWs();
+      wss.simulateConnection(ws1);
+      expect(server.connectionCount).toBe(1);
+
+      // Second connection is rejected
+      const ws2 = createMockWs();
+      wss.simulateConnection(ws2);
+      expect(ws2.close).toHaveBeenCalledWith(1013, "Maximum connections reached");
+      expect(server.connectionCount).toBe(1); // Still 1
 
       await server.stop();
     });

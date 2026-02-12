@@ -1,8 +1,14 @@
 /**
- * Bounded FIFO queue with drop-oldest overflow strategy.
+ * Bounded FIFO queue backed by a ring buffer.
+ *
+ * O(1) enqueue, dequeue, and peek.
+ * Drop-oldest overflow strategy when full.
  */
 export class BoundedFifoQueue<T> {
-  private items: readonly T[];
+  private readonly buffer: (T | undefined)[];
+  private head = 0;
+  private tail = 0;
+  private count = 0;
   readonly capacity: number;
 
   constructor(capacity: number) {
@@ -10,7 +16,7 @@ export class BoundedFifoQueue<T> {
       throw new RangeError(`Queue capacity must be positive, got ${capacity}`);
     }
     this.capacity = capacity;
-    this.items = [];
+    this.buffer = new Array<T | undefined>(capacity);
   }
 
   /**
@@ -19,52 +25,75 @@ export class BoundedFifoQueue<T> {
    * Returns undefined if no item was dropped.
    */
   enqueue(item: T): T | undefined {
-    if (this.items.length >= this.capacity) {
-      const [dropped, ...rest] = this.items;
-      this.items = [...rest, item];
-      return dropped;
+    let dropped: T | undefined;
+
+    if (this.count >= this.capacity) {
+      // Drop oldest (at head)
+      dropped = this.buffer[this.head];
+      this.buffer[this.head] = undefined;
+      this.head = (this.head + 1) % this.capacity;
+      this.count--;
     }
-    this.items = [...this.items, item];
-    return undefined;
+
+    this.buffer[this.tail] = item;
+    this.tail = (this.tail + 1) % this.capacity;
+    this.count++;
+
+    return dropped;
   }
 
   /**
    * Remove and return the oldest item, or undefined if empty.
    */
   dequeue(): T | undefined {
-    if (this.items.length === 0) {
+    if (this.count === 0) {
       return undefined;
     }
-    const [first, ...rest] = this.items;
-    this.items = rest;
-    return first;
+    const item = this.buffer[this.head];
+    this.buffer[this.head] = undefined;
+    this.head = (this.head + 1) % this.capacity;
+    this.count--;
+    return item;
   }
 
   /**
    * Peek at the oldest item without removing it.
    */
   peek(): T | undefined {
-    return this.items[0];
+    if (this.count === 0) {
+      return undefined;
+    }
+    return this.buffer[this.head];
   }
 
   /**
    * Drain all items from the queue in FIFO order.
    */
   drain(): readonly T[] {
-    const result = this.items;
-    this.items = [];
+    if (this.count === 0) {
+      return [];
+    }
+    const result: T[] = new Array(this.count);
+    for (let i = 0; i < this.count; i++) {
+      result[i] = this.buffer[(this.head + i) % this.capacity] as T;
+    }
+    // Reset ring buffer state
+    this.buffer.fill(undefined);
+    this.head = 0;
+    this.tail = 0;
+    this.count = 0;
     return result;
   }
 
   get size(): number {
-    return this.items.length;
+    return this.count;
   }
 
   get isFull(): boolean {
-    return this.items.length >= this.capacity;
+    return this.count >= this.capacity;
   }
 
   get isEmpty(): boolean {
-    return this.items.length === 0;
+    return this.count === 0;
   }
 }

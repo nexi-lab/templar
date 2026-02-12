@@ -1,5 +1,6 @@
 import type { LaneMessage, QueuedLane } from "@templar/gateway-protocol";
 import { QUEUED_LANES } from "@templar/gateway-protocol";
+import { createEmitter, type Emitter } from "../utils/emitter.js";
 import { BoundedFifoQueue } from "./queue.js";
 
 // ---------------------------------------------------------------------------
@@ -8,6 +9,15 @@ import { BoundedFifoQueue } from "./queue.js";
 
 export type InterruptHandler = (message: LaneMessage) => void;
 export type OverflowHandler = (lane: QueuedLane, dropped: LaneMessage) => void;
+
+// ---------------------------------------------------------------------------
+// Lane Dispatcher Events
+// ---------------------------------------------------------------------------
+
+type LaneDispatcherEvents = {
+  interrupt: [message: LaneMessage];
+  overflow: [lane: QueuedLane, dropped: LaneMessage];
+};
 
 // ---------------------------------------------------------------------------
 // LaneDispatcher
@@ -21,8 +31,7 @@ export type OverflowHandler = (lane: QueuedLane, dropped: LaneMessage) => void;
  */
 export class LaneDispatcher {
   private readonly queues: Readonly<Record<QueuedLane, BoundedFifoQueue<LaneMessage>>>;
-  private interruptHandlers: readonly InterruptHandler[] = [];
-  private overflowHandlers: readonly OverflowHandler[] = [];
+  private readonly events: Emitter<LaneDispatcherEvents> = createEmitter();
 
   constructor(capacity: number) {
     this.queues = {
@@ -38,9 +47,7 @@ export class LaneDispatcher {
    */
   dispatch(message: LaneMessage): void {
     if (message.lane === "interrupt") {
-      for (const handler of this.interruptHandlers) {
-        handler(message);
-      }
+      this.events.emit("interrupt", message);
       return;
     }
 
@@ -48,9 +55,7 @@ export class LaneDispatcher {
     const queue = this.queues[lane];
     const dropped = queue.enqueue(message);
     if (dropped !== undefined) {
-      for (const handler of this.overflowHandlers) {
-        handler(lane, dropped);
-      }
+      this.events.emit("overflow", lane, dropped);
     }
   }
 
@@ -69,16 +74,18 @@ export class LaneDispatcher {
 
   /**
    * Register a handler for interrupt messages.
+   * Returns a disposer function.
    */
-  onInterrupt(handler: InterruptHandler): void {
-    this.interruptHandlers = [...this.interruptHandlers, handler];
+  onInterrupt(handler: InterruptHandler): () => void {
+    return this.events.on("interrupt", handler);
   }
 
   /**
    * Register a handler for overflow events.
+   * Returns a disposer function.
    */
-  onOverflow(handler: OverflowHandler): void {
-    this.overflowHandlers = [...this.overflowHandlers, handler];
+  onOverflow(handler: OverflowHandler): () => void {
+    return this.events.on("overflow", handler);
   }
 
   /**

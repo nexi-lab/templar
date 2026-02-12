@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { GatewayConfig } from "@templar/gateway-protocol";
 import { GatewayConfigSchema, HOT_RELOADABLE_FIELDS } from "@templar/gateway-protocol";
+import { createEmitter, type Emitter } from "./utils/emitter.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +23,16 @@ export interface ConfigWatcherDeps {
 }
 
 // ---------------------------------------------------------------------------
+// Config Watcher Events
+// ---------------------------------------------------------------------------
+
+type ConfigWatcherEvents = {
+  updated: [newConfig: GatewayConfig, changedFields: readonly string[]];
+  error: [error: Error];
+  restartRequired: [fields: readonly string[]];
+};
+
+// ---------------------------------------------------------------------------
 // ConfigWatcher
 // ---------------------------------------------------------------------------
 
@@ -38,10 +49,7 @@ export class ConfigWatcher {
   private watcher: { close: () => Promise<void> } | undefined;
   private configPath: string | undefined;
 
-  private onUpdatedHandlers: readonly ConfigUpdatedHandler[] = [];
-  private onErrorHandlers: readonly ConfigErrorHandler[] = [];
-  private onRestartRequiredHandlers: readonly ConfigRestartRequiredHandler[] = [];
-
+  private readonly events: Emitter<ConfigWatcherEvents> = createEmitter();
   private readonly debounceMs: number;
   private readonly deps: ConfigWatcherDeps | undefined;
 
@@ -82,6 +90,7 @@ export class ConfigWatcher {
       await this.watcher.close();
       this.watcher = undefined;
     }
+    this.events.clear();
   }
 
   /**
@@ -91,16 +100,16 @@ export class ConfigWatcher {
     return this.currentConfig;
   }
 
-  onUpdated(handler: ConfigUpdatedHandler): void {
-    this.onUpdatedHandlers = [...this.onUpdatedHandlers, handler];
+  onUpdated(handler: ConfigUpdatedHandler): () => void {
+    return this.events.on("updated", handler);
   }
 
-  onError(handler: ConfigErrorHandler): void {
-    this.onErrorHandlers = [...this.onErrorHandlers, handler];
+  onError(handler: ConfigErrorHandler): () => void {
+    return this.events.on("error", handler);
   }
 
-  onRestartRequired(handler: ConfigRestartRequiredHandler): void {
-    this.onRestartRequiredHandlers = [...this.onRestartRequiredHandlers, handler];
+  onRestartRequired(handler: ConfigRestartRequiredHandler): () => void {
+    return this.events.on("restartRequired", handler);
   }
 
   // -------------------------------------------------------------------------
@@ -135,9 +144,7 @@ export class ConfigWatcher {
 
       if (!result.success) {
         const error = new Error(`Invalid config: ${result.error.message}`);
-        for (const handler of this.onErrorHandlers) {
-          handler(error);
-        }
+        this.events.emit("error", error);
         return;
       }
 
@@ -145,27 +152,21 @@ export class ConfigWatcher {
       const { hotReloadable, restartRequired } = this.diffConfig(newConfig);
 
       if (restartRequired.length > 0) {
-        for (const handler of this.onRestartRequiredHandlers) {
-          handler(restartRequired);
-        }
+        this.events.emit("restartRequired", restartRequired);
       }
 
       if (hotReloadable.length > 0) {
-        // Apply only hot-reloadable fields
-        const updated = { ...this.currentConfig };
+        // Build new config immutably from field picks (Issue 7)
+        const patch: Partial<GatewayConfig> = {};
         for (const field of hotReloadable) {
-          (updated as Record<string, unknown>)[field] = newConfig[field as keyof GatewayConfig];
+          (patch as Record<string, unknown>)[field] = newConfig[field as keyof GatewayConfig];
         }
-        this.currentConfig = updated as GatewayConfig;
-        for (const handler of this.onUpdatedHandlers) {
-          handler(this.currentConfig, hotReloadable);
-        }
+        this.currentConfig = { ...this.currentConfig, ...patch } as GatewayConfig;
+        this.events.emit("updated", this.currentConfig, hotReloadable);
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      for (const handler of this.onErrorHandlers) {
-        handler(error);
-      }
+      this.events.emit("error", error);
     }
   }
 

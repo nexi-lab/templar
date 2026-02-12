@@ -1,17 +1,21 @@
 import type {
   GatewayConfig,
   GatewayFrame,
+  LaneMessage,
+  LaneMessageAckFrame,
   LaneMessageFrame,
   NodeDeregisterFrame,
   NodeRegisterFrame,
 } from "@templar/gateway-protocol";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
+import { DeliveryTracker } from "./delivery-tracker.js";
 import { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import { HealthMonitor } from "./registry/health-monitor.js";
 import { NodeRegistry } from "./registry/node-registry.js";
 import { AgentRouter } from "./router.js";
 import { GatewayServer, type WsServerFactory } from "./server.js";
 import { SessionManager } from "./sessions/session-manager.js";
+import { createEmitter, type Emitter } from "./utils/emitter.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,9 +26,25 @@ export interface TemplarGatewayDeps {
   readonly wsFactory?: WsServerFactory;
   /** Config watcher deps — injectable for testing */
   readonly configWatcherDeps?: ConfigWatcherDeps;
+  /** Optional subsystem overrides for testing/customization */
+  readonly registry?: NodeRegistry;
+  readonly sessionManager?: SessionManager;
+  readonly router?: AgentRouter;
+  readonly configWatcher?: ConfigWatcher;
+  readonly healthMonitor?: HealthMonitor;
 }
 
 export type GatewayEventHandler<T extends unknown[] = []> = (...args: T) => void;
+
+// ---------------------------------------------------------------------------
+// Gateway Events
+// ---------------------------------------------------------------------------
+
+type GatewayEvents = {
+  "node.registered": [nodeId: string];
+  "node.deregistered": [nodeId: string];
+  "node.dead": [nodeId: string];
+};
 
 // ---------------------------------------------------------------------------
 // TemplarGateway
@@ -49,26 +69,32 @@ export class TemplarGateway {
   private readonly router: AgentRouter;
   private readonly configWatcher: ConfigWatcher;
   private readonly server: GatewayServer;
+  private readonly deliveryTracker: DeliveryTracker;
+  private readonly events: Emitter<GatewayEvents> = createEmitter();
 
-  private nodeDeadHandlers: readonly GatewayEventHandler<[string]>[] = [];
-  private nodeRegisteredHandlers: readonly GatewayEventHandler<[string]>[] = [];
-  private nodeDeregisteredHandlers: readonly GatewayEventHandler<[string]>[] = [];
+  // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
+  // Populated during node.register, cleaned up during deregister/disconnect.
+  private connectionToNode = new Map<string, string>();
+  private nodeToConnection = new Map<string, string>();
 
   constructor(config: GatewayConfig, deps: TemplarGatewayDeps = {}) {
-    // 1. Node registry
-    this.registry = new NodeRegistry();
+    // 1. Node registry (injectable)
+    this.registry = deps.registry ?? new NodeRegistry();
 
-    // 2. Session manager
-    this.sessionManager = new SessionManager({
-      sessionTimeout: config.sessionTimeout,
-      suspendTimeout: config.suspendTimeout,
-    });
+    // 2. Session manager (injectable)
+    this.sessionManager =
+      deps.sessionManager ??
+      new SessionManager({
+        sessionTimeout: config.sessionTimeout,
+        suspendTimeout: config.suspendTimeout,
+      });
 
-    // 3. Router
-    this.router = new AgentRouter(this.registry);
+    // 3. Router (injectable)
+    this.router = deps.router ?? new AgentRouter(this.registry);
 
-    // 4. Config watcher
-    this.configWatcher = new ConfigWatcher(config, 300, deps.configWatcherDeps);
+    // 4. Config watcher (injectable)
+    this.configWatcher =
+      deps.configWatcher ?? new ConfigWatcher(config, 300, deps.configWatcherDeps);
 
     // 5. WebSocket server with token validation
     this.server = new GatewayServer(
@@ -79,15 +105,19 @@ export class TemplarGateway {
       deps.wsFactory,
     );
 
-    // 6. Health monitor (sends pings via server)
-    this.healthMonitor = new HealthMonitor(
-      this.registry,
-      { healthCheckInterval: config.healthCheckInterval },
-      (nodeId) => {
-        const frame: GatewayFrame = { kind: "heartbeat.ping", timestamp: Date.now() };
-        this.server.sendFrame(nodeId, frame);
-      },
-    );
+    // 6. Health monitor (injectable, sends pings via server)
+    this.healthMonitor =
+      deps.healthMonitor ??
+      new HealthMonitor(
+        this.registry,
+        { healthCheckInterval: config.healthCheckInterval },
+        (nodeId) => {
+          this.sendToNode(nodeId, { kind: "heartbeat.ping", timestamp: Date.now() });
+        },
+      );
+
+    // 7. Delivery tracker for lane message ack
+    this.deliveryTracker = new DeliveryTracker(config.laneCapacity);
 
     // Wire all event handlers
     this.wireFrameHandlers(config);
@@ -123,6 +153,10 @@ export class TemplarGateway {
     await this.configWatcher.stop();
     this.sessionManager.dispose();
     this.registry.clear();
+    this.deliveryTracker.clear();
+    this.connectionToNode.clear();
+    this.nodeToConnection.clear();
+    this.events.clear();
     await this.server.stop();
   }
 
@@ -142,6 +176,14 @@ export class TemplarGateway {
    */
   unbindChannel(channelId: string): void {
     this.router.unbind(channelId);
+  }
+
+  /**
+   * Drain all queued messages for a node in priority order.
+   * Returns steer → collect → followup messages.
+   */
+  drainNode(nodeId: string): readonly LaneMessage[] {
+    return this.router.drainNode(nodeId);
   }
 
   /**
@@ -186,20 +228,27 @@ export class TemplarGateway {
     return this.router;
   }
 
-  // -------------------------------------------------------------------------
-  // Event registration
-  // -------------------------------------------------------------------------
-
-  onNodeRegistered(handler: GatewayEventHandler<[string]>): void {
-    this.nodeRegisteredHandlers = [...this.nodeRegisteredHandlers, handler];
+  /**
+   * Get the delivery tracker (read-only access).
+   */
+  getDeliveryTracker(): DeliveryTracker {
+    return this.deliveryTracker;
   }
 
-  onNodeDeregistered(handler: GatewayEventHandler<[string]>): void {
-    this.nodeDeregisteredHandlers = [...this.nodeDeregisteredHandlers, handler];
+  // -------------------------------------------------------------------------
+  // Event registration (returns disposers)
+  // -------------------------------------------------------------------------
+
+  onNodeRegistered(handler: GatewayEventHandler<[string]>): () => void {
+    return this.events.on("node.registered", handler);
   }
 
-  onNodeDead(handler: GatewayEventHandler<[string]>): void {
-    this.nodeDeadHandlers = [...this.nodeDeadHandlers, handler];
+  onNodeDeregistered(handler: GatewayEventHandler<[string]>): () => void {
+    return this.events.on("node.deregistered", handler);
+  }
+
+  onNodeDead(handler: GatewayEventHandler<[string]>): () => void {
+    return this.events.on("node.dead", handler);
   }
 
   // -------------------------------------------------------------------------
@@ -207,34 +256,48 @@ export class TemplarGateway {
   // -------------------------------------------------------------------------
 
   private wireFrameHandlers(config: GatewayConfig): void {
-    this.server.onFrame((nodeId, frame) => {
+    this.server.onFrame((connectionId, frame) => {
       switch (frame.kind) {
         case "node.register":
-          this.handleNodeRegister(nodeId, frame as NodeRegisterFrame, config);
+          this.handleNodeRegister(connectionId, frame as NodeRegisterFrame, config);
           break;
         case "node.deregister":
-          this.handleNodeDeregister(nodeId, frame as NodeDeregisterFrame);
+          this.handleNodeDeregister(connectionId, frame as NodeDeregisterFrame);
           break;
-        case "heartbeat.pong":
-          this.healthMonitor.handlePong(nodeId);
-          this.sessionManager.handleEvent(nodeId, "heartbeat");
+        case "heartbeat.pong": {
+          // Translate ephemeral connection ID → registered node ID
+          const nodeId = this.connectionToNode.get(connectionId);
+          if (nodeId) {
+            this.healthMonitor.handlePong(nodeId);
+            this.sessionManager.handleEvent(nodeId, "heartbeat");
+          }
           break;
+        }
         case "lane.message":
-          this.handleLaneMessage(frame as LaneMessageFrame);
+          this.handleLaneMessage(connectionId, frame as LaneMessageFrame);
+          break;
+        case "lane.message.ack":
+          this.handleLaneMessageAck(connectionId, frame as LaneMessageAckFrame);
           break;
         default:
-          // Other frames (ack, session.update, etc.) are handled by higher layers
+          // Other frames (session.update, etc.) are handled by higher layers
           break;
       }
     });
   }
 
   private wireConnectionHandlers(): void {
-    this.server.onDisconnect((nodeId, _code, _reason) => {
-      // If node was registered, handle graceful disconnect
-      const session = this.sessionManager.getSession(nodeId);
-      if (session) {
-        this.sessionManager.handleEvent(nodeId, "disconnect");
+    this.server.onDisconnect((connectionId, _code, _reason) => {
+      // Translate ephemeral connection ID → registered node ID
+      const nodeId = this.connectionToNode.get(connectionId);
+      if (nodeId) {
+        const session = this.sessionManager.getSession(nodeId);
+        if (session) {
+          this.sessionManager.handleEvent(nodeId, "disconnect");
+        }
+        // Clean up connection mapping
+        this.connectionToNode.delete(connectionId);
+        this.nodeToConnection.delete(nodeId);
       }
     });
   }
@@ -243,20 +306,12 @@ export class TemplarGateway {
     this.healthMonitor.onNodeDead((node) => {
       // Deregister dead nodes
       this.cleanupNode(node.nodeId);
-      for (const handler of this.nodeDeadHandlers) {
-        handler(node.nodeId);
-      }
+      this.events.emit("node.dead", node.nodeId);
     });
   }
 
   private wireConfigWatcherHandlers(): void {
     this.configWatcher.onUpdated((_newConfig, changedFields) => {
-      // Update session manager timeouts if changed
-      if (changedFields.includes("sessionTimeout") || changedFields.includes("suspendTimeout")) {
-        // SessionManager uses config at creation, so we'd need to recreate or update
-        // For now, notify connected nodes of the config change
-      }
-
       // Broadcast config change to all connected nodes
       const frame: GatewayFrame = {
         kind: "config.changed",
@@ -264,7 +319,7 @@ export class TemplarGateway {
         timestamp: Date.now(),
       };
       for (const node of this.registry.all()) {
-        this.server.sendFrame(node.nodeId, frame);
+        this.sendToNode(node.nodeId, frame);
       }
     });
   }
@@ -274,15 +329,31 @@ export class TemplarGateway {
   // -------------------------------------------------------------------------
 
   private handleNodeRegister(
-    wsNodeId: string,
+    connectionId: string,
     frame: NodeRegisterFrame,
     config: GatewayConfig,
   ): void {
     const nodeId = frame.nodeId;
 
     try {
+      // Clean up stale mappings before overwriting to prevent corruption.
+      // Case 1: this connection was previously mapped to a different node
+      const previousNodeId = this.connectionToNode.get(connectionId);
+      if (previousNodeId && previousNodeId !== nodeId) {
+        this.nodeToConnection.delete(previousNodeId);
+      }
+      // Case 2: this nodeId was previously mapped to a different connection
+      const previousConnectionId = this.nodeToConnection.get(nodeId);
+      if (previousConnectionId && previousConnectionId !== connectionId) {
+        this.connectionToNode.delete(previousConnectionId);
+      }
+
       // Register in node registry
       this.registry.register(nodeId, frame.capabilities);
+
+      // Map ephemeral connection ID ↔ node ID
+      this.connectionToNode.set(connectionId, nodeId);
+      this.nodeToConnection.set(nodeId, connectionId);
 
       // Create session
       const session = this.sessionManager.createSession(nodeId);
@@ -291,17 +362,15 @@ export class TemplarGateway {
       const dispatcher = new LaneDispatcher(config.laneCapacity);
       this.router.setDispatcher(nodeId, dispatcher);
 
-      // Send ack
+      // Send ack via the connection
       const ackFrame: GatewayFrame = {
         kind: "node.register.ack",
         nodeId,
         sessionId: `${nodeId}-${session.connectedAt}`,
       };
-      this.server.sendFrame(wsNodeId, ackFrame);
+      this.server.sendFrame(connectionId, ackFrame);
 
-      for (const handler of this.nodeRegisteredHandlers) {
-        handler(nodeId);
-      }
+      this.events.emit("node.registered", nodeId);
     } catch (err) {
       // Send error frame if registration fails (e.g., already registered)
       const errorFrame: GatewayFrame = {
@@ -314,30 +383,104 @@ export class TemplarGateway {
         },
         timestamp: Date.now(),
       };
-      this.server.sendFrame(wsNodeId, errorFrame);
+      this.server.sendFrame(connectionId, errorFrame);
     }
   }
 
-  private handleNodeDeregister(_wsNodeId: string, frame: NodeDeregisterFrame): void {
+  private handleNodeDeregister(connectionId: string, frame: NodeDeregisterFrame): void {
     const nodeId = frame.nodeId;
-    this.cleanupNode(nodeId);
 
-    for (const handler of this.nodeDeregisteredHandlers) {
-      handler(nodeId);
+    // Verify the connection owns this node — prevent cross-node deregistration
+    const ownerConnection = this.nodeToConnection.get(nodeId);
+    if (ownerConnection && ownerConnection !== connectionId) {
+      const errorFrame: GatewayFrame = {
+        kind: "error",
+        error: {
+          type: "about:blank",
+          title: "Unauthorized deregistration",
+          status: 403,
+          detail: `Connection is not the owner of node '${nodeId}'`,
+        },
+        timestamp: Date.now(),
+      };
+      this.server.sendFrame(connectionId, errorFrame);
+      return;
+    }
+
+    this.cleanupNode(nodeId);
+    this.events.emit("node.deregistered", nodeId);
+  }
+
+  private handleLaneMessage(connectionId: string, frame: LaneMessageFrame): void {
+    const nodeId = this.connectionToNode.get(connectionId);
+    if (!nodeId) {
+      const errorFrame: GatewayFrame = {
+        kind: "error",
+        error: {
+          type: "about:blank",
+          title: "Not registered",
+          status: 403,
+          detail: "Connection must register before sending lane messages",
+        },
+        timestamp: Date.now(),
+      };
+      this.server.sendFrame(connectionId, errorFrame);
+      return;
+    }
+
+    try {
+      this.router.route(frame.message);
+
+      // Track the message for delivery guarantees
+      this.deliveryTracker.track(nodeId, frame.message);
+
+      // Send ack back to the originating connection
+      const ackFrame: GatewayFrame = {
+        kind: "lane.message.ack",
+        messageId: frame.message.id,
+      };
+      this.server.sendFrame(connectionId, ackFrame);
+    } catch (err) {
+      // Send error frame back on routing failure
+      const errorFrame: GatewayFrame = {
+        kind: "error",
+        error: {
+          type: "about:blank",
+          title: "Message routing failed",
+          status: 500,
+          detail: err instanceof Error ? err.message : String(err),
+        },
+        timestamp: Date.now(),
+      };
+      this.server.sendFrame(connectionId, errorFrame);
     }
   }
 
-  private handleLaneMessage(frame: LaneMessageFrame): void {
-    this.router.route(frame.message);
+  private handleLaneMessageAck(connectionId: string, frame: LaneMessageAckFrame): void {
+    const nodeId = this.connectionToNode.get(connectionId);
+    if (nodeId) {
+      this.deliveryTracker.ack(nodeId, frame.messageId);
+    }
   }
 
   // -------------------------------------------------------------------------
-  // Cleanup
+  // Internal helpers
   // -------------------------------------------------------------------------
+
+  /**
+   * Send a frame to a registered node by translating nodeId → connectionId.
+   */
+  private sendToNode(nodeId: string, frame: GatewayFrame): void {
+    const connectionId = this.nodeToConnection.get(nodeId);
+    if (connectionId) {
+      this.server.sendFrame(connectionId, frame);
+    }
+  }
 
   private cleanupNode(nodeId: string): void {
     // Remove in reverse order of creation
     this.router.removeDispatcher(nodeId);
+    this.deliveryTracker.removeNode(nodeId);
 
     const session = this.sessionManager.getSession(nodeId);
     if (session) {
@@ -347,5 +490,12 @@ export class TemplarGateway {
     if (this.registry.get(nodeId)) {
       this.registry.deregister(nodeId);
     }
+
+    // Clean up connection mapping
+    const connectionId = this.nodeToConnection.get(nodeId);
+    if (connectionId) {
+      this.connectionToNode.delete(connectionId);
+    }
+    this.nodeToConnection.delete(nodeId);
   }
 }
