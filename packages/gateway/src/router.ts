@@ -2,6 +2,7 @@ import { GatewayNodeNotFoundError } from "@templar/errors";
 import type { LaneMessage } from "@templar/gateway-protocol";
 import type { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import type { NodeRegistry } from "./registry/node-registry.js";
+import { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,41 +36,30 @@ export class AgentRouter {
     if (!this.registry.get(nodeId)) {
       throw new GatewayNodeNotFoundError(nodeId);
     }
-    this.bindings = new Map([...this.bindings, [channelId, nodeId]]);
+    this.bindings = mapSet(this.bindings, channelId, nodeId);
   }
 
   /**
    * Remove a channel binding.
    */
   unbind(channelId: string): void {
-    const next = new Map(this.bindings);
-    next.delete(channelId);
-    this.bindings = next;
+    this.bindings = mapDelete(this.bindings, channelId);
   }
 
   /**
    * Register a lane dispatcher for a node.
    */
   setDispatcher(nodeId: string, dispatcher: LaneDispatcher): void {
-    this.dispatchers = new Map([...this.dispatchers, [nodeId, dispatcher]]);
+    this.dispatchers = mapSet(this.dispatchers, nodeId, dispatcher);
   }
 
   /**
    * Remove a node's dispatcher (on deregister).
    */
   removeDispatcher(nodeId: string): void {
-    const next = new Map(this.dispatchers);
-    next.delete(nodeId);
-    this.dispatchers = next;
-
+    this.dispatchers = mapDelete(this.dispatchers, nodeId);
     // Also remove any bindings to this node
-    const bindingNext = new Map<string, string>();
-    for (const [channelId, boundNodeId] of this.bindings) {
-      if (boundNodeId !== nodeId) {
-        bindingNext.set(channelId, boundNodeId);
-      }
-    }
-    this.bindings = bindingNext;
+    this.bindings = mapFilter(this.bindings, (_channelId, boundNodeId) => boundNodeId !== nodeId);
   }
 
   /**
@@ -87,6 +77,18 @@ export class AgentRouter {
     }
 
     dispatcher.dispatch(message);
+  }
+
+  /**
+   * Drain all queued messages for a node in priority order.
+   * Returns steer → collect → followup messages.
+   */
+  drainNode(nodeId: string): readonly LaneMessage[] {
+    const dispatcher = this.dispatchers.get(nodeId);
+    if (!dispatcher) {
+      throw new GatewayNodeNotFoundError(nodeId);
+    }
+    return dispatcher.drain();
   }
 
   /**

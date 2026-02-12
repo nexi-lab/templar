@@ -24,6 +24,8 @@ describe("GatewayConfig", () => {
     suspendTimeout: 300_000,
     healthCheckInterval: 30_000,
     laneCapacity: 256,
+    maxConnections: 1024,
+    maxFramesPerSecond: 100,
   };
 
   it("accepts valid config", () => {

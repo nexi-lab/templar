@@ -1,3 +1,4 @@
+import { type Emitter, createEmitter } from "../utils/emitter.js";
 import type { NodeRegistry, RegisteredNode } from "./node-registry.js";
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,14 @@ export interface HealthMonitorConfig {
   /** Health check interval in ms */
   readonly healthCheckInterval: number;
 }
+
+// ---------------------------------------------------------------------------
+// Health Monitor Events
+// ---------------------------------------------------------------------------
+
+type HealthMonitorEvents = {
+  "node.dead": [node: RegisteredNode];
+};
 
 // ---------------------------------------------------------------------------
 // HealthMonitor
@@ -27,7 +36,7 @@ export interface HealthMonitorConfig {
  */
 export class HealthMonitor {
   private timer: ReturnType<typeof setInterval> | undefined;
-  private nodeDeadHandlers: readonly NodeDeadHandler[] = [];
+  private readonly events: Emitter<HealthMonitorEvents> = createEmitter();
   private readonly registry: NodeRegistry;
   private readonly config: HealthMonitorConfig;
   private readonly sendPing: PingSender;
@@ -54,13 +63,15 @@ export class HealthMonitor {
       clearInterval(this.timer);
       this.timer = undefined;
     }
+    this.events.clear();
   }
 
   /**
    * Register a handler for when a node is detected as dead.
+   * Returns a disposer function.
    */
-  onNodeDead(handler: NodeDeadHandler): void {
-    this.nodeDeadHandlers = [...this.nodeDeadHandlers, handler];
+  onNodeDead(handler: NodeDeadHandler): () => void {
+    return this.events.on("node.dead", handler);
   }
 
   /**
@@ -85,13 +96,14 @@ export class HealthMonitor {
     const nodes = this.registry.all();
     for (const node of nodes) {
       if (!node.isAlive) {
-        // Node missed last pong — it's dead
-        this.registry.markDead(node.nodeId);
-        for (const handler of this.nodeDeadHandlers) {
-          handler(node);
-        }
+        // Node missed last pong — it's dead. No need to call markDead again
+        // since isAlive is already false. Fire the dead handler for cleanup.
+        this.events.emit("node.dead", node);
       } else {
         // Mark as not alive, then ping. Next sweep checks if pong arrived.
+        // This is the canonical ws library heartbeat pattern: the window
+        // between markDead and pong receipt is by design — any code checking
+        // isAlive during this window gets a conservative "maybe dead" answer.
         this.registry.markDead(node.nodeId);
         this.sendPing(node.nodeId);
       }

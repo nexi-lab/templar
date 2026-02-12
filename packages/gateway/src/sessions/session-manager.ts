@@ -1,5 +1,6 @@
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
 import type { SessionEvent, SessionInfo } from "@templar/gateway-protocol";
+import { mapDelete, mapSet } from "../utils/immutable-map.js";
 import { type TransitionResult, transition } from "./state-machine.js";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +56,7 @@ export class SessionManager {
       lastActivityAt: now,
       reconnectCount: 0,
     };
-    this.sessions = new Map([...this.sessions, [nodeId, session]]);
+    this.sessions = mapSet(this.sessions, nodeId, session);
     this.startIdleTimer(nodeId);
     return session;
   }
@@ -83,7 +84,7 @@ export class SessionManager {
       ...(event === "reconnect" ? { reconnectCount: session.reconnectCount + 1 } : {}),
     };
 
-    this.sessions = new Map([...this.sessions, [nodeId, updatedSession]]);
+    this.sessions = mapSet(this.sessions, nodeId, updatedSession);
     this.updateTimers(nodeId, result);
     this.emitTransition(nodeId, result, updatedSession);
 
@@ -180,9 +181,7 @@ export class SessionManager {
 
   private cleanupSession(nodeId: string): void {
     this.clearTimers(nodeId);
-    const next = new Map(this.sessions);
-    next.delete(nodeId);
-    this.sessions = next;
+    this.sessions = mapDelete(this.sessions, nodeId);
   }
 
   private clearTimers(nodeId: string): void {
