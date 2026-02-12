@@ -1,0 +1,28 @@
+{
+  "name": "@templar/channel-whatsapp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "@hapi/boom": "^10.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@templar/core": "workspace:*",
+    "@templar/errors": "workspace:*",
+    "@types/node": "^22.0.0"
+  }
+}
