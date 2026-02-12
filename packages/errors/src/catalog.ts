@@ -658,6 +658,38 @@ export const ERROR_CATALOG = {
     title: "Content blocked",
     description: "Content was blocked because it exceeds size limits or is entirely malicious",
   },
+
+  // ============================================================================
+  // MANIFEST ERRORS — YAML agent definition loader
+  // ============================================================================
+  MANIFEST_FILE_NOT_FOUND: {
+    domain: "manifest",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Manifest file not found",
+    description: "The specified manifest YAML file does not exist",
+  },
+  MANIFEST_PARSE_FAILED: {
+    domain: "manifest",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Manifest parse failed",
+    description: "The manifest file contains invalid YAML syntax",
+  },
+  MANIFEST_VALIDATION_FAILED: {
+    domain: "manifest",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Manifest validation failed",
+    description: "The manifest content does not match the expected schema",
+  },
+  MANIFEST_INTERPOLATION_FAILED: {
+    domain: "manifest",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Manifest interpolation failed",
+    description: "Environment variable interpolation failed due to missing variables",
+  },
 } as const;
 
 // ============================================================================

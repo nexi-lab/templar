@@ -1665,3 +1665,102 @@ export class SanitizeContentBlockedError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// MANIFEST ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a manifest YAML file does not exist
+ */
+export class ManifestFileNotFoundError extends TemplarError {
+  readonly _tag = "ManifestFileNotFoundError" as const;
+  readonly code = "MANIFEST_FILE_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.MANIFEST_FILE_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MANIFEST_FILE_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.MANIFEST_FILE_NOT_FOUND.domain;
+
+  constructor(
+    public readonly filePath: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Manifest file not found: ${filePath}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a manifest file contains invalid YAML syntax
+ */
+export class ManifestParseError extends TemplarError {
+  readonly _tag = "ManifestParseError" as const;
+  readonly code = "MANIFEST_PARSE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MANIFEST_PARSE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MANIFEST_PARSE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MANIFEST_PARSE_FAILED.domain;
+
+  constructor(
+    public readonly filePath: string | undefined,
+    message: string,
+    public readonly line?: number | undefined,
+    public readonly column?: number | undefined,
+    public override readonly cause?: Error | undefined,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    const location =
+      line !== undefined ? ` at line ${line}${column !== undefined ? `:${column}` : ""}` : "";
+    super(
+      `Manifest parse failed${filePath ? ` (${filePath})` : ""}${location}: ${message}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when manifest content does not match the expected Zod schema
+ */
+export class ManifestSchemaError extends TemplarError {
+  readonly _tag = "ManifestSchemaError" as const;
+  readonly code = "MANIFEST_VALIDATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MANIFEST_VALIDATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MANIFEST_VALIDATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MANIFEST_VALIDATION_FAILED.domain;
+
+  constructor(
+    public readonly issues: readonly string[],
+    public override readonly cause?: Error | undefined,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Manifest validation failed:\n${issues.map((i) => `  - ${i}`).join("\n")}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when environment variable interpolation fails due to missing variables
+ */
+export class ManifestInterpolationError extends TemplarError {
+  readonly _tag = "ManifestInterpolationError" as const;
+  readonly code = "MANIFEST_INTERPOLATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MANIFEST_INTERPOLATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MANIFEST_INTERPOLATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MANIFEST_INTERPOLATION_FAILED.domain;
+
+  constructor(
+    public readonly missingVars: readonly string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Missing environment variable${missingVars.length > 1 ? "s" : ""}: ${missingVars.join(", ")}`,
+      metadata,
+      traceId,
+    );
+  }
+}
