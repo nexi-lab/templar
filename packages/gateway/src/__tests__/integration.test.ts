@@ -7,13 +7,9 @@
  * All subsystems are wired together via the orchestrator.
  */
 
-import type { GatewayConfig, NodeCapabilities } from "@templar/gateway-protocol";
+import type { NodeCapabilities } from "@templar/gateway-protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  closeWs,
-  createTestGateway,
-  sendFrame,
-} from "./helpers.js";
+import { closeWs, createTestGateway, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test-specific fixtures

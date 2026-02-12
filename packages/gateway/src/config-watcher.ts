@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { GatewayConfig } from "@templar/gateway-protocol";
 import { GatewayConfigSchema, HOT_RELOADABLE_FIELDS } from "@templar/gateway-protocol";
-import { type Emitter, createEmitter } from "./utils/emitter.js";
+import { createEmitter, type Emitter } from "./utils/emitter.js";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -1,4 +1,3 @@
-import type { IncomingMessage } from "node:http";
 import type { GatewayFrame } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
 import { GatewayServer } from "../server.js";
@@ -250,7 +249,8 @@ describe("GatewayServer", () => {
       wss.simulateConnection(ws);
 
       const frame: GatewayFrame = { kind: "heartbeat.ping", timestamp: Date.now() };
-      server.sendFrame(connectionId!, frame);
+      expect(connectionId).toBeDefined();
+      server.sendFrame(connectionId as string, frame);
 
       expect(ws.send).toHaveBeenCalledWith(JSON.stringify(frame));
 

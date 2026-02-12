@@ -1,4 +1,4 @@
-import { type Emitter, createEmitter } from "../utils/emitter.js";
+import { createEmitter, type Emitter } from "../utils/emitter.js";
 import type { NodeRegistry, RegisteredNode } from "./node-registry.js";
 
 // ---------------------------------------------------------------------------

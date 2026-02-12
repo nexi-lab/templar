@@ -15,7 +15,7 @@ import { NodeRegistry } from "./registry/node-registry.js";
 import { AgentRouter } from "./router.js";
 import { GatewayServer, type WsServerFactory } from "./server.js";
 import { SessionManager } from "./sessions/session-manager.js";
-import { type Emitter, createEmitter } from "./utils/emitter.js";
+import { createEmitter, type Emitter } from "./utils/emitter.js";
 
 // ---------------------------------------------------------------------------
 // Types

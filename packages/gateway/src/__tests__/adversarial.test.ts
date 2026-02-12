@@ -6,7 +6,7 @@
  */
 
 import type { GatewayFrame, NodeCapabilities } from "@templar/gateway-protocol";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { GatewayServer } from "../server.js";
 import {
   closeWs,
@@ -45,7 +45,11 @@ describe("adversarial: server", () => {
     wss.simulateConnection(ws);
 
     // Send a huge but valid JSON string — should not crash
-    const bigPayload = JSON.stringify({ kind: "heartbeat.pong", timestamp: 1, data: "x".repeat(100_000) });
+    const bigPayload = JSON.stringify({
+      kind: "heartbeat.pong",
+      timestamp: 1,
+      data: "x".repeat(100_000),
+    });
     const messageHandlers = ws.handlers.get("message") ?? [];
     expect(() => {
       for (const h of messageHandlers) {
@@ -248,9 +252,11 @@ describe("adversarial: gateway", () => {
     });
 
     // Should have sent an error frame
-    const errorFrame = ws.sentFrames().find(
-      (f) => f.kind === "error" && ("error" in f) && f.error.title === "Message routing failed",
-    );
+    const errorFrame = ws
+      .sentFrames()
+      .find(
+        (f) => f.kind === "error" && "error" in f && f.error.title === "Message routing failed",
+      );
     expect(errorFrame).toBeDefined();
 
     await gateway.stop();

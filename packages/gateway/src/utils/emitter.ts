@@ -31,17 +31,17 @@ export function createEmitter<E extends EventMap>(): Emitter<E> {
   return {
     on<K extends keyof E & string>(event: K, handler: (...args: E[K]) => void): () => void {
       const existing = handlers.get(event) ?? [];
-      handlers = new Map([...handlers, [event, [...existing, handler as (...args: unknown[]) => void]]]);
+      handlers = new Map([
+        ...handlers,
+        [event, [...existing, handler as (...args: unknown[]) => void]],
+      ]);
 
       let disposed = false;
       return () => {
         if (disposed) return;
         disposed = true;
         const current = handlers.get(event) ?? [];
-        handlers = new Map([
-          ...handlers,
-          [event, current.filter((h) => h !== handler)],
-        ]);
+        handlers = new Map([...handlers, [event, current.filter((h) => h !== handler)]]);
       };
     },
 

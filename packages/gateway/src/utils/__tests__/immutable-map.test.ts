@@ -25,7 +25,10 @@ describe("mapSet", () => {
 
 describe("mapDelete", () => {
   it("removes an existing entry", () => {
-    const original: ReadonlyMap<string, number> = new Map([["a", 1], ["b", 2]]);
+    const original: ReadonlyMap<string, number> = new Map([
+      ["a", 1],
+      ["b", 2],
+    ]);
     const result = mapDelete(original, "a");
     expect(result.has("a")).toBe(false);
     expect(result.get("b")).toBe(2);
@@ -48,7 +51,11 @@ describe("mapDelete", () => {
 
 describe("mapFilter", () => {
   it("filters entries by predicate", () => {
-    const original: ReadonlyMap<string, number> = new Map([["a", 1], ["b", 2], ["c", 3]]);
+    const original: ReadonlyMap<string, number> = new Map([
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+    ]);
     const result = mapFilter(original, (_k, v) => v > 1);
     expect(result.size).toBe(2);
     expect(result.has("a")).toBe(false);
@@ -63,19 +70,28 @@ describe("mapFilter", () => {
   });
 
   it("returns all entries when all match", () => {
-    const original: ReadonlyMap<string, number> = new Map([["a", 1], ["b", 2]]);
+    const original: ReadonlyMap<string, number> = new Map([
+      ["a", 1],
+      ["b", 2],
+    ]);
     const result = mapFilter(original, () => true);
     expect(result.size).toBe(2);
   });
 
   it("does not mutate the original map", () => {
-    const original: ReadonlyMap<string, number> = new Map([["a", 1], ["b", 2]]);
+    const original: ReadonlyMap<string, number> = new Map([
+      ["a", 1],
+      ["b", 2],
+    ]);
     mapFilter(original, (_k, v) => v === 1);
     expect(original.size).toBe(2);
   });
 
   it("provides key and value to predicate", () => {
-    const original: ReadonlyMap<string, number> = new Map([["keep", 1], ["drop", 2]]);
+    const original: ReadonlyMap<string, number> = new Map([
+      ["keep", 1],
+      ["drop", 2],
+    ]);
     const result = mapFilter(original, (k) => k === "keep");
     expect(result.size).toBe(1);
     expect(result.has("keep")).toBe(true);

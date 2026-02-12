@@ -59,7 +59,12 @@ export const HOT_RELOADABLE_FIELDS = [
 export type HotReloadableField = (typeof HOT_RELOADABLE_FIELDS)[number];
 
 /** Fields that require gateway restart to take effect */
-export const RESTART_REQUIRED_FIELDS = ["port", "nexusUrl", "nexusApiKey", "maxConnections"] as const;
+export const RESTART_REQUIRED_FIELDS = [
+  "port",
+  "nexusUrl",
+  "nexusApiKey",
+  "maxConnections",
+] as const;
 export type RestartRequiredField = (typeof RESTART_REQUIRED_FIELDS)[number];
 
 /**
