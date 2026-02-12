@@ -66,8 +66,9 @@ describe("normalizeSlackEvent", () => {
 
     expect(result).toBeDefined();
     const fileBlocks = result?.blocks.filter((b) => b.type === "file");
+    expect(fileBlocks).toBeDefined();
     expect(fileBlocks).toHaveLength(1);
-    expect(fileBlocks[0]).toMatchObject({
+    expect(fileBlocks![0]).toMatchObject({
       type: "file",
       filename: "report.pdf",
       mimeType: "application/pdf",
