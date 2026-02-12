@@ -1428,3 +1428,168 @@ export class HookReentrancyError extends TemplarError {
     );
   }
 }
+
+// ============================================================================
+// MCP ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a connection to an MCP server fails
+ */
+export class McpConnectionFailedError extends TemplarError {
+  readonly _tag = "McpConnectionFailedError" as const;
+  readonly code = "MCP_CONNECTION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_CONNECTION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_CONNECTION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_CONNECTION_FAILED.domain;
+
+  constructor(
+    public readonly serverName: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP server '${serverName}' connection failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when MCP protocol handshake or capability negotiation fails
+ */
+export class McpInitializationFailedError extends TemplarError {
+  readonly _tag = "McpInitializationFailedError" as const;
+  readonly code = "MCP_INITIALIZATION_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_INITIALIZATION_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_INITIALIZATION_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_INITIALIZATION_FAILED.domain;
+
+  constructor(
+    public readonly serverName: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP server '${serverName}' initialization failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when an MCP tool invocation returns an error
+ */
+export class McpToolCallFailedError extends TemplarError {
+  readonly _tag = "McpToolCallFailedError" as const;
+  readonly code = "MCP_TOOL_CALL_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_TOOL_CALL_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_TOOL_CALL_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_TOOL_CALL_FAILED.domain;
+
+  constructor(
+    public readonly toolName: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP tool '${toolName}' call failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the requested tool does not exist on the MCP server
+ */
+export class McpToolNotFoundError extends TemplarError {
+  readonly _tag = "McpToolNotFoundError" as const;
+  readonly code = "MCP_TOOL_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_TOOL_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_TOOL_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_TOOL_NOT_FOUND.domain;
+
+  constructor(
+    public readonly toolName: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP tool '${toolName}' not found on server`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the requested resource URI was not found on the MCP server
+ */
+export class McpResourceNotFoundError extends TemplarError {
+  readonly _tag = "McpResourceNotFoundError" as const;
+  readonly code = "MCP_RESOURCE_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_RESOURCE_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_RESOURCE_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_RESOURCE_NOT_FOUND.domain;
+
+  constructor(
+    public readonly uri: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP resource '${uri}' not found`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when reading a resource from the MCP server fails
+ */
+export class McpResourceReadFailedError extends TemplarError {
+  readonly _tag = "McpResourceReadFailedError" as const;
+  readonly code = "MCP_RESOURCE_READ_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_RESOURCE_READ_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_RESOURCE_READ_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_RESOURCE_READ_FAILED.domain;
+
+  constructor(
+    public readonly uri: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP resource '${uri}' read failed: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a transport-level communication error occurs
+ */
+export class McpTransportError extends TemplarError {
+  readonly _tag = "McpTransportError" as const;
+  readonly code = "MCP_TRANSPORT_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_TRANSPORT_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_TRANSPORT_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_TRANSPORT_ERROR.domain;
+
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP transport error: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the MCP server connection is lost unexpectedly
+ */
+export class McpServerDisconnectedError extends TemplarError {
+  readonly _tag = "McpServerDisconnectedError" as const;
+  readonly code = "MCP_SERVER_DISCONNECTED" as const;
+  readonly httpStatus = ERROR_CATALOG.MCP_SERVER_DISCONNECTED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.MCP_SERVER_DISCONNECTED.grpcCode;
+  readonly domain = ERROR_CATALOG.MCP_SERVER_DISCONNECTED.domain;
+
+  constructor(
+    public readonly serverName: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`MCP server '${serverName}' disconnected unexpectedly`, metadata, traceId);
+  }
+}
