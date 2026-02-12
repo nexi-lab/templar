@@ -573,6 +573,66 @@ export const ERROR_CATALOG = {
     title: "Hook re-entrancy exceeded",
     description: "Hook emit() calls exceeded the maximum re-entrancy depth",
   },
+
+  // ============================================================================
+  // MCP ERRORS - MCP client bridge
+  // ============================================================================
+  MCP_CONNECTION_FAILED: {
+    domain: "mcp",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "MCP connection failed",
+    description: "Failed to connect to the MCP server",
+  },
+  MCP_INITIALIZATION_FAILED: {
+    domain: "mcp",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "MCP initialization failed",
+    description: "MCP protocol handshake or capability negotiation failed",
+  },
+  MCP_TOOL_CALL_FAILED: {
+    domain: "mcp",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    title: "MCP tool call failed",
+    description: "The MCP tool invocation returned an error",
+  },
+  MCP_TOOL_NOT_FOUND: {
+    domain: "mcp",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "MCP tool not found",
+    description: "The requested tool does not exist on the MCP server",
+  },
+  MCP_RESOURCE_NOT_FOUND: {
+    domain: "mcp",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "MCP resource not found",
+    description: "The requested resource URI was not found on the MCP server",
+  },
+  MCP_RESOURCE_READ_FAILED: {
+    domain: "mcp",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    title: "MCP resource read failed",
+    description: "Failed to read the resource from the MCP server",
+  },
+  MCP_TRANSPORT_ERROR: {
+    domain: "mcp",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "MCP transport error",
+    description: "A transport-level communication error occurred",
+  },
+  MCP_SERVER_DISCONNECTED: {
+    domain: "mcp",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "MCP server disconnected",
+    description: "The MCP server connection was lost unexpectedly",
+  },
 } as const;
 
 // ============================================================================
