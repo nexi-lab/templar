@@ -633,6 +633,31 @@ export const ERROR_CATALOG = {
     title: "MCP server disconnected",
     description: "The MCP server connection was lost unexpectedly",
   },
+
+  // ============================================================================
+  // SANITIZE ERRORS — Content sanitization
+  // ============================================================================
+  SANITIZE_CONFIGURATION_INVALID: {
+    domain: "sanitize",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Invalid sanitize configuration",
+    description: "The sanitizer configuration is invalid",
+  },
+  SANITIZE_RULE_FAILED: {
+    domain: "sanitize",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Sanitization rule failed",
+    description: "A sanitization rule threw an unexpected error during execution",
+  },
+  SANITIZE_CONTENT_BLOCKED: {
+    domain: "sanitize",
+    httpStatus: 422,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Content blocked",
+    description: "Content was blocked because it exceeds size limits or is entirely malicious",
+  },
 } as const;
 
 // ============================================================================
