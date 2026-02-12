@@ -244,6 +244,22 @@ importers:
         specifier: workspace:*
         version: link:../errors
 
+  packages/sanitize:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+    devDependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      vitest:
+        specifier: ^4.0.0
+        version: 4.0.18(@types/node@22.19.11)(yaml@2.8.2)
+
   packages/test-utils:
     dependencies:
       '@nexus/sdk':

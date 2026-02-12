@@ -15,7 +15,8 @@
     { "path": "packages/middleware" },
     { "path": "packages/gateway" },
     { "path": "packages/test-utils" },
-    { "path": "packages/agui" }
+    { "path": "packages/agui" },
+    { "path": "packages/sanitize" }
   ],
   "include": [],
   "exclude": ["node_modules", "dist", "coverage"]

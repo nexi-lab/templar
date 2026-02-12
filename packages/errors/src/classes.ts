@@ -1593,3 +1593,75 @@ export class McpServerDisconnectedError extends TemplarError {
     super(`MCP server '${serverName}' disconnected unexpectedly`, metadata, traceId);
   }
 }
+
+// ============================================================================
+// SANITIZE ERRORS
+// ============================================================================
+
+/**
+ * Thrown when the sanitizer configuration is invalid
+ */
+export class SanitizeConfigurationError extends TemplarError {
+  readonly _tag = "SanitizeConfigurationError" as const;
+  readonly code = "SANITIZE_CONFIGURATION_INVALID" as const;
+  readonly httpStatus = ERROR_CATALOG.SANITIZE_CONFIGURATION_INVALID.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SANITIZE_CONFIGURATION_INVALID.grpcCode;
+  readonly domain = ERROR_CATALOG.SANITIZE_CONFIGURATION_INVALID.domain;
+
+  constructor(
+    message: string,
+    public readonly issues?: readonly string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(message, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a sanitization rule throws an unexpected error during execution
+ */
+export class SanitizeRuleFailedError extends TemplarError {
+  readonly _tag = "SanitizeRuleFailedError" as const;
+  readonly code = "SANITIZE_RULE_FAILED" as const;
+  readonly httpStatus = ERROR_CATALOG.SANITIZE_RULE_FAILED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SANITIZE_RULE_FAILED.grpcCode;
+  readonly domain = ERROR_CATALOG.SANITIZE_RULE_FAILED.domain;
+
+  constructor(
+    public readonly ruleName: string,
+    message: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+    cause?: Error,
+  ) {
+    super(`Rule '${ruleName}' failed: ${message}`, metadata, traceId, {
+      cause,
+    });
+  }
+}
+
+/**
+ * Thrown when content is blocked due to size limits or being entirely malicious
+ */
+export class SanitizeContentBlockedError extends TemplarError {
+  readonly _tag = "SanitizeContentBlockedError" as const;
+  readonly code = "SANITIZE_CONTENT_BLOCKED" as const;
+  readonly httpStatus = ERROR_CATALOG.SANITIZE_CONTENT_BLOCKED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SANITIZE_CONTENT_BLOCKED.grpcCode;
+  readonly domain = ERROR_CATALOG.SANITIZE_CONTENT_BLOCKED.domain;
+
+  constructor(
+    public readonly reason: string,
+    public readonly contentLength: number,
+    public readonly maxLength: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Content blocked: ${reason} (length: ${contentLength}, max: ${maxLength})`,
+      metadata,
+      traceId,
+    );
+  }
+}
