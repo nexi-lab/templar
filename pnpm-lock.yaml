@@ -204,6 +204,10 @@ importers:
         version: 4.0.18(@types/node@22.19.11)(yaml@2.8.2)
 
   packages/identity:
+    dependencies:
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       '@templar/core':
         specifier: workspace:*
