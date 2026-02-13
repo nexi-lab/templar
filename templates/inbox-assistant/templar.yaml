@@ -1,0 +1,26 @@
+name: inbox-assistant
+version: 1.0.0
+description: Email triage agent that categorizes and drafts replies
+
+model: anthropic/claude-sonnet-4-5
+channels:
+  - email
+
+schedule: "*/30 * * * *"
+prompt: >
+  You are an email triage assistant. Categorize incoming emails as
+  urgent, action-required, informational, or low-priority. Draft
+  concise reply suggestions for action-required items. Never send
+  replies automatically — always present drafts for human approval.
+
+permissions:
+  allowed:
+    - email_read
+    - email_draft
+  denied:
+    - email_send
+
+identity:
+  default:
+    name: Inbox Assistant
+    bio: Smart email triage every 30 minutes

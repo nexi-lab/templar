@@ -4,6 +4,7 @@
  */
 
 import type { AgentManifest } from "@templar/core";
+import { parseExpression } from "cron-parser";
 import { z } from "zod";
 
 export const ModelConfigSchema = z.object({
@@ -57,6 +58,23 @@ export const IdentityConfigSchema = z.object({
   channels: z.record(z.string(), ChannelIdentityConfigSchema).optional(),
 });
 
+export const ScheduleSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (expr) => {
+      try {
+        parseExpression(expr);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Invalid cron expression" },
+  );
+
+export const PromptSchema = z.string().min(1).max(10_000);
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -67,6 +85,8 @@ export const AgentManifestSchema = z.object({
   middleware: z.array(MiddlewareConfigSchema).optional(),
   permissions: PermissionConfigSchema.optional(),
   identity: IdentityConfigSchema.optional(),
+  schedule: ScheduleSchema.optional(),
+  prompt: PromptSchema.optional(),
 });
 
 /**

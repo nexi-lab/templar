@@ -1,0 +1,25 @@
+name: knowledge-base
+version: 1.0.0
+description: Personal knowledge assistant with RAG-powered document retrieval
+
+model: anthropic/claude-sonnet-4-5
+channels:
+  - slack
+
+prompt: >
+  You are a knowledge base assistant. When users ask questions, search
+  the indexed documents and provide accurate, cited answers. Always
+  include the source document name and section in your responses.
+
+middleware:
+  - name: memory
+    config:
+      scope: per-user
+  - name: rag
+    config:
+      indexPath: ./data/index
+
+identity:
+  default:
+    name: Knowledge Bot
+    bio: Ask me anything about your documents

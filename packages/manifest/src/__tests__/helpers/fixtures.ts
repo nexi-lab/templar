@@ -74,3 +74,56 @@ export const YAML_MISSING_REQUIRED = `
 name: ""
 version: not-semver
 `;
+
+// ---------------------------------------------------------------------------
+// Sugar syntax fixtures
+// ---------------------------------------------------------------------------
+
+export const YAML_WITH_MODEL_STRING = `
+name: sugar-model
+version: 1.0.0
+description: Model as slash string
+model: anthropic/claude-sonnet-4-5
+`;
+
+export const YAML_WITH_MODEL_INFERRED = `
+name: sugar-model-inferred
+version: 1.0.0
+description: Model with inferred provider
+model: claude-sonnet-4-5
+`;
+
+export const YAML_WITH_CHANNELS_ARRAY = `
+name: sugar-channels
+version: 1.0.0
+description: Channels as string array
+channels:
+  - slack
+  - telegram
+`;
+
+export const YAML_WITH_PROMPT = `
+name: sugar-prompt
+version: 1.0.0
+description: Top-level prompt sugar
+prompt: You are a helpful assistant that summarizes documents.
+`;
+
+export const YAML_WITH_SCHEDULE = `
+name: sugar-schedule
+version: 1.0.0
+description: Scheduled agent
+schedule: "0 9 * * 1-5"
+`;
+
+export const YAML_WITH_ALL_SUGAR = `
+name: sugar-all
+version: 1.0.0
+description: All sugar syntax combined
+model: anthropic/claude-sonnet-4-5
+channels:
+  - slack
+  - email
+prompt: You are a helpful assistant.
+schedule: "0 8 * * *"
+`;

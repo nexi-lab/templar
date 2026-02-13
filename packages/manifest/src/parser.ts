@@ -9,6 +9,7 @@ import { parse as parseYaml, YAMLParseError } from "yaml";
 
 import { deepFreeze } from "./freeze.js";
 import { interpolateEnvVars } from "./interpolation.js";
+import { normalizeManifest } from "./normalize.js";
 import { AgentManifestSchema } from "./schema.js";
 
 export interface ParseManifestOptions {
@@ -43,7 +44,11 @@ export function parseManifestYaml(
     throw new ManifestParseError(undefined, String(error));
   }
 
-  const result = AgentManifestSchema.safeParse(parsed);
+  const toValidate =
+    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? normalizeManifest(parsed as Record<string, unknown>)
+      : parsed;
+  const result = AgentManifestSchema.safeParse(toValidate);
   if (!result.success) {
     const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
     throw new ManifestSchemaError(issues, result.error);

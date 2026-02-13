@@ -74,6 +74,8 @@ export interface AgentManifest {
   middleware?: MiddlewareConfig[];
   permissions?: PermissionConfig;
   identity?: IdentityConfig;
+  schedule?: string;
+  prompt?: string;
 }
 
 /**

@@ -6,7 +6,13 @@ import {
   INVALID_YAML_SYNTAX,
   VALID_FULL_YAML,
   VALID_MINIMAL_YAML,
+  YAML_WITH_ALL_SUGAR,
+  YAML_WITH_CHANNELS_ARRAY,
   YAML_WITH_ENV_VARS,
+  YAML_WITH_MODEL_INFERRED,
+  YAML_WITH_MODEL_STRING,
+  YAML_WITH_PROMPT,
+  YAML_WITH_SCHEDULE,
 } from "../helpers/fixtures.js";
 
 describe("parseManifestYaml", () => {
@@ -103,5 +109,58 @@ description: Has comments # inline too
     expect(() => parseManifestYaml('"just a string"', { skipInterpolation: true })).toThrow(
       ManifestSchemaError,
     );
+  });
+});
+
+describe("parseManifestYaml — sugar syntax", () => {
+  it("normalizes model string to ModelConfig", () => {
+    const manifest = parseManifestYaml(YAML_WITH_MODEL_STRING, { skipInterpolation: true });
+    expect(manifest.model).toEqual({ provider: "anthropic", name: "claude-sonnet-4-5" });
+  });
+
+  it("normalizes model with inferred provider", () => {
+    const manifest = parseManifestYaml(YAML_WITH_MODEL_INFERRED, { skipInterpolation: true });
+    expect(manifest.model).toEqual({ provider: "anthropic", name: "claude-sonnet-4-5" });
+  });
+
+  it("normalizes channels string array to ChannelConfig array", () => {
+    const manifest = parseManifestYaml(YAML_WITH_CHANNELS_ARRAY, { skipInterpolation: true });
+    expect(manifest.channels).toEqual([
+      { type: "slack", config: {} },
+      { type: "telegram", config: {} },
+    ]);
+  });
+
+  it("normalizes prompt to identity.default.systemPromptPrefix", () => {
+    const manifest = parseManifestYaml(YAML_WITH_PROMPT, { skipInterpolation: true });
+    expect(manifest.identity?.default?.systemPromptPrefix).toBe(
+      "You are a helpful assistant that summarizes documents.",
+    );
+    expect(manifest.prompt).toBeUndefined();
+  });
+
+  it("passes schedule through to parsed manifest", () => {
+    const manifest = parseManifestYaml(YAML_WITH_SCHEDULE, { skipInterpolation: true });
+    expect(manifest.schedule).toBe("0 9 * * 1-5");
+  });
+
+  it("normalizes all sugar fields together", () => {
+    const manifest = parseManifestYaml(YAML_WITH_ALL_SUGAR, { skipInterpolation: true });
+    expect(manifest.model).toEqual({ provider: "anthropic", name: "claude-sonnet-4-5" });
+    expect(manifest.channels).toEqual([
+      { type: "slack", config: {} },
+      { type: "email", config: {} },
+    ]);
+    expect(manifest.identity?.default?.systemPromptPrefix).toBe("You are a helpful assistant.");
+    expect(manifest.schedule).toBe("0 8 * * *");
+    expect(manifest.prompt).toBeUndefined();
+  });
+
+  it("returns a deeply frozen result after normalization", () => {
+    const manifest = parseManifestYaml(YAML_WITH_ALL_SUGAR, { skipInterpolation: true });
+    expect(Object.isFrozen(manifest)).toBe(true);
+    expect(Object.isFrozen(manifest.model)).toBe(true);
+    expect(Object.isFrozen(manifest.channels)).toBe(true);
+    expect(Object.isFrozen(manifest.identity)).toBe(true);
   });
 });

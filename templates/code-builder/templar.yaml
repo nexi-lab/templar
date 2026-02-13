@@ -1,0 +1,27 @@
+name: code-builder
+version: 1.0.0
+description: Overnight CI agent that builds, tests, and reports results
+
+model: anthropic/claude-sonnet-4-5
+channels:
+  - slack
+
+schedule: "0 2 * * *"
+prompt: >
+  You are a CI/CD assistant. Run the project build and test suite,
+  then report the results. Highlight any failures with relevant
+  error context. Suggest fixes for common build errors when possible.
+
+tools:
+  - name: shell_exec
+    description: Execute shell commands for building and testing
+    parameters:
+      allowedCommands:
+        - npm test
+        - npm run build
+        - npm run lint
+
+identity:
+  default:
+    name: Code Builder
+    bio: Nightly builds and test reports at 2 AM
