@@ -1,72 +1,10 @@
 import type { GatewayFrame } from "@templar/gateway-protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type WebSocketClientLike, WsClient, type WsClientFactory } from "../ws-client.js";
-
-// ---------------------------------------------------------------------------
-// Mock WebSocket
-// ---------------------------------------------------------------------------
-
-function createMockWs(): WebSocketClientLike & {
-  _listeners: Map<string, Array<(...args: unknown[]) => void>>;
-  _simulateOpen: () => void;
-  _simulateMessage: (data: string) => void;
-  _simulateClose: (code: number, reason: string) => void;
-  _simulateError: (error: Error) => void;
-  _sent: string[];
-} {
-  const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
-  const sent: string[] = [];
-
-  const ws = {
-    readyState: 0, // CONNECTING
-    _listeners: listeners,
-    _sent: sent,
-
-    send(data: string) {
-      sent.push(data);
-    },
-
-    close(code?: number, _reason?: string) {
-      ws.readyState = 3; // CLOSED
-      const handlers = listeners.get("close") ?? [];
-      for (const h of handlers) {
-        h(code ?? 1000, "");
-      }
-    },
-
-    on(event: string, handler: (...args: unknown[]) => void) {
-      const existing = listeners.get(event) ?? [];
-      listeners.set(event, [...existing, handler]);
-    },
-
-    _simulateOpen() {
-      ws.readyState = 1; // OPEN
-      const handlers = listeners.get("open") ?? [];
-      for (const h of handlers) h();
-    },
-
-    _simulateMessage(data: string) {
-      const handlers = listeners.get("message") ?? [];
-      for (const h of handlers) h(data);
-    },
-
-    _simulateClose(code: number, reason: string) {
-      ws.readyState = 3; // CLOSED
-      const handlers = listeners.get("close") ?? [];
-      for (const h of handlers) h(code, reason);
-    },
-
-    _simulateError(error: Error) {
-      const handlers = listeners.get("error") ?? [];
-      for (const h of handlers) h(error);
-    },
-  };
-
-  return ws;
-}
+import { WsClient, type WsClientFactory } from "../ws-client.js";
+import { createMockWs, type MockWs } from "./helpers.js";
 
 describe("WsClient", () => {
-  let mockWs: ReturnType<typeof createMockWs>;
+  let mockWs: MockWs;
   let factory: WsClientFactory;
   let client: WsClient;
 
@@ -143,7 +81,7 @@ describe("WsClient", () => {
 
       expect(result).toBe(true);
       expect(mockWs._sent).toHaveLength(1);
-      expect(JSON.parse(mockWs._sent[0] ?? "")).toEqual(frame);
+      expect(mockWs._sent[0]).toEqual(frame);
     });
 
     it("should return false when not connected", () => {
@@ -259,6 +197,104 @@ describe("WsClient", () => {
 
       client.dispose();
       expect(client.isConnected).toBe(false);
+    });
+  });
+
+  describe("abort signal", () => {
+    it("should reject immediately if signal is already aborted", async () => {
+      const controller = new AbortController();
+      controller.abort(new Error("Pre-aborted"));
+
+      await expect(
+        client.connect("ws://localhost:18789", "token", controller.signal),
+      ).rejects.toThrow("Pre-aborted");
+    });
+
+    it("should reject when signal aborts during connect", async () => {
+      const controller = new AbortController();
+      const connectPromise = client.connect("ws://localhost:18789", "token", controller.signal);
+
+      controller.abort(new Error("Cancelled"));
+
+      await expect(connectPromise).rejects.toThrow("Cancelled");
+    });
+  });
+
+  describe("wireEventHandlers error wrapping", () => {
+    it("should wrap non-Error values from WS error events", async () => {
+      const errorHandler = vi.fn();
+      client.onError(errorHandler);
+
+      const connectPromise = client.connect("ws://localhost:18789", "token");
+      mockWs._simulateOpen();
+      await connectPromise;
+
+      // Simulate a non-Error error event (e.g., a string)
+      const handlers = mockWs._listeners.get("error") ?? [];
+      for (const h of handlers) h("string error event");
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toBe("string error event");
+    });
+
+    it("should forward close events with default code when code is falsy", async () => {
+      const closeHandler = vi.fn();
+      client.onClose(closeHandler);
+
+      const connectPromise = client.connect("ws://localhost:18789", "token");
+      mockWs._simulateOpen();
+      await connectPromise;
+
+      // Simulate close with falsy code (0 or undefined)
+      const handlers = mockWs._listeners.get("close") ?? [];
+      for (const h of handlers) h(undefined, undefined);
+
+      expect(closeHandler).toHaveBeenCalledWith(1000, "");
+    });
+  });
+
+  describe("connect abort", () => {
+    it("should use fallback error when abort reason is not an Error", async () => {
+      const controller = new AbortController();
+
+      const connectPromise = client.connect("ws://localhost:18789", "token", controller.signal);
+
+      // Abort with a non-Error reason
+      controller.abort("string reason");
+
+      await expect(connectPromise).rejects.toThrow("Connection aborted");
+    });
+  });
+
+  describe("max frame size", () => {
+    it("should reject oversized frames", async () => {
+      const errorHandler = vi.fn();
+      client.onError(errorHandler);
+      client.setMaxFrameSize(50);
+
+      const connectPromise = client.connect("ws://localhost:18789", "token");
+      mockWs._simulateOpen();
+      await connectPromise;
+
+      // Send a frame that exceeds the 50-byte limit
+      const largeFrame = JSON.stringify({
+        kind: "lane.message",
+        lane: "steer",
+        message: {
+          id: "m1",
+          lane: "steer",
+          channelId: "c1",
+          payload: { data: "x".repeat(100) },
+          timestamp: 0,
+        },
+      });
+      mockWs._simulateMessage(largeFrame);
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err.message).toContain("exceeds limit");
     });
   });
 });

@@ -288,6 +288,9 @@ importers:
 
   packages/node:
     dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
       '@templar/gateway-protocol':
         specifier: workspace:*
         version: link:../gateway-protocol

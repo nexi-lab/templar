@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import {
+  DEFAULT_CONNECTION_TIMEOUT,
+  DEFAULT_MAX_FRAME_SIZE,
   DEFAULT_RECONNECT_CONFIG,
+  DEFAULT_REGISTRATION_TIMEOUT,
   NodeConfigSchema,
   ReconnectConfigSchema,
   resolveNodeConfig,
@@ -81,6 +84,44 @@ describe("NodeConfigSchema", () => {
     });
   });
 
+  it("should apply timeout and frame size defaults", () => {
+    const result = NodeConfigSchema.parse(validConfig);
+    expect(result.registrationTimeout).toBe(DEFAULT_REGISTRATION_TIMEOUT);
+    expect(result.connectionTimeout).toBe(DEFAULT_CONNECTION_TIMEOUT);
+    expect(result.maxFrameSize).toBe(DEFAULT_MAX_FRAME_SIZE);
+  });
+
+  it("should accept custom timeout values", () => {
+    const result = NodeConfigSchema.parse({
+      ...validConfig,
+      registrationTimeout: 5_000,
+      connectionTimeout: 15_000,
+      maxFrameSize: 2_097_152,
+    });
+    expect(result.registrationTimeout).toBe(5_000);
+    expect(result.connectionTimeout).toBe(15_000);
+    expect(result.maxFrameSize).toBe(2_097_152);
+  });
+
+  it("should reject non-positive registrationTimeout", () => {
+    expect(() => NodeConfigSchema.parse({ ...validConfig, registrationTimeout: 0 })).toThrow(
+      ZodError,
+    );
+    expect(() => NodeConfigSchema.parse({ ...validConfig, registrationTimeout: -1 })).toThrow(
+      ZodError,
+    );
+  });
+
+  it("should reject non-positive connectionTimeout", () => {
+    expect(() => NodeConfigSchema.parse({ ...validConfig, connectionTimeout: 0 })).toThrow(
+      ZodError,
+    );
+  });
+
+  it("should reject non-positive maxFrameSize", () => {
+    expect(() => NodeConfigSchema.parse({ ...validConfig, maxFrameSize: 0 })).toThrow(ZodError);
+  });
+
   it("should accept custom reconnect config", () => {
     const result = NodeConfigSchema.parse({
       ...validConfig,
@@ -150,6 +191,9 @@ describe("resolveNodeConfig", () => {
     expect(resolved.reconnect.maxRetries).toBe(10);
     expect(resolved.reconnect.baseDelay).toBe(1_000);
     expect(resolved.reconnect.maxDelay).toBe(30_000);
+    expect(resolved.registrationTimeout).toBe(DEFAULT_REGISTRATION_TIMEOUT);
+    expect(resolved.connectionTimeout).toBe(DEFAULT_CONNECTION_TIMEOUT);
+    expect(resolved.maxFrameSize).toBe(DEFAULT_MAX_FRAME_SIZE);
   });
 
   it("should throw ZodError for invalid config", () => {

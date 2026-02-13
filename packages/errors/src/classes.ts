@@ -1645,6 +1645,184 @@ export class McpServerDisconnectedError extends TemplarError {
 }
 
 // ============================================================================
+// NODE ERRORS
+// ============================================================================
+
+/**
+ * Thrown when the node cannot start from its current state
+ */
+export class NodeStartError extends TemplarError {
+  readonly _tag = "NodeStartError" as const;
+  readonly code = "NODE_START_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_START_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_START_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_START_ERROR.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly currentState: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' cannot start: currently in state '${currentState}'`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when registration with the gateway times out
+ */
+export class NodeRegistrationTimeoutError extends TemplarError {
+  readonly _tag = "NodeRegistrationTimeoutError" as const;
+  readonly code = "NODE_REGISTRATION_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_REGISTRATION_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_REGISTRATION_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_REGISTRATION_TIMEOUT.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly timeoutMs: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' registration timed out after ${timeoutMs}ms`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the node fails to authenticate with the gateway
+ */
+export class NodeAuthFailureError extends TemplarError {
+  readonly _tag = "NodeAuthFailureError" as const;
+  readonly code = "NODE_AUTH_FAILURE" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_AUTH_FAILURE.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_AUTH_FAILURE.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_AUTH_FAILURE.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly closeCode: number,
+    public readonly reason: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Node '${nodeId}' authentication failure (code ${closeCode}): ${reason}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when all reconnection attempts are exhausted
+ */
+export class NodeReconnectExhaustedError extends TemplarError {
+  readonly _tag = "NodeReconnectExhaustedError" as const;
+  readonly code = "NODE_RECONNECT_EXHAUSTED" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_RECONNECT_EXHAUSTED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_RECONNECT_EXHAUSTED.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_RECONNECT_EXHAUSTED.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly attempts: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' reconnection failed after ${attempts} attempts`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when a user-registered handler throws during execution
+ */
+export class NodeHandlerError extends TemplarError {
+  readonly _tag = "NodeHandlerError" as const;
+  readonly code = "NODE_HANDLER_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_HANDLER_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_HANDLER_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_HANDLER_ERROR.domain;
+
+  constructor(
+    public readonly context: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node handler error (${context}): ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when the WebSocket connection to the gateway times out
+ */
+export class NodeConnectionTimeoutError extends TemplarError {
+  readonly _tag = "NodeConnectionTimeoutError" as const;
+  readonly code = "NODE_CONNECTION_TIMEOUT" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_CONNECTION_TIMEOUT.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_CONNECTION_TIMEOUT.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_CONNECTION_TIMEOUT.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    public readonly timeoutMs: number,
+    public readonly gatewayUrl: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Node '${nodeId}' connection to '${gatewayUrl}' timed out after ${timeoutMs}ms`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when an incoming WebSocket frame exceeds the maximum allowed size
+ */
+export class NodeFrameTooLargeError extends TemplarError {
+  readonly _tag = "NodeFrameTooLargeError" as const;
+  readonly code = "NODE_FRAME_TOO_LARGE" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_FRAME_TOO_LARGE.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_FRAME_TOO_LARGE.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_FRAME_TOO_LARGE.domain;
+
+  constructor(
+    public readonly sizeBytes: number,
+    public readonly maxSizeBytes: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Frame size ${sizeBytes} bytes exceeds limit of ${maxSizeBytes} bytes`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+/**
+ * Thrown when an operation is cancelled because the node is stopping
+ */
+export class NodeStoppedError extends TemplarError {
+  readonly _tag = "NodeStoppedError" as const;
+  readonly code = "NODE_STOPPED" as const;
+  readonly httpStatus = ERROR_CATALOG.NODE_STOPPED.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.NODE_STOPPED.grpcCode;
+  readonly domain = ERROR_CATALOG.NODE_STOPPED.domain;
+
+  constructor(
+    public readonly nodeId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Node '${nodeId}' operation cancelled: node is stopping`, metadata, traceId);
+  }
+}
+
+// ============================================================================
 // SANITIZE ERRORS
 // ============================================================================
 
