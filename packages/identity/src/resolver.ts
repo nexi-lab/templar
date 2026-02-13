@@ -1,6 +1,17 @@
 import type { ChannelIdentity, ChannelIdentityConfig, IdentityConfig } from "@templar/core";
 
 /**
+ * Remove keys with undefined values and freeze the result.
+ * Accepts a Record where values may be undefined (from pick()),
+ * strips them, and returns a frozen object typed as T.
+ */
+function freezeWithoutUndefined<T extends object>(obj: Record<string, unknown>): T {
+  return Object.freeze(
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)),
+  ) as T;
+}
+
+/**
  * Pick the channel-level value if defined, otherwise fall back to default.
  * Empty strings are intentional overrides (not fallback triggers).
  */
@@ -33,13 +44,12 @@ function mergeIdentityConfig(
     return undefined;
   }
 
-  const result: Record<string, unknown> = {};
-  if (name !== undefined) result.name = name;
-  if (avatar !== undefined) result.avatar = avatar;
-  if (bio !== undefined) result.bio = bio;
-  if (systemPromptPrefix !== undefined) result.systemPromptPrefix = systemPromptPrefix;
-
-  return Object.freeze(result) as ChannelIdentityConfig;
+  return freezeWithoutUndefined<ChannelIdentityConfig>({
+    name,
+    avatar,
+    bio,
+    systemPromptPrefix,
+  });
 }
 
 /**
@@ -79,10 +89,9 @@ export function resolveChannelIdentity(
     return undefined;
   }
 
-  const result: Record<string, unknown> = {};
-  if (full.name !== undefined) result.name = full.name;
-  if (full.avatar !== undefined) result.avatar = full.avatar;
-  if (full.bio !== undefined) result.bio = full.bio;
-
-  return Object.freeze(result) as ChannelIdentity;
+  return freezeWithoutUndefined<ChannelIdentity>({
+    name: full.name,
+    avatar: full.avatar,
+    bio: full.bio,
+  });
 }

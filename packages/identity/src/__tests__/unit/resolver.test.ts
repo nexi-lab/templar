@@ -181,6 +181,15 @@ describe("resolveIdentity", () => {
     };
     expect(resolveIdentity(config, "slack")).toBeUndefined();
   });
+
+  // #19 — Both default and channel override are empty objects
+  it("returns undefined when both default and channel are empty objects", () => {
+    const config: IdentityConfig = {
+      default: {},
+      channels: { slack: {} },
+    };
+    expect(resolveIdentity(config, "slack")).toBeUndefined();
+  });
 });
 
 describe("resolveChannelIdentity", () => {
