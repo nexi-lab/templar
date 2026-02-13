@@ -11,6 +11,7 @@
 // ============================================================================
 
 export { type LoadManifestOptions, loadManifest } from "./loader.js";
+export { normalizeManifest } from "./normalize.js";
 export { type ParseManifestOptions, parseManifestYaml } from "./parser.js";
 
 // ============================================================================
@@ -21,6 +22,8 @@ export {
   AgentManifestSchema,
   ChannelIdentityConfigSchema,
   IdentityConfigSchema,
+  PromptSchema,
+  ScheduleSchema,
 } from "./schema.js";
 
 // ============================================================================

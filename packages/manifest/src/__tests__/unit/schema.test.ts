@@ -6,6 +6,8 @@ import {
   IdentityConfigSchema,
   ModelConfigSchema,
   PermissionConfigSchema,
+  PromptSchema,
+  ScheduleSchema,
   ToolConfigSchema,
 } from "../../schema.js";
 
@@ -300,6 +302,127 @@ describe("AgentManifestSchema — identity", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.identity).toEqual({ default: { name: "Bot" } });
+    }
+  });
+});
+
+describe("ScheduleSchema", () => {
+  it("accepts a valid daily cron expression", () => {
+    const result = ScheduleSchema.safeParse("0 8 * * *");
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a weekday cron expression", () => {
+    const result = ScheduleSchema.safeParse("0 9 * * 1-5");
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts every-30-minutes cron", () => {
+    const result = ScheduleSchema.safeParse("*/30 * * * *");
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts every-6-hours cron", () => {
+    const result = ScheduleSchema.safeParse("0 */6 * * *");
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid cron expression", () => {
+    const result = ScheduleSchema.safeParse("not-a-cron");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty string", () => {
+    const result = ScheduleSchema.safeParse("");
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a cron with too many fields", () => {
+    const result = ScheduleSchema.safeParse("0 0 0 0 0 0 0");
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("PromptSchema", () => {
+  it("accepts a valid prompt string", () => {
+    const result = PromptSchema.safeParse("You are a helpful assistant.");
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a prompt at max length (10K)", () => {
+    const result = PromptSchema.safeParse("A".repeat(10_000));
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a prompt exceeding 10K characters", () => {
+    const result = PromptSchema.safeParse("A".repeat(10_001));
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty string", () => {
+    const result = PromptSchema.safeParse("");
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("AgentManifestSchema — schedule and prompt", () => {
+  const minimal = {
+    name: "test-agent",
+    version: "1.0.0",
+    description: "A test agent",
+  };
+
+  it("accepts manifest with valid schedule", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      schedule: "0 8 * * *",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.schedule).toBe("0 8 * * *");
+    }
+  });
+
+  it("rejects manifest with invalid schedule", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      schedule: "bad-cron",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts manifest without schedule (optional)", () => {
+    const result = AgentManifestSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.schedule).toBeUndefined();
+    }
+  });
+
+  it("accepts manifest with valid prompt", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      prompt: "You are a helpful assistant.",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.prompt).toBe("You are a helpful assistant.");
+    }
+  });
+
+  it("rejects manifest with empty prompt", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      prompt: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts manifest without prompt (optional)", () => {
+    const result = AgentManifestSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.prompt).toBeUndefined();
     }
   });
 });
