@@ -203,6 +203,12 @@ importers:
         specifier: ^4.0.0
         version: 4.0.18(@types/node@22.19.11)(yaml@2.8.2)
 
+  packages/identity:
+    devDependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/manifest:
     dependencies:
       yaml:

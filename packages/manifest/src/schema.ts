@@ -34,6 +34,29 @@ export const PermissionConfigSchema = z.object({
   denied: z.array(z.string().min(1)).optional(),
 });
 
+const HTTPS_URL_PATTERN = /^https:\/\/[a-zA-Z0-9][\w.-]+\.[a-zA-Z]{2,}/;
+/** Allows ./foo, ../foo, /foo — no double-dot segments after the initial prefix */
+const RELATIVE_PATH_PATTERN = /^\.{0,2}\/(?!.*\.\.)[\w.\-/]+$/;
+const isUrlOrRelativePath = (val: string) =>
+  HTTPS_URL_PATTERN.test(val) || RELATIVE_PATH_PATTERN.test(val);
+
+export const ChannelIdentityConfigSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  avatar: z
+    .string()
+    .refine(isUrlOrRelativePath, {
+      message: "Must be a URL (https://...) or relative path (./...)",
+    })
+    .optional(),
+  bio: z.string().max(500).optional(),
+  systemPromptPrefix: z.string().max(10_000).optional(),
+});
+
+export const IdentityConfigSchema = z.object({
+  default: ChannelIdentityConfigSchema.optional(),
+  channels: z.record(z.string(), ChannelIdentityConfigSchema).optional(),
+});
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -43,6 +66,7 @@ export const AgentManifestSchema = z.object({
   channels: z.array(ChannelConfigSchema).optional(),
   middleware: z.array(MiddlewareConfigSchema).optional(),
   permissions: PermissionConfigSchema.optional(),
+  identity: IdentityConfigSchema.optional(),
 });
 
 /**

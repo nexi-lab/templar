@@ -5,6 +5,7 @@ import type {
   ChannelCapabilities,
   FileCapability,
   GroupCapability,
+  IdentityCapability,
   ImageCapability,
   InboundMessage,
   MessageHandler,
@@ -35,6 +36,7 @@ const DEFAULT_VOICE: VoiceMessageCapability = {
   formats: ["ogg", "mp3"],
 };
 const DEFAULT_GROUPS: GroupCapability = { supported: true, maxMembers: 100 };
+const DEFAULT_IDENTITY: IdentityCapability = { supported: true, perMessage: true };
 
 // ---------------------------------------------------------------------------
 // Factory Options
@@ -53,6 +55,7 @@ export interface MockAdapterOptions {
   readReceipts?: boolean;
   voiceMessages?: boolean | Partial<Omit<VoiceMessageCapability, "supported">>;
   groups?: boolean | Partial<Omit<GroupCapability, "supported">>;
+  identity?: boolean | Partial<Omit<IdentityCapability, "supported">>;
 }
 
 /**
@@ -106,6 +109,10 @@ function buildCapabilities(options: MockAdapterOptions): ChannelCapabilities {
   if (options.groups !== undefined) {
     mutable.groups =
       options.groups === true ? DEFAULT_GROUPS : { ...DEFAULT_GROUPS, ...options.groups };
+  }
+  if (options.identity !== undefined) {
+    mutable.identity =
+      options.identity === true ? DEFAULT_IDENTITY : { ...DEFAULT_IDENTITY, ...options.identity };
   }
 
   return caps;
