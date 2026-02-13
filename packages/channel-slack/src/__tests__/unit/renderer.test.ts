@@ -24,9 +24,9 @@ describe("buildRenderPlan", () => {
       kind: "postMessage",
       channel: "C123",
     });
-    const call = plan[0] as any;
+    const call = plan[0] as Record<string, unknown>;
     expect(call.blocks).toHaveLength(1);
-    expect(call.blocks[0].type).toBe("section");
+    expect((call.blocks as Record<string, unknown>[])[0].type).toBe("section");
   });
 
   it("coalesces adjacent text blocks into single postMessage", () => {
@@ -40,9 +40,9 @@ describe("buildRenderPlan", () => {
     });
     expect(plan).toHaveLength(1);
     // After coalescing, should be one section block with joined text
-    const call = plan[0] as any;
+    const call = plan[0] as Record<string, unknown>;
     expect(call.blocks).toHaveLength(1);
-    expect(call.blocks[0].type).toBe("section");
+    expect((call.blocks as Record<string, unknown>[])[0].type).toBe("section");
   });
 
   it("renders image block as image Block Kit block", () => {
@@ -51,9 +51,9 @@ describe("buildRenderPlan", () => {
       blocks: [{ type: "image", url: "https://img.jpg", alt: "test" }],
     });
     expect(plan).toHaveLength(1);
-    const call = plan[0] as any;
+    const call = plan[0] as Record<string, unknown>;
     expect(call.blocks).toHaveLength(1);
-    expect(call.blocks[0]).toMatchObject({
+    expect((call.blocks as Record<string, unknown>[])[0]).toMatchObject({
       type: "image",
       image_url: "https://img.jpg",
       alt_text: "test",
@@ -74,11 +74,14 @@ describe("buildRenderPlan", () => {
       ],
     });
     expect(plan).toHaveLength(1);
-    const call = plan[0] as any;
-    expect(call.blocks).toHaveLength(1);
-    expect(call.blocks[0].type).toBe("actions");
-    expect(call.blocks[0].elements).toHaveLength(2);
-    expect(call.blocks[0].elements[0].text.text).toBe("Yes");
+    const call = plan[0] as Record<string, unknown>;
+    const blocks = call.blocks as Record<string, unknown>[];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe("actions");
+    expect(blocks[0].elements).toHaveLength(2);
+    expect(
+      ((blocks[0].elements as Record<string, unknown>[])[0].text as Record<string, unknown>).text,
+    ).toBe("Yes");
   });
 
   it("batches text + image + buttons into single postMessage", () => {
@@ -94,11 +97,12 @@ describe("buildRenderPlan", () => {
       ],
     });
     expect(plan).toHaveLength(1);
-    const call = plan[0] as any;
-    expect(call.blocks).toHaveLength(3);
-    expect(call.blocks[0].type).toBe("section");
-    expect(call.blocks[1].type).toBe("image");
-    expect(call.blocks[2].type).toBe("actions");
+    const call = plan[0] as Record<string, unknown>;
+    const blocks = call.blocks as Record<string, unknown>[];
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0].type).toBe("section");
+    expect(blocks[1].type).toBe("image");
+    expect(blocks[2].type).toBe("actions");
   });
 
   it("file block breaks batch — creates separate upload call", () => {
@@ -150,7 +154,7 @@ describe("buildRenderPlan", () => {
       blocks: [{ type: "text", content: "hi" }],
       threadId: "1700000000.000001",
     });
-    expect((plan[0] as any).thread_ts).toBe("1700000000.000001");
+    expect((plan[0] as Record<string, unknown>).thread_ts).toBe("1700000000.000001");
   });
 
   it("passes thread_ts to file upload calls", () => {
@@ -166,7 +170,7 @@ describe("buildRenderPlan", () => {
       ],
       threadId: "1700000000.000001",
     });
-    expect((plan[0] as any).thread_ts).toBe("1700000000.000001");
+    expect((plan[0] as Record<string, unknown>).thread_ts).toBe("1700000000.000001");
   });
 
   it("includes text fallback in postMessage", () => {
@@ -174,7 +178,7 @@ describe("buildRenderPlan", () => {
       ...BASE_MSG,
       blocks: [{ type: "text", content: "Hello world" }],
     });
-    expect((plan[0] as any).text).toContain("Hello world");
+    expect((plan[0] as Record<string, unknown>).text).toContain("Hello world");
   });
 });
 
