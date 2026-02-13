@@ -1,5 +1,7 @@
 export const PACKAGE_NAME = "@templar/hooks" as const;
 
+// Bridge
+export { createHookMiddleware } from "./bridge.js";
 // Constants
 export {
   CONTINUE_RESULT,
@@ -34,10 +36,13 @@ export type {
   PostMessageData,
   PostModelCallData,
   PostToolUseData,
+  PreCompactData,
   PreMessageData,
   PreModelCallData,
   PreModelSelectData,
   PreToolUseData,
   SessionEndData,
   SessionStartData,
+  SubagentEndData,
+  SubagentStartData,
 } from "./types.js";

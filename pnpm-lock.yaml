@@ -192,6 +192,9 @@ importers:
 
   packages/hooks:
     dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors

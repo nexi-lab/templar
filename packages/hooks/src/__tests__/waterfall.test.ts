@@ -1,20 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONTINUE_RESULT, HOOK_PRIORITY } from "../constants.js";
 import { HookRegistry } from "../registry.js";
-import type { PreToolUseData } from "../types.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makePreToolUseData(overrides?: Partial<PreToolUseData>): PreToolUseData {
-  return {
-    toolName: "test-tool",
-    args: { key: "value" },
-    sessionId: "session-1",
-    ...overrides,
-  };
-}
+import { makePreToolUseData } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Waterfall modify chain
@@ -66,7 +53,7 @@ describe("HookRegistry — waterfall modify chain", () => {
 
   it("modify then block — block receives modified data", async () => {
     const registry = new HookRegistry();
-    let blockReceivedData: PreToolUseData | undefined;
+    let blockReceivedData: unknown;
 
     registry.on(
       "PreToolUse",
@@ -88,7 +75,7 @@ describe("HookRegistry — waterfall modify chain", () => {
 
     const result = await registry.emit("PreToolUse", makePreToolUseData());
     expect(result).toEqual({ action: "block", reason: "blocked" });
-    expect(blockReceivedData?.toolName).toBe("modified");
+    expect((blockReceivedData as { toolName: string }).toolName).toBe("modified");
   });
 
   it("block then modify — second hook never runs (short-circuit)", async () => {

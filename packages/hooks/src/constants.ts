@@ -8,12 +8,12 @@ export const HOOK_PRIORITY = {
   CRITICAL: 0,
   /** Priority 25 — runs early, for important interceptors */
   HIGH: 25,
-  /** Priority 50 — default priority */
-  NORMAL: 50,
-  /** Priority 75 — runs late, for non-critical observers */
-  LOW: 75,
-  /** Priority 100 — runs last, for monitoring/logging */
-  MONITOR: 100,
+  /** Priority 100 — default priority */
+  NORMAL: 100,
+  /** Priority 200 — runs late, for non-critical observers */
+  LOW: 200,
+  /** Priority 500 — runs last, for monitoring/logging */
+  MONITOR: 500,
 } as const;
 
 /** Default timeout for hook handlers in milliseconds */
@@ -34,4 +34,5 @@ export const INTERCEPTOR_EVENTS = [
   "PreModelSelect",
   "PreMessage",
   "BudgetExhausted",
+  "PreCompact",
 ] as const;

@@ -95,6 +95,30 @@ function validateFinitePositive(value: number, name: string): void {
   }
 }
 
+const VALID_ACTIONS = new Set(["continue", "block", "modify"]);
+
+function validateInterceptorResult(event: string, result: unknown): void {
+  if (result == null) {
+    throw new HookExecutionError(
+      event,
+      `Interceptor handler returned ${result === null ? "null" : "undefined"} — must return a HookResult object with an "action" property`,
+    );
+  }
+  if (typeof result !== "object" || !("action" in (result as object))) {
+    throw new HookExecutionError(
+      event,
+      `Interceptor handler returned a non-HookResult value — must return an object with an "action" property`,
+    );
+  }
+  const action = (result as { action: unknown }).action;
+  if (typeof action !== "string" || !VALID_ACTIONS.has(action)) {
+    throw new HookExecutionError(
+      event,
+      `Interceptor handler returned unknown action "${String(action)}" — must be "continue", "block", or "modify"`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Re-entrancy tracking via AsyncLocalStorage
 // ---------------------------------------------------------------------------
@@ -147,7 +171,7 @@ export class HookRegistry {
   on<E extends InterceptorEvent>(
     event: E,
     handler: InterceptorHandler<InterceptorEventMap[E]>,
-    options?: HookOptions,
+    options?: HookOptions<InterceptorEventMap[E]>,
   ): () => void;
 
   /**
@@ -157,7 +181,7 @@ export class HookRegistry {
   on<E extends ObserverEvent>(
     event: E,
     handler: ObserverHandler<ObserverEventMap[E]>,
-    options?: HookOptions,
+    options?: HookOptions<ObserverEventMap[E]>,
   ): () => void;
 
   on(
@@ -165,35 +189,37 @@ export class HookRegistry {
     handler: InterceptorHandler<unknown> | ObserverHandler<unknown>,
     options?: HookOptions,
   ): () => void {
-    const priority = options?.priority ?? HOOK_PRIORITY.NORMAL;
-    const timeout = options?.timeout ?? this.defaultTimeout;
+    return this.registerHandler(event, handler, options, false);
+  }
 
-    if (options?.priority !== undefined) {
-      if (!Number.isFinite(options.priority)) {
-        throw new HookConfigurationError(
-          `priority must be a finite number, got ${options.priority}`,
-        );
-      }
-    }
-    if (options?.timeout !== undefined) {
-      validateFinitePositive(options.timeout, "timeout");
-    }
+  /**
+   * Register a one-shot handler for an interceptor event.
+   * The handler is automatically removed after it fires once.
+   * Returns a disposer function that removes the handler.
+   */
+  once<E extends InterceptorEvent>(
+    event: E,
+    handler: InterceptorHandler<InterceptorEventMap[E]>,
+    options?: HookOptions<InterceptorEventMap[E]>,
+  ): () => void;
 
-    const entry: HandlerEntry = { handler, priority, timeout };
+  /**
+   * Register a one-shot handler for an observer event.
+   * The handler is automatically removed after it fires once.
+   * Returns a disposer function that removes the handler.
+   */
+  once<E extends ObserverEvent>(
+    event: E,
+    handler: ObserverHandler<ObserverEventMap[E]>,
+    options?: HookOptions<ObserverEventMap[E]>,
+  ): () => void;
 
-    const existing = this.handlers.get(event) ?? [];
-    const insertIdx = findInsertIndex(existing, priority);
-
-    // Create new sorted array (immutable)
-    const updated = [...existing.slice(0, insertIdx), entry, ...existing.slice(insertIdx)];
-    this.handlers.set(event, updated);
-
-    let disposed = false;
-    return () => {
-      if (disposed) return;
-      disposed = true;
-      this.removeHandler(event, handler);
-    };
+  once(
+    event: HookEvent,
+    handler: InterceptorHandler<unknown> | ObserverHandler<unknown>,
+    options?: HookOptions,
+  ): () => void {
+    return this.registerHandler(event, handler, options, true);
   }
 
   /**
@@ -278,6 +304,49 @@ export class HookRegistry {
   // Private
   // -------------------------------------------------------------------------
 
+  private registerHandler(
+    event: HookEvent,
+    handler: InterceptorHandler<unknown> | ObserverHandler<unknown>,
+    options: HookOptions | undefined,
+    once: boolean,
+  ): () => void {
+    const priority = options?.priority ?? HOOK_PRIORITY.NORMAL;
+    const timeout = options?.timeout ?? this.defaultTimeout;
+
+    if (options?.priority !== undefined) {
+      if (!Number.isFinite(options.priority)) {
+        throw new HookConfigurationError(
+          `priority must be a finite number, got ${options.priority}`,
+        );
+      }
+    }
+    if (options?.timeout !== undefined) {
+      validateFinitePositive(options.timeout, "timeout");
+    }
+
+    const entry: HandlerEntry = {
+      handler,
+      priority,
+      timeout,
+      once,
+      ...(options?.match ? { match: options.match as (data: unknown) => boolean } : {}),
+    };
+
+    const existing = this.handlers.get(event) ?? [];
+    const insertIdx = findInsertIndex(existing, priority);
+
+    // Create new sorted array (immutable)
+    const updated = [...existing.slice(0, insertIdx), entry, ...existing.slice(insertIdx)];
+    this.handlers.set(event, updated);
+
+    let disposed = false;
+    return () => {
+      if (disposed) return;
+      disposed = true;
+      this.removeHandler(event, handler);
+    };
+  }
+
   private removeHandler(
     event: HookEvent,
     handler: InterceptorHandler<unknown> | ObserverHandler<unknown>,
@@ -304,33 +373,71 @@ export class HookRegistry {
   ): Promise<HookResult<unknown>> {
     let currentData = initialData;
     let modified = false;
+    const firedOnceEntries: HandlerEntry[] = [];
 
-    for (const entry of entries) {
-      const handler = entry.handler as InterceptorHandler<unknown>;
-
-      let result: HookResult<unknown>;
-      try {
-        result = await runWithTimeout(event, handler, currentData, entry.timeout);
-      } catch (err) {
-        // Wrap non-HookTimeoutError/HookReentrancyError in HookExecutionError
-        if (err instanceof HookTimeoutError || err instanceof HookReentrancyError) {
-          throw err;
+    try {
+      for (const entry of entries) {
+        // Check match predicate — receives waterfalled data
+        if (entry.match) {
+          let matched: boolean;
+          try {
+            matched = entry.match(currentData);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            throw new HookExecutionError(
+              event as HookEvent,
+              `match predicate threw: ${message}`,
+              err instanceof Error ? err : undefined,
+            );
+          }
+          if (!matched) continue;
         }
-        const message = err instanceof Error ? err.message : String(err);
-        throw new HookExecutionError(event, message, err instanceof Error ? err : undefined);
+
+        const handler = entry.handler as InterceptorHandler<unknown>;
+
+        let result: unknown;
+        try {
+          result = await runWithTimeout(event, handler, currentData, entry.timeout);
+        } catch (err) {
+          // Once handlers that throw are still removed
+          if (entry.once) {
+            firedOnceEntries.push(entry);
+          }
+          // Wrap non-HookTimeoutError/HookReentrancyError in HookExecutionError
+          if (err instanceof HookTimeoutError || err instanceof HookReentrancyError) {
+            throw err;
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          throw new HookExecutionError(
+            event as HookEvent,
+            message,
+            err instanceof Error ? err : undefined,
+          );
+        }
+
+        // Runtime validation of handler return
+        validateInterceptorResult(event, result);
+
+        // Mark once entry as fired
+        if (entry.once) {
+          firedOnceEntries.push(entry);
+        }
+
+        const validResult = result as HookResult<unknown>;
+        if (validResult.action === "block") {
+          return validResult;
+        }
+        if (validResult.action === "modify") {
+          currentData = validResult.data;
+          modified = true;
+        }
+        // "continue" — data unchanged, move to next handler
       }
 
-      if (result.action === "block") {
-        return result;
-      }
-      if (result.action === "modify") {
-        currentData = result.data;
-        modified = true;
-      }
-      // "continue" — data unchanged, move to next handler
+      return modified ? { action: "modify", data: currentData } : CONTINUE_RESULT;
+    } finally {
+      this.cleanupOnceEntries(event as HookEvent, firedOnceEntries);
     }
-
-    return modified ? { action: "modify", data: currentData } : CONTINUE_RESULT;
   }
 
   private async emitObserver(
@@ -338,22 +445,61 @@ export class HookRegistry {
     data: unknown,
     entries: readonly HandlerEntry[],
   ): Promise<void> {
-    for (const entry of entries) {
-      const handler = entry.handler as ObserverHandler<unknown>;
+    const firedOnceEntries: HandlerEntry[] = [];
 
-      try {
-        await runWithTimeout(event, handler, data, entry.timeout);
-      } catch (err) {
-        // Re-entrancy errors should propagate
-        if (err instanceof HookReentrancyError) {
-          throw err;
+    try {
+      for (const entry of entries) {
+        // Check match predicate
+        if (entry.match) {
+          let matched: boolean;
+          try {
+            matched = entry.match(data);
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            if (this.onObserverError) {
+              this.onObserverError(event, error);
+            } else {
+              console.warn(`[@templar/hooks] Observer match predicate error on "${event}":`, error);
+            }
+            continue;
+          }
+          if (!matched) continue;
         }
-        // Observer errors are caught and reported — don't abort the chain
-        const error = err instanceof Error ? err : new Error(String(err));
-        if (this.onObserverError) {
-          this.onObserverError(event, error);
+
+        const handler = entry.handler as ObserverHandler<unknown>;
+
+        try {
+          await runWithTimeout(event, handler, data, entry.timeout);
+          // Mark once entry as fired
+          if (entry.once) {
+            firedOnceEntries.push(entry);
+          }
+        } catch (err) {
+          // Once handlers that throw are still removed
+          if (entry.once) {
+            firedOnceEntries.push(entry);
+          }
+          // Re-entrancy errors should propagate
+          if (err instanceof HookReentrancyError) {
+            throw err;
+          }
+          // Observer errors are caught and reported — don't abort the chain
+          const error = err instanceof Error ? err : new Error(String(err));
+          if (this.onObserverError) {
+            this.onObserverError(event, error);
+          } else {
+            console.warn(`[@templar/hooks] Observer error on "${event}":`, error);
+          }
         }
       }
+    } finally {
+      this.cleanupOnceEntries(event as HookEvent, firedOnceEntries);
+    }
+  }
+
+  private cleanupOnceEntries(event: HookEvent, firedEntries: readonly HandlerEntry[]): void {
+    for (const entry of firedEntries) {
+      this.removeHandler(event, entry.handler);
     }
   }
 }
