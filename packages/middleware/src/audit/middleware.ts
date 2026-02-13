@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NexusClient } from "@nexus/sdk";
+import { trace } from "@opentelemetry/api";
 import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
 import { AuditConfigurationError } from "@templar/errors";
 import { safeCall } from "../utils.js";
@@ -68,6 +69,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
   private totalEvents = 0;
   private buffer: readonly AuditEvent[] = [];
   private activeSpanId: string | undefined = undefined;
+  private activeTraceId: string | undefined = undefined;
 
   constructor(client: NexusClient, config: NexusAuditConfig) {
     this.client = client;
@@ -124,15 +126,27 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
 
   /**
    * Generate spanId for boundary tracing. Inject into metadata.
+   * Uses OTel span context when available, falls back to UUID.
    */
   async onBeforeTurn(context: TurnContext): Promise<void> {
-    this.activeSpanId = randomUUID();
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan) {
+      const spanContext = activeSpan.spanContext();
+      this.activeSpanId = spanContext.spanId;
+      this.activeTraceId = spanContext.traceId;
+    } else {
+      this.activeSpanId = randomUUID();
+      this.activeTraceId = undefined;
+    }
 
     // Inject audit context into metadata for downstream consumers
     const metadata = context.metadata ?? {};
     context.metadata = {
       ...metadata,
-      audit: { spanId: this.activeSpanId },
+      audit: {
+        spanId: this.activeSpanId,
+        ...(this.activeTraceId !== undefined ? { traceId: this.activeTraceId } : {}),
+      },
     };
   }
 
@@ -173,6 +187,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
 
     // Clear span
     this.activeSpanId = undefined;
+    this.activeTraceId = undefined;
   }
 
   /**
@@ -521,12 +536,14 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     timestamp: string;
     sessionId: string;
     spanId: string;
+    traceId?: string;
   } {
     return {
       eventId: randomUUID(),
       timestamp: new Date().toISOString(),
       sessionId,
       spanId: this.activeSpanId ?? "",
+      ...(this.activeTraceId !== undefined ? { traceId: this.activeTraceId } : {}),
     };
   }
 
@@ -538,12 +555,14 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     timestamp: string;
     sessionId: string;
     spanId: string;
+    traceId?: string;
   } {
     return {
       eventId: randomUUID(),
       timestamp: new Date().toISOString(),
       sessionId,
       spanId,
+      ...(this.activeTraceId !== undefined ? { traceId: this.activeTraceId } : {}),
     };
   }
 
@@ -608,6 +627,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     this.totalEvents = 0;
     this.buffer = [];
     this.activeSpanId = undefined;
+    this.activeTraceId = undefined;
   }
 }
 

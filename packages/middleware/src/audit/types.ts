@@ -192,8 +192,10 @@ interface BaseAuditEvent {
   readonly timestamp: string;
   /** Session this event belongs to */
   readonly sessionId: string;
-  /** Boundary tracing span ID (correlates before/after turn) */
+  /** Boundary tracing span ID (correlates before/after turn, or OTel spanId when available) */
   readonly spanId: string;
+  /** OTel trace ID for distributed tracing (present when OTel is active) */
+  readonly traceId?: string;
   /** Agent that generated the event */
   readonly agentId?: string;
 }
