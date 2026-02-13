@@ -1,7 +1,10 @@
+import { trace } from "@opentelemetry/api";
+import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import type { SessionContext, TurnContext } from "@templar/core";
 import { AuditConfigurationError } from "@templar/errors";
 import { createMockNexusClient } from "@templar/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createNexusAuditMiddleware } from "../index.js";
 import { NexusAuditMiddleware, validateAuditConfig } from "../middleware.js";
 import type { NexusAuditConfig } from "../types.js";
@@ -491,6 +494,116 @@ describe("NexusAuditMiddleware", () => {
       expect(() => validateAuditConfig({ complianceLevel: "invalid" as "soc2" })).toThrow(
         /Invalid complianceLevel/,
       );
+    });
+  });
+
+  describe("with OTel active", () => {
+    let exporter: InMemorySpanExporter;
+    let provider: NodeTracerProvider;
+
+    beforeEach(() => {
+      exporter = new InMemorySpanExporter();
+      provider = new NodeTracerProvider();
+      provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+      trace.disable(); // Clear any previous global provider
+      provider.register();
+    });
+
+    afterEach(async () => {
+      trace.disable();
+      exporter.reset();
+      await provider.shutdown();
+    });
+
+    it("should use OTel spanId when active span is present", async () => {
+      const middleware = new NexusAuditMiddleware(mockClient.client, createConfig());
+      await middleware.onSessionStart(createSessionContext());
+
+      const tracer = trace.getTracer("test");
+      await tracer.startActiveSpan("test.turn", async (span) => {
+        const expectedSpanId = span.spanContext().spanId;
+        const ctx = createTurnContext(1);
+        await middleware.onBeforeTurn(ctx);
+
+        const audit = (ctx.metadata as Record<string, unknown>)?.audit as Record<string, unknown>;
+        expect(audit?.spanId).toBe(expectedSpanId);
+
+        span.end();
+      });
+    });
+
+    it("should include traceId in audit metadata when OTel is active", async () => {
+      const middleware = new NexusAuditMiddleware(mockClient.client, createConfig());
+      await middleware.onSessionStart(createSessionContext());
+
+      const tracer = trace.getTracer("test");
+      await tracer.startActiveSpan("test.turn", async (span) => {
+        const expectedTraceId = span.spanContext().traceId;
+        const ctx = createTurnContext(1);
+        await middleware.onBeforeTurn(ctx);
+
+        const audit = (ctx.metadata as Record<string, unknown>)?.audit as Record<string, unknown>;
+        expect(audit?.traceId).toBe(expectedTraceId);
+
+        span.end();
+      });
+    });
+
+    it("should include traceId in audit events when OTel is active", async () => {
+      const middleware = new NexusAuditMiddleware(
+        mockClient.client,
+        createConfig({ flushIntervalTurns: 1 }),
+      );
+      await middleware.onSessionStart(createSessionContext());
+
+      const tracer = trace.getTracer("test");
+      await tracer.startActiveSpan("test.turn", async (span) => {
+        const expectedTraceId = span.spanContext().traceId;
+        await middleware.onBeforeTurn(createTurnContext(1));
+        await middleware.onAfterTurn(
+          createTurnContext(1, {
+            input: "hello",
+            metadata: { usage: { model: "m", inputTokens: 1, outputTokens: 1, totalTokens: 2 } },
+          }),
+        );
+
+        const entries = mockClient.mockEventLog.batchWrite.mock.calls[0]?.[0].entries;
+        for (const entry of entries) {
+          const data = JSON.parse(entry.data);
+          expect(data.traceId).toBe(expectedTraceId);
+        }
+
+        span.end();
+      });
+    });
+  });
+
+  describe("without OTel (UUID fallback)", () => {
+    beforeEach(() => {
+      // Ensure no OTel provider is active
+      trace.disable();
+    });
+
+    it("should generate UUID spanId when no OTel span is active", async () => {
+      const middleware = new NexusAuditMiddleware(mockClient.client, createConfig());
+      await middleware.onSessionStart(createSessionContext());
+
+      const ctx = createTurnContext(1);
+      await middleware.onBeforeTurn(ctx);
+
+      const audit = (ctx.metadata as Record<string, unknown>)?.audit as Record<string, unknown>;
+      expect(audit?.spanId).toMatch(UUID_REGEX);
+    });
+
+    it("should not include traceId when no OTel span is active", async () => {
+      const middleware = new NexusAuditMiddleware(mockClient.client, createConfig());
+      await middleware.onSessionStart(createSessionContext());
+
+      const ctx = createTurnContext(1);
+      await middleware.onBeforeTurn(ctx);
+
+      const audit = (ctx.metadata as Record<string, unknown>)?.audit as Record<string, unknown>;
+      expect(audit?.traceId).toBeUndefined();
     });
   });
 });

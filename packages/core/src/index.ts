@@ -1,6 +1,31 @@
 import { TemplarConfigError } from "@templar/errors";
-import type { TemplarConfig } from "./types.js";
+import type { TemplarConfig, TemplarMiddleware } from "./types.js";
 import { validateAgentType, validateManifest, validateNexusClient } from "./validation.js";
+
+/**
+ * Registered middleware wrapping function from @templar/telemetry.
+ * Set via registerMiddlewareWrapper() when setupTelemetry() is called.
+ */
+let middlewareWrapper: ((mw: TemplarMiddleware) => TemplarMiddleware) | undefined;
+
+/**
+ * Register a middleware wrapping function (called by @templar/telemetry's setupTelemetry).
+ *
+ * This allows the telemetry package to hook into createTemplar() without
+ * making createTemplar async or creating a circular dependency.
+ */
+export function registerMiddlewareWrapper(
+  wrapper: (mw: TemplarMiddleware) => TemplarMiddleware,
+): void {
+  middlewareWrapper = wrapper;
+}
+
+/**
+ * Unregister the middleware wrapper (called by shutdownTelemetry).
+ */
+export function unregisterMiddlewareWrapper(): void {
+  middlewareWrapper = undefined;
+}
 
 export const PACKAGE_NAME = "@templar/core" as const;
 
@@ -124,7 +149,15 @@ export function createTemplar(config: TemplarConfig): unknown {
   validateManifest(config.manifest);
 
   // Middleware is always explicitly provided via config
-  const middleware = [...(config.middleware ?? [])];
+  let middleware = [...(config.middleware ?? [])];
+
+  // Wrap middleware with OTel tracing when @templar/telemetry has registered a wrapper
+  if (middlewareWrapper !== undefined) {
+    const wrapper = middlewareWrapper;
+    middleware = middleware.map((mw) =>
+      typeof mw === "object" && mw !== null && "name" in mw ? wrapper(mw as TemplarMiddleware) : mw,
+    );
+  }
 
   // Create DeepAgent with merged config
   try {
