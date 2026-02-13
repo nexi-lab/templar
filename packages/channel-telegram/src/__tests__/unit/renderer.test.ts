@@ -91,9 +91,11 @@ describe("buildRenderPlan", () => {
     });
     // typing + sendMessage (with keyboard)
     expect(plan).toHaveLength(2);
-    const textCall = plan[1] ?? undefined;
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    const textCall = plan[1]!;
     expect(textCall).toMatchObject({ kind: "sendMessage", text: "Choose:" });
-    expect((textCall as Record<string, unknown>).replyMarkup).toEqual({
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((textCall as any).replyMarkup).toEqual({
       inline_keyboard: [
         [{ text: "A", callback_data: "opt_a" }],
         [{ text: "B", callback_data: "opt_b" }],
@@ -113,7 +115,10 @@ describe("buildRenderPlan", () => {
       ],
     });
     expect(plan).toHaveLength(2);
-    expect((plan[1] as Record<string, unknown>).replyMarkup).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    const photoCall = plan[1]!;
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((photoCall as any).replyMarkup).toBeDefined();
   });
 
   it("renders standalone button block with placeholder text", () => {
@@ -128,12 +133,14 @@ describe("buildRenderPlan", () => {
     });
     // typing + sendMessage (placeholder + keyboard)
     expect(plan).toHaveLength(2);
-    const textCall = plan[1] ?? undefined;
+    // biome-ignore lint/style/noNonNullAssertion: length asserted above
+    const textCall = plan[1]!;
     expect(textCall).toMatchObject({
       kind: "sendMessage",
       text: "Please choose an option:",
     });
-    expect((textCall as Record<string, unknown>).replyMarkup).toBeDefined();
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((textCall as any).replyMarkup).toBeDefined();
   });
 
   it("coalesces multiple adjacent text blocks", () => {
@@ -179,9 +186,8 @@ describe("buildRenderPlan", () => {
     expect(plan.length).toBeGreaterThan(2);
     for (let i = 1; i < plan.length; i++) {
       expect(plan[i]?.kind).toBe("sendMessage");
-      expect(((plan[i] as Record<string, unknown>).text as string).length).toBeLessThanOrEqual(
-        4096,
-      );
+      // biome-ignore lint/suspicious/noExplicitAny: test assertion
+      expect(((plan[i] as any).text as string).length).toBeLessThanOrEqual(4096);
     }
   });
 
@@ -191,7 +197,8 @@ describe("buildRenderPlan", () => {
       blocks: [{ type: "text", content: "hi" }],
       threadId: "42",
     });
-    expect((plan[1] as Record<string, unknown>).threadId).toBe("42");
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((plan[1] as any).threadId).toBe("42");
   });
 
   it("passes replyTo to all calls", () => {
@@ -200,7 +207,8 @@ describe("buildRenderPlan", () => {
       blocks: [{ type: "text", content: "hi" }],
       replyTo: "99",
     });
-    expect((plan[1] as Record<string, unknown>).replyTo).toBe("99");
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((plan[1] as any).replyTo).toBe("99");
   });
 });
 
@@ -251,7 +259,8 @@ describe("renderMessage (integration)", () => {
     expect(sendCall).toBeDefined();
     // The opts are passed as the 3rd argument
     const opts = (sendCall?.payload._args as unknown[])?.[2] ?? sendCall?.payload;
-    expect((opts as Record<string, unknown>).message_thread_id).toBe(42);
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((opts as any).message_thread_id).toBe(42);
   });
 
   it("passes reply_to_message_id when replyTo is set", async () => {
@@ -268,6 +277,7 @@ describe("renderMessage (integration)", () => {
 
     const sendCall = calls.find((c) => c.method === "sendMessage");
     const opts = (sendCall?.payload._args as unknown[])?.[2] ?? sendCall?.payload;
-    expect((opts as Record<string, unknown>).reply_to_message_id).toBe(99);
+    // biome-ignore lint/suspicious/noExplicitAny: test assertion
+    expect((opts as any).reply_to_message_id).toBe(99);
   });
 });
