@@ -1,0 +1,26 @@
+{
+  "name": "@templar/skills",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent Skills standard (agentskills.io) parser, validator, and registry for Templar",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@templar/errors": "workspace:*"
+  }
+}

@@ -24,6 +24,7 @@ export {
   IdentityConfigSchema,
   PromptSchema,
   ScheduleSchema,
+  SkillRefSchema,
 } from "./schema.js";
 
 // ============================================================================

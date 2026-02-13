@@ -771,6 +771,31 @@ export const ERROR_CATALOG = {
     title: "Manifest interpolation failed",
     description: "Environment variable interpolation failed due to missing variables",
   },
+
+  // ============================================================================
+  // SKILL ERRORS — Agent Skills standard (agentskills.io)
+  // ============================================================================
+  SKILL_NOT_FOUND: {
+    domain: "skill",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    title: "Skill not found",
+    description: "The specified skill does not exist in any resolver",
+  },
+  SKILL_PARSE_ERROR: {
+    domain: "skill",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Skill parse error",
+    description: "The SKILL.md file has invalid YAML frontmatter or is malformed",
+  },
+  SKILL_VALIDATION_ERROR: {
+    domain: "skill",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    title: "Skill validation error",
+    description: "The skill metadata does not conform to the Agent Skills specification",
+  },
 } as const;
 
 // ============================================================================

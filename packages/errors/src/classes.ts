@@ -1895,6 +1895,74 @@ export class SanitizeContentBlockedError extends TemplarError {
 }
 
 // ============================================================================
+// SKILL ERRORS
+// ============================================================================
+
+/**
+ * Thrown when a skill is not found in any resolver
+ */
+export class SkillNotFoundError extends TemplarError {
+  readonly _tag = "SkillNotFoundError" as const;
+  readonly code = "SKILL_NOT_FOUND" as const;
+  readonly httpStatus = ERROR_CATALOG.SKILL_NOT_FOUND.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SKILL_NOT_FOUND.grpcCode;
+  readonly domain = ERROR_CATALOG.SKILL_NOT_FOUND.domain;
+
+  constructor(
+    public readonly skillName: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Skill '${skillName}' not found`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when SKILL.md has invalid YAML frontmatter or is malformed
+ */
+export class SkillParseError extends TemplarError {
+  readonly _tag = "SkillParseError" as const;
+  readonly code = "SKILL_PARSE_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.SKILL_PARSE_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SKILL_PARSE_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.SKILL_PARSE_ERROR.domain;
+
+  constructor(
+    public readonly filePath: string | undefined,
+    message: string,
+    public override readonly cause?: Error | undefined,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(`Skill parse error${filePath ? ` (${filePath})` : ""}: ${message}`, metadata, traceId);
+  }
+}
+
+/**
+ * Thrown when skill metadata fails agentskills.io specification validation
+ */
+export class SkillValidationError extends TemplarError {
+  readonly _tag = "SkillValidationError" as const;
+  readonly code = "SKILL_VALIDATION_ERROR" as const;
+  readonly httpStatus = ERROR_CATALOG.SKILL_VALIDATION_ERROR.httpStatus;
+  readonly grpcCode = ERROR_CATALOG.SKILL_VALIDATION_ERROR.grpcCode;
+  readonly domain = ERROR_CATALOG.SKILL_VALIDATION_ERROR.domain;
+
+  constructor(
+    public readonly skillName: string | undefined,
+    public readonly issues: readonly string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super(
+      `Skill validation failed${skillName ? ` for '${skillName}'` : ""}:\n${issues.map((i) => `  - ${i}`).join("\n")}`,
+      metadata,
+      traceId,
+    );
+  }
+}
+
+// ============================================================================
 // MANIFEST ERRORS
 // ============================================================================
 
