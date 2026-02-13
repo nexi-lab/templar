@@ -17,7 +17,11 @@ export { type ParseManifestOptions, parseManifestYaml } from "./parser.js";
 // SCHEMA
 // ============================================================================
 
-export { AgentManifestSchema } from "./schema.js";
+export {
+  AgentManifestSchema,
+  ChannelIdentityConfigSchema,
+  IdentityConfigSchema,
+} from "./schema.js";
 
 // ============================================================================
 // UTILITIES

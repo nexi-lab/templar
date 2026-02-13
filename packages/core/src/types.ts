@@ -73,6 +73,7 @@ export interface AgentManifest {
   channels?: ChannelConfig[];
   middleware?: MiddlewareConfig[];
   permissions?: PermissionConfig;
+  identity?: IdentityConfig;
 }
 
 /**
@@ -151,6 +152,11 @@ export interface GroupCapability {
   readonly maxMembers: number;
 }
 
+export interface IdentityCapability {
+  readonly supported: true;
+  readonly perMessage: boolean; // true = per-send(), false = per-connect()
+}
+
 /**
  * Channel capabilities — only present keys are supported.
  * Absent keys mean the channel does not support that capability.
@@ -167,6 +173,7 @@ export interface ChannelCapabilities {
   readonly readReceipts?: ReadReceiptCapability;
   readonly voiceMessages?: VoiceMessageCapability;
   readonly groups?: GroupCapability;
+  readonly identity?: IdentityCapability;
 }
 
 /** All recognized capability keys */
@@ -233,6 +240,32 @@ export interface OutboundMessage {
   readonly threadId?: string;
   readonly replyTo?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly identity?: ChannelIdentity;
+}
+
+/**
+ * Visual identity attached to an outbound message (name, avatar, bio).
+ */
+export interface ChannelIdentity {
+  readonly name?: string;
+  readonly avatar?: string; // URL or relative path
+  readonly bio?: string;
+}
+
+/**
+ * Identity config for a single channel — visual fields plus systemPromptPrefix.
+ */
+export interface ChannelIdentityConfig extends ChannelIdentity {
+  readonly systemPromptPrefix?: string;
+}
+
+/**
+ * Agent-level identity configuration with 2-level cascade:
+ * channel override -> default.
+ */
+export interface IdentityConfig {
+  readonly default?: ChannelIdentityConfig;
+  readonly channels?: Readonly<Record<string, ChannelIdentityConfig>>;
 }
 
 /**

@@ -64,6 +64,18 @@ export class CapabilityGuard implements ChannelAdapter {
     if (message.threadId !== undefined && !this.capabilities.threads) {
       throw new CapabilityNotSupportedError(this.name, "threads");
     }
+
+    if (message.identity !== undefined) {
+      if (!this.capabilities.identity) {
+        throw new CapabilityNotSupportedError(this.name, "identity");
+      }
+      if (!this.capabilities.identity.perMessage) {
+        throw new CapabilityNotSupportedError(
+          this.name,
+          "identity (per-message identity not supported; set at connect-time)",
+        );
+      }
+    }
   }
 
   private validateBlockConstraints(block: ContentBlock): void {
