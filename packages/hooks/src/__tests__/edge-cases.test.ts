@@ -4,34 +4,10 @@ import {
   HookReentrancyError,
   HookTimeoutError,
 } from "@templar/errors";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CONTINUE_RESULT, HOOK_PRIORITY } from "../constants.js";
 import { HookRegistry } from "../registry.js";
-import type { PostToolUseData, PreToolUseData } from "../types.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makePreToolUseData(overrides?: Partial<PreToolUseData>): PreToolUseData {
-  return {
-    toolName: "test-tool",
-    args: { key: "value" },
-    sessionId: "session-1",
-    ...overrides,
-  };
-}
-
-function makePostToolUseData(overrides?: Partial<PostToolUseData>): PostToolUseData {
-  return {
-    toolName: "test-tool",
-    args: { key: "value" },
-    result: "ok",
-    durationMs: 100,
-    sessionId: "session-1",
-    ...overrides,
-  };
-}
+import { makePostToolUseData, makePreToolUseData } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Configuration validation
@@ -481,8 +457,8 @@ describe("HookRegistry — error isolation", () => {
     expect(errors[0]?.message).toBe("b crashed");
   });
 
-  it("observer error without callback is silently swallowed", async () => {
-    // No onObserverError provided — should not throw
+  it("observer error without callback logs to console.warn", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const registry = new HookRegistry();
     const calls: string[] = [];
 
@@ -504,6 +480,9 @@ describe("HookRegistry — error isolation", () => {
 
     await registry.emit("PostToolUse", makePostToolUseData());
     expect(calls).toEqual(["still-runs"]);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0]?.[0]).toContain("Observer error");
+    warnSpy.mockRestore();
   });
 
   it("onObserverError receives event name and error", async () => {
@@ -523,6 +502,87 @@ describe("HookRegistry — error isolation", () => {
     await registry.emit("PostToolUse", makePostToolUseData());
     expect(receivedEvent).toBe("PostToolUse");
     expect(receivedError?.message).toBe("specific error");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Non-Error throws
+// ---------------------------------------------------------------------------
+
+describe("HookRegistry — non-Error throws", () => {
+  it("interceptor: throw string → HookExecutionError", async () => {
+    const registry = new HookRegistry();
+    registry.on("PreToolUse", () => {
+      throw "string error";
+    });
+    await expect(registry.emit("PreToolUse", makePreToolUseData())).rejects.toThrow(
+      HookExecutionError,
+    );
+  });
+
+  it("interceptor: throw number → HookExecutionError", async () => {
+    const registry = new HookRegistry();
+    registry.on("PreToolUse", () => {
+      throw 42;
+    });
+    await expect(registry.emit("PreToolUse", makePreToolUseData())).rejects.toThrow(
+      HookExecutionError,
+    );
+  });
+
+  it("interceptor: throw undefined → HookExecutionError", async () => {
+    const registry = new HookRegistry();
+    registry.on("PreToolUse", () => {
+      throw undefined;
+    });
+    await expect(registry.emit("PreToolUse", makePreToolUseData())).rejects.toThrow(
+      HookExecutionError,
+    );
+  });
+
+  it("observer: throw string → reported via onObserverError", async () => {
+    const errors: Error[] = [];
+    const registry = new HookRegistry({
+      onObserverError: (_event, error) => {
+        errors.push(error);
+      },
+    });
+    registry.on("PostToolUse", () => {
+      throw "string error";
+    });
+    await registry.emit("PostToolUse", makePostToolUseData());
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toBe("string error");
+  });
+
+  it("observer: throw number → reported via onObserverError", async () => {
+    const errors: Error[] = [];
+    const registry = new HookRegistry({
+      onObserverError: (_event, error) => {
+        errors.push(error);
+      },
+    });
+    registry.on("PostToolUse", () => {
+      throw 42;
+    });
+    await registry.emit("PostToolUse", makePostToolUseData());
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toBe("42");
+  });
+
+  it("observer: throw undefined → reported via onObserverError", async () => {
+    const errors: Error[] = [];
+    const registry = new HookRegistry({
+      onObserverError: (_event, error) => {
+        errors.push(error);
+      },
+    });
+    registry.on("PostToolUse", () => {
+      throw undefined;
+    });
+    await registry.emit("PostToolUse", makePostToolUseData());
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toBe("undefined");
   });
 });
 

@@ -34,6 +34,14 @@ export interface BudgetExhaustedData {
   readonly agentId: string;
 }
 
+export interface PreCompactData {
+  readonly sessionId: string;
+  readonly currentTokens: number;
+  readonly maxTokens: number;
+  readonly preservedIds: readonly string[];
+  readonly injections: readonly Record<string, unknown>[];
+}
+
 // ---------------------------------------------------------------------------
 // Observer Event Data (observe only)
 // ---------------------------------------------------------------------------
@@ -108,6 +116,24 @@ export interface NodeDisconnectedData {
   readonly reason: string;
 }
 
+export interface SubagentStartData {
+  readonly subagentId: string;
+  readonly parentSessionId: string;
+  readonly sessionId: string;
+  readonly task: string;
+  readonly model: string;
+}
+
+export interface SubagentEndData {
+  readonly subagentId: string;
+  readonly parentSessionId: string;
+  readonly sessionId: string;
+  readonly task: string;
+  readonly result: unknown;
+  readonly durationMs: number;
+  readonly exitReason: string;
+}
+
 // ---------------------------------------------------------------------------
 // Event Maps
 // ---------------------------------------------------------------------------
@@ -119,6 +145,7 @@ export interface InterceptorEventMap {
   readonly PreModelSelect: PreModelSelectData;
   readonly PreMessage: PreMessageData;
   readonly BudgetExhausted: BudgetExhaustedData;
+  readonly PreCompact: PreCompactData;
 }
 
 /** Events that are observe-only (no blocking or modification) */
@@ -133,9 +160,11 @@ export interface ObserverEventMap {
   readonly ContextPressure: ContextPressureData;
   readonly NodeConnected: NodeConnectedData;
   readonly NodeDisconnected: NodeDisconnectedData;
+  readonly SubagentStart: SubagentStartData;
+  readonly SubagentEnd: SubagentEndData;
 }
 
-/** Combined event map — all 15 hook events */
+/** Combined event map — all 18 hook events */
 export type HookEventMap = InterceptorEventMap & ObserverEventMap;
 
 /** All hook event names */
@@ -167,9 +196,10 @@ export interface HookContext {
 }
 
 /** Options for hook registration */
-export interface HookOptions {
+export interface HookOptions<T = unknown> {
   readonly priority?: number;
   readonly timeout?: number;
+  readonly match?: (data: T) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +225,7 @@ export interface HookRegistryConfig {
   readonly maxDepth?: number;
   /** Default timeout for hook handlers in ms (default: 30_000) */
   readonly defaultTimeout?: number;
-  /** Callback invoked when an observer handler throws (instead of console.error) */
+  /** Callback invoked when an observer handler throws (instead of console.warn) */
   readonly onObserverError?: (event: string, error: Error) => void;
 }
 
@@ -208,4 +238,6 @@ export interface HandlerEntry {
   readonly handler: InterceptorHandler<unknown> | ObserverHandler<unknown>;
   readonly priority: number;
   readonly timeout: number;
+  readonly once: boolean;
+  readonly match?: (data: unknown) => boolean;
 }

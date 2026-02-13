@@ -1,31 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CONTINUE_RESULT, HOOK_PRIORITY } from "../constants.js";
 import { HookRegistry } from "../registry.js";
-import type { InterceptorHandler, PostToolUseData, PreToolUseData } from "../types.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makePreToolUseData(overrides?: Partial<PreToolUseData>): PreToolUseData {
-  return {
-    toolName: "test-tool",
-    args: { key: "value" },
-    sessionId: "session-1",
-    ...overrides,
-  };
-}
-
-function makePostToolUseData(overrides?: Partial<PostToolUseData>): PostToolUseData {
-  return {
-    toolName: "test-tool",
-    args: { key: "value" },
-    result: "ok",
-    durationMs: 100,
-    sessionId: "session-1",
-    ...overrides,
-  };
-}
+import type { InterceptorHandler, PreToolUseData } from "../types.js";
+import { makePostToolUseData, makePreToolUseData } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -105,8 +82,20 @@ describe("HookRegistry — registration", () => {
     registry.on("PreToolUse", handlerA, { priority: HOOK_PRIORITY.HIGH });
 
     return registry.emit("PreToolUse", makePreToolUseData()).then(() => {
-      expect(order).toEqual([1, 2]); // HIGH (25) runs before LOW (75)
+      expect(order).toEqual([1, 2]); // HIGH (25) runs before LOW (200)
     });
+  });
+
+  it("off() removes only one entry when handler registered twice", () => {
+    const registry = new HookRegistry();
+    const handler: InterceptorHandler<PreToolUseData> = () => CONTINUE_RESULT;
+
+    registry.on("PreToolUse", handler);
+    registry.on("PreToolUse", handler);
+    expect(registry.handlerCount("PreToolUse")).toBe(2);
+
+    registry.off("PreToolUse", handler);
+    expect(registry.handlerCount("PreToolUse")).toBe(1);
   });
 });
 
@@ -169,11 +158,11 @@ describe("HookRegistry — priority ordering", () => {
     expect(order).toEqual(["first", "second", "third"]);
   });
 
-  it("default priority is NORMAL (50)", async () => {
+  it("default priority is NORMAL (100)", async () => {
     const registry = new HookRegistry();
     const order: string[] = [];
 
-    // Register with explicit priority 25 (before default 50)
+    // Register with explicit priority 25 (before default 100)
     registry.on(
       "PreToolUse",
       () => {
@@ -182,12 +171,12 @@ describe("HookRegistry — priority ordering", () => {
       },
       { priority: HOOK_PRIORITY.HIGH },
     );
-    // Register with default priority (should be 50)
+    // Register with default priority (should be 100)
     registry.on("PreToolUse", () => {
       order.push("default");
       return CONTINUE_RESULT;
     });
-    // Register with explicit priority 75 (after default 50)
+    // Register with explicit priority 200 (after default 100)
     registry.on(
       "PreToolUse",
       () => {

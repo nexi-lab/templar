@@ -13,9 +13,12 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench"
   },
   "dependencies": {
+    "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*"
   },
   "devDependencies": {
