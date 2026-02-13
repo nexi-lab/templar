@@ -195,6 +195,47 @@ describe("buildRenderPlan", () => {
     // biome-ignore lint/suspicious/noExplicitAny: test assertion
     expect((call as any).text).toContain("Hello world");
   });
+
+  it("passes username and icon_url when identity is present", () => {
+    const plan = buildRenderPlan({
+      ...BASE_MSG,
+      blocks: [{ type: "text", content: "Hello" }],
+      identity: { name: "Bot", avatar: "https://cdn.example.com/bot.png" },
+    });
+    expect(plan).toHaveLength(1);
+    const call = plan[0] as any;
+    expect(call.username).toBe("Bot");
+    expect(call.icon_url).toBe("https://cdn.example.com/bot.png");
+  });
+
+  it("omits username and icon_url when identity is absent", () => {
+    const plan = buildRenderPlan({
+      ...BASE_MSG,
+      blocks: [{ type: "text", content: "Hello" }],
+    });
+    const call = plan[0] as any;
+    expect(call.username).toBeUndefined();
+    expect(call.icon_url).toBeUndefined();
+  });
+
+  it("passes identity fields only for postMessage, not fileUpload", () => {
+    const plan = buildRenderPlan({
+      ...BASE_MSG,
+      blocks: [
+        { type: "text", content: "File incoming" },
+        {
+          type: "file",
+          url: "https://example.com/file.pdf",
+          filename: "file.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+      identity: { name: "Bot", avatar: "https://cdn.example.com/bot.png" },
+    });
+    expect(plan).toHaveLength(2);
+    expect((plan[0] as any).username).toBe("Bot");
+    expect((plan[1] as any).username).toBeUndefined();
+  });
 });
 
 describe("renderMessage (integration)", () => {
@@ -235,6 +276,39 @@ describe("renderMessage (integration)", () => {
     );
 
     expect(calls[0]?.payload.thread_ts).toBe("1700000000.000001");
+  });
+
+  it("passes username and icon_url to chat.postMessage when identity is set", async () => {
+    const { client, calls } = createMockClient();
+
+    await renderMessage(
+      {
+        channelId: "C123",
+        blocks: [{ type: "text", content: "Hello" }],
+        identity: { name: "TestBot", avatar: "https://cdn.example.com/bot.png" },
+      },
+      client,
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.payload.username).toBe("TestBot");
+    expect(calls[0]?.payload.icon_url).toBe("https://cdn.example.com/bot.png");
+  });
+
+  it("omits identity fields from chat.postMessage when identity is absent", async () => {
+    const { client, calls } = createMockClient();
+
+    await renderMessage(
+      {
+        channelId: "C123",
+        blocks: [{ type: "text", content: "Hello" }],
+      },
+      client,
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.payload.username).toBeUndefined();
+    expect(calls[0]?.payload.icon_url).toBeUndefined();
   });
 
   it("handles file upload with mocked download", async () => {

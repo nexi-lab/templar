@@ -278,6 +278,79 @@ describe("CapabilityGuard", () => {
   });
 
   // =========================================================================
+  // Identity
+  // =========================================================================
+  describe("identity", () => {
+    it("should allow identity when identity capability is supported", async () => {
+      const adapter = createMockAdapter({ text: true, identity: true });
+      const guard = new CapabilityGuard(adapter);
+
+      const message: OutboundMessage = {
+        channelId: "ch-1",
+        blocks: [{ type: "text", content: "Hello" }],
+        identity: { name: "Bot", avatar: "https://a.png" },
+      };
+
+      await guard.send(message);
+      expect(adapter.send).toHaveBeenCalledWith(message);
+    });
+
+    it("should reject identity when identity capability is absent", async () => {
+      const adapter = createMockAdapter({ text: true });
+      const guard = new CapabilityGuard(adapter);
+
+      const message: OutboundMessage = {
+        channelId: "ch-1",
+        blocks: [{ type: "text", content: "Hello" }],
+        identity: { name: "Bot" },
+      };
+
+      await expect(guard.send(message)).rejects.toThrow(CapabilityNotSupportedError);
+      await expect(guard.send(message)).rejects.toThrow("does not support 'identity' content");
+    });
+
+    it("should reject per-message identity when perMessage is false", async () => {
+      const adapter = createMockAdapter({ text: true, identity: { perMessage: false } });
+      const guard = new CapabilityGuard(adapter);
+
+      const message: OutboundMessage = {
+        channelId: "ch-1",
+        blocks: [{ type: "text", content: "Hello" }],
+        identity: { name: "Bot" },
+      };
+
+      await expect(guard.send(message)).rejects.toThrow(CapabilityNotSupportedError);
+      await expect(guard.send(message)).rejects.toThrow("per-message identity not supported");
+    });
+
+    it("should allow message without identity when identity capability exists", async () => {
+      const adapter = createMockAdapter({ text: true, identity: true });
+      const guard = new CapabilityGuard(adapter);
+
+      const message: OutboundMessage = {
+        channelId: "ch-1",
+        blocks: [{ type: "text", content: "Hello" }],
+      };
+
+      await guard.send(message);
+      expect(adapter.send).toHaveBeenCalledWith(message);
+    });
+
+    it("should allow message without identity when identity capability is absent", async () => {
+      const adapter = createMockAdapter({ text: true });
+      const guard = new CapabilityGuard(adapter);
+
+      const message: OutboundMessage = {
+        channelId: "ch-1",
+        blocks: [{ type: "text", content: "Hello" }],
+      };
+
+      await guard.send(message);
+      expect(adapter.send).toHaveBeenCalledWith(message);
+    });
+  });
+
+  // =========================================================================
   // Mixed blocks
   // =========================================================================
   describe("mixed blocks", () => {

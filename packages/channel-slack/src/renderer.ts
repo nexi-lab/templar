@@ -44,6 +44,8 @@ interface PostMessageCall {
   readonly text: string;
   readonly blocks: readonly BlockKitBlock[];
   readonly thread_ts?: string;
+  readonly username?: string;
+  readonly icon_url?: string;
 }
 
 interface FileUploadCall {
@@ -105,11 +107,17 @@ function buildActions(
 // Render plan builder
 // ---------------------------------------------------------------------------
 
+interface FlushOptions {
+  readonly channel: string;
+  readonly threadTs?: string | undefined;
+  readonly username?: string | undefined;
+  readonly iconUrl?: string | undefined;
+}
+
 function flushBlockKit(
-  channel: string,
+  opts: FlushOptions,
   blocks: BlockKitBlock[],
   fallbackParts: string[],
-  threadTs: string | undefined,
   plan: RenderCall[],
 ): void {
   if (blocks.length === 0) return;
@@ -117,10 +125,12 @@ function flushBlockKit(
   const text = fallbackParts.join("\n") || " ";
   plan.push({
     kind: "postMessage",
-    channel,
+    channel: opts.channel,
     text,
     blocks: [...blocks],
-    ...(threadTs != null ? { thread_ts: threadTs } : {}),
+    ...(opts.threadTs != null ? { thread_ts: opts.threadTs } : {}),
+    ...(opts.username != null ? { username: opts.username } : {}),
+    ...(opts.iconUrl != null ? { icon_url: opts.iconUrl } : {}),
   });
   blocks.length = 0;
   fallbackParts.length = 0;
@@ -133,11 +143,28 @@ function flushBlockKit(
  */
 const MAX_BLOCKS_PER_MESSAGE = 50;
 
+/**
+ * Sanitize avatar URL for use as Slack icon_url.
+ * Only allows HTTPS URLs to prevent SSRF via internal/HTTP endpoints.
+ */
+function sanitizeIconUrl(url: string | undefined): string | undefined {
+  if (url === undefined) return undefined;
+  if (url.startsWith("https://")) return url;
+  return undefined;
+}
+
 export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[] {
-  const { channelId, blocks, threadId } = message;
+  const { channelId, blocks, threadId, identity } = message;
   const plan: RenderCall[] = [];
 
   if (blocks.length === 0) return plan;
+
+  const flushOpts: FlushOptions = {
+    channel: channelId,
+    threadTs: threadId,
+    username: identity?.name,
+    iconUrl: sanitizeIconUrl(identity?.avatar),
+  };
 
   const coalesced = coalesceBlocks(blocks);
   const pendingBlocks: BlockKitBlock[] = [];
@@ -146,7 +173,7 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
   for (const block of coalesced) {
     // Flush if we'd exceed Slack's 50-block limit
     if (pendingBlocks.length >= MAX_BLOCKS_PER_MESSAGE) {
-      flushBlockKit(channelId, pendingBlocks, fallbackParts, threadId, plan);
+      flushBlockKit(flushOpts, pendingBlocks, fallbackParts, plan);
     }
 
     if (block.type === "text") {
@@ -168,7 +195,7 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
 
     if (block.type === "file") {
       // Flush pending Block Kit blocks before file upload
-      flushBlockKit(channelId, pendingBlocks, fallbackParts, threadId, plan);
+      flushBlockKit(flushOpts, pendingBlocks, fallbackParts, plan);
 
       plan.push({
         kind: "fileUpload",
@@ -182,7 +209,7 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
   }
 
   // Flush remaining Block Kit blocks
-  flushBlockKit(channelId, pendingBlocks, fallbackParts, threadId, plan);
+  flushBlockKit(flushOpts, pendingBlocks, fallbackParts, plan);
 
   return plan;
 }
@@ -198,6 +225,8 @@ export interface SlackWebClient {
       text: string;
       blocks?: readonly Record<string, unknown>[];
       thread_ts?: string;
+      username?: string;
+      icon_url?: string;
     }): Promise<unknown>;
   };
   filesUploadV2(args: {
@@ -231,6 +260,8 @@ export async function renderMessage(
             text: call.text,
             blocks: call.blocks as unknown as Record<string, unknown>[],
             ...(call.thread_ts != null ? { thread_ts: call.thread_ts } : {}),
+            ...(call.username != null ? { username: call.username } : {}),
+            ...(call.icon_url != null ? { icon_url: call.icon_url } : {}),
           });
           break;
         }
