@@ -1684,11 +1684,7 @@ export class NodeRegistrationTimeoutError extends TemplarError {
     metadata?: Record<string, string>,
     traceId?: string,
   ) {
-    super(
-      `Node '${nodeId}' registration timed out after ${timeoutMs}ms`,
-      metadata,
-      traceId,
-    );
+    super(`Node '${nodeId}' registration timed out after ${timeoutMs}ms`, metadata, traceId);
   }
 }
 
@@ -1733,11 +1729,7 @@ export class NodeReconnectExhaustedError extends TemplarError {
     metadata?: Record<string, string>,
     traceId?: string,
   ) {
-    super(
-      `Node '${nodeId}' reconnection failed after ${attempts} attempts`,
-      metadata,
-      traceId,
-    );
+    super(`Node '${nodeId}' reconnection failed after ${attempts} attempts`, metadata, traceId);
   }
 }
 
