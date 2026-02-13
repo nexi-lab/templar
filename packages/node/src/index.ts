@@ -4,7 +4,10 @@ export { ReconnectStrategy } from "./reconnect.js";
 export {
   type ConfigChangedHandler,
   type ConnectedHandler,
+  DEFAULT_CONNECTION_TIMEOUT,
+  DEFAULT_MAX_FRAME_SIZE,
   DEFAULT_RECONNECT_CONFIG,
+  DEFAULT_REGISTRATION_TIMEOUT,
   type DisconnectedHandler,
   type ErrorHandler,
   type MessageHandler,

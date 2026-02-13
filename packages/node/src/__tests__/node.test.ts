@@ -1,134 +1,9 @@
-import type { GatewayFrame, LaneMessage } from "@templar/gateway-protocol";
+import { NodeHandlerError, NodeReconnectExhaustedError, NodeStartError } from "@templar/errors";
+import type { LaneMessage } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
 import { TemplarNode } from "../node.js";
-import type { NodeConfig } from "../types.js";
-import type { WebSocketClientLike, WsClientFactory } from "../ws-client.js";
-
-// ---------------------------------------------------------------------------
-// Mock WebSocket
-// ---------------------------------------------------------------------------
-
-function createMockWs(): WebSocketClientLike & {
-  _listeners: Map<string, Array<(...args: unknown[]) => void>>;
-  _simulateOpen: () => void;
-  _simulateMessage: (frame: GatewayFrame) => void;
-  _simulateClose: (code: number, reason: string) => void;
-  _simulateError: (error: Error) => void;
-  _sent: GatewayFrame[];
-} {
-  const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
-  const sent: GatewayFrame[] = [];
-
-  const ws: WebSocketClientLike & {
-    _listeners: Map<string, Array<(...args: unknown[]) => void>>;
-    _simulateOpen: () => void;
-    _simulateMessage: (frame: GatewayFrame) => void;
-    _simulateClose: (code: number, reason: string) => void;
-    _simulateError: (error: Error) => void;
-    _sent: GatewayFrame[];
-  } = {
-    readyState: 0,
-    _listeners: listeners,
-    _sent: sent,
-
-    send(data: string) {
-      sent.push(JSON.parse(data) as GatewayFrame);
-    },
-
-    close(code?: number, _reason?: string) {
-      ws.readyState = 3;
-      const handlers = listeners.get("close") ?? [];
-      for (const h of handlers) h(code ?? 1000, "");
-    },
-
-    on(event: string, handler: (...args: unknown[]) => void) {
-      const existing = listeners.get(event) ?? [];
-      listeners.set(event, [...existing, handler]);
-    },
-
-    _simulateOpen() {
-      ws.readyState = 1;
-      const handlers = listeners.get("open") ?? [];
-      for (const h of handlers) h();
-    },
-
-    _simulateMessage(frame: GatewayFrame) {
-      const handlers = listeners.get("message") ?? [];
-      for (const h of handlers) h(JSON.stringify(frame));
-    },
-
-    _simulateClose(code: number, reason: string) {
-      ws.readyState = 3;
-      const handlers = listeners.get("close") ?? [];
-      for (const h of handlers) h(code, reason);
-    },
-
-    _simulateError(error: Error) {
-      const handlers = listeners.get("error") ?? [];
-      for (const h of handlers) h(error);
-    },
-  };
-
-  return ws;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Flush pending microtasks so async chains can progress */
-function tick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function makeConfig(overrides?: Partial<NodeConfig>): NodeConfig {
-  return {
-    nodeId: "test-node-1",
-    gatewayUrl: "ws://localhost:18789",
-    token: "test-token",
-    capabilities: {
-      agentTypes: ["high"],
-      tools: ["web-search"],
-      maxConcurrency: 4,
-      channels: ["slack"],
-    },
-    ...overrides,
-  };
-}
-
-/**
- * Start a TemplarNode and complete the connect + register handshake.
- * Uses tick() to properly sequence the async promise chain.
- */
-async function startAndConnect(
-  node: TemplarNode,
-  mockWs: ReturnType<typeof createMockWs>,
-  sessionId = "session-1",
-): Promise<void> {
-  const startPromise = node.start();
-
-  // Flush microtasks so resolveToken + wsClient.connect() run
-  // and WS listeners are set up
-  await tick();
-
-  // Open the WS connection
-  mockWs._simulateOpen();
-
-  // Flush microtasks so register frame is sent and waitForRegisterAck is set up
-  await tick();
-
-  // Find the register frame and send ack
-  const registerFrame = mockWs._sent.find((f) => f.kind === "node.register");
-  if (registerFrame?.kind === "node.register") {
-    mockWs._simulateMessage({
-      kind: "node.register.ack",
-      nodeId: registerFrame.nodeId,
-      sessionId,
-    });
-  }
-
-  await startPromise;
-}
+import type { WsClientFactory } from "../ws-client.js";
+import { createMockWs, makeConfig, startAndConnect, tick } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -174,7 +49,7 @@ describe("TemplarNode", () => {
 
       await startAndConnect(node, mockWs);
 
-      await expect(node.start()).rejects.toThrow();
+      await expect(node.start()).rejects.toThrow(NodeStartError);
     });
 
     it("should stop gracefully: deregister, close, transition to disconnected", async () => {
@@ -197,6 +72,85 @@ describe("TemplarNode", () => {
       const node = new TemplarNode(makeConfig(), { wsFactory: factory });
 
       await expect(node.stop()).resolves.toBeUndefined();
+    });
+
+    it("should support Symbol.asyncDispose", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      await startAndConnect(node, mockWs);
+      expect(node.state).toBe("connected");
+
+      await node[Symbol.asyncDispose]();
+      expect(node.state).toBe("disconnected");
+    });
+  });
+
+  describe("cancellation edge cases", () => {
+    it("stop() during connecting state cancels start() cleanly", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const startPromise = node.start();
+      await tick();
+
+      // WS is connecting but not yet open — stop now
+      const stopPromise = node.stop();
+      expect(node.state).toBe("disconnected");
+
+      // The start promise should reject because the signal was aborted
+      await expect(startPromise).rejects.toThrow();
+      await stopPromise;
+    });
+
+    it("stop() during registration ack wait aborts cleanly", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const startPromise = node.start();
+      await tick();
+      mockWs._simulateOpen();
+      await tick();
+
+      // WS is connected and register frame is sent, but no ack yet
+      // Calling stop() will abort the signal that waitForRegisterAck listens on
+      await node.stop();
+
+      await expect(startPromise).rejects.toThrow();
+      expect(node.state).toBe("disconnected");
+    });
+
+    it("stop() during reconnection prevents post-stop connection", async () => {
+      const mockWs1 = createMockWs();
+      const mockWs2 = createMockWs();
+      let callCount = 0;
+      const multiFactory: WsClientFactory = () => {
+        callCount++;
+        return callCount === 1 ? mockWs1 : mockWs2;
+      };
+
+      const config = makeConfig({
+        reconnect: { maxRetries: 5, baseDelay: 10, maxDelay: 50 },
+      });
+      const node = new TemplarNode(config, { wsFactory: multiFactory });
+      node.onError(() => {}); // suppress stderr
+
+      await startAndConnect(node, mockWs1);
+
+      // Trigger reconnection
+      mockWs1._simulateClose(1006, "Abnormal closure");
+      expect(node.state).toBe("reconnecting");
+
+      // Stop during reconnection
+      await node.stop();
+      expect(node.state).toBe("disconnected");
+
+      // Wait to ensure no reconnection happens
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(node.state).toBe("disconnected");
     });
   });
 
@@ -362,7 +316,8 @@ describe("TemplarNode", () => {
 
       expect(errorHandler).toHaveBeenCalledOnce();
       const err = errorHandler.mock.calls[0]?.[0] as Error;
-      expect(err.message).toBe("Handler exploded");
+      expect(err).toBeInstanceOf(NodeHandlerError);
+      expect(err.message).toContain("Handler exploded");
       expect(node.state).toBe("connected");
     });
 
@@ -397,7 +352,8 @@ describe("TemplarNode", () => {
 
       expect(errorHandler).toHaveBeenCalledOnce();
       const err = errorHandler.mock.calls[0]?.[0] as Error;
-      expect(err.message).toBe("Async handler exploded");
+      expect(err).toBeInstanceOf(NodeHandlerError);
+      expect(err.message).toContain("Async handler exploded");
     });
   });
 
@@ -522,6 +478,101 @@ describe("TemplarNode", () => {
       expect(tokenFactory).toHaveBeenCalledTimes(2);
     });
 
+    it("should emit NodeReconnectExhaustedError when retries are exhausted", async () => {
+      const mockWs1 = createMockWs();
+      const mockWs2 = createMockWs();
+      let callCount = 0;
+      const multiFactory: WsClientFactory = () => {
+        callCount++;
+        return callCount === 1 ? mockWs1 : mockWs2;
+      };
+
+      const config = makeConfig({
+        reconnect: { maxRetries: 1, baseDelay: 10, maxDelay: 50 },
+      });
+      const node = new TemplarNode(config, { wsFactory: multiFactory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+
+      await startAndConnect(node, mockWs1);
+
+      // Trigger unexpected close
+      mockWs1._simulateClose(1006, "Abnormal closure");
+      expect(node.state).toBe("reconnecting");
+
+      // Wait for the reconnect attempt
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await tick();
+
+      // Fail the reconnect by simulating error
+      mockWs2._simulateError(new Error("Connection refused"));
+      await tick();
+
+      // Wait for retry scheduling + exhaustion
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await tick();
+
+      // Should have exhausted retries
+      const exhaustedError = errorHandler.mock.calls.find(
+        (call) => call[0] instanceof NodeReconnectExhaustedError,
+      );
+      expect(exhaustedError).toBeDefined();
+      expect(node.state).toBe("disconnected");
+    });
+
+    it("should emit error and schedule next retry on failed reconnect attempt", async () => {
+      const mockWs1 = createMockWs();
+      const mockWs2 = createMockWs();
+      const mockWs3 = createMockWs();
+      let callCount = 0;
+      const multiFactory: WsClientFactory = () => {
+        callCount++;
+        if (callCount === 1) return mockWs1;
+        if (callCount === 2) return mockWs2;
+        return mockWs3;
+      };
+
+      const config = makeConfig({
+        reconnect: { maxRetries: 3, baseDelay: 10, maxDelay: 50 },
+      });
+      const node = new TemplarNode(config, { wsFactory: multiFactory });
+
+      const errorHandler = vi.fn();
+      const reconnectingHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onReconnecting(reconnectingHandler);
+
+      await startAndConnect(node, mockWs1);
+
+      // Trigger unexpected close
+      mockWs1._simulateClose(1006, "Abnormal closure");
+      expect(node.state).toBe("reconnecting");
+
+      // Wait for the first reconnect attempt
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await tick();
+
+      // Fail the first reconnect attempt
+      mockWs2._simulateError(new Error("Connection refused"));
+      await tick();
+
+      // Should have emitted reconnect-attempt error
+      const reconnectError = errorHandler.mock.calls.find(
+        (call) => call[1] === "reconnect-attempt",
+      );
+      expect(reconnectError).toBeDefined();
+
+      // Should still be reconnecting (not exhausted, retries left)
+      expect(node.state).toBe("reconnecting");
+
+      // Should have scheduled another reconnecting event
+      expect(reconnectingHandler.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+      // Cleanup
+      await node.stop();
+    });
+
     it("should cancel reconnection on stop()", async () => {
       vi.useFakeTimers();
 
@@ -563,6 +614,165 @@ describe("TemplarNode", () => {
     });
   });
 
+  describe("handler disposers", () => {
+    it("should return a disposer that removes the handler", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const messageHandler = vi.fn();
+      const dispose = node.onMessage(messageHandler);
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-1",
+        lane: "steer",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: laneMessage,
+      });
+
+      expect(messageHandler).toHaveBeenCalledOnce();
+
+      // Dispose the handler
+      dispose();
+
+      // Send another message — handler should NOT be called again
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: { ...laneMessage, id: "msg-2" },
+      });
+
+      expect(messageHandler).toHaveBeenCalledOnce(); // still 1
+    });
+
+    it("should support disposers on all on* methods", () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const disposers = [
+        node.onConnected(() => {}),
+        node.onDisconnected(() => {}),
+        node.onReconnecting(() => {}),
+        node.onReconnected(() => {}),
+        node.onMessage(() => {}),
+        node.onSessionUpdate(() => {}),
+        node.onConfigChanged(() => {}),
+        node.onError(() => {}),
+      ];
+
+      for (const dispose of disposers) {
+        expect(typeof dispose).toBe("function");
+      }
+    });
+  });
+
+  describe("lane message ack", () => {
+    it("should send lane.message.ack after sync handler completes", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      node.onMessage(() => {
+        // sync handler
+      });
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-1",
+        lane: "steer",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: laneMessage,
+      });
+
+      const ackFrame = mockWs._sent.find((f) => f.kind === "lane.message.ack");
+      expect(ackFrame).toBeDefined();
+      if (ackFrame?.kind === "lane.message.ack") {
+        expect(ackFrame.messageId).toBe("msg-1");
+      }
+    });
+
+    it("should send lane.message.ack after async handlers resolve", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      node.onMessage(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-2",
+        lane: "collect",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "collect",
+        message: laneMessage,
+      });
+
+      // Wait for async handler + ack
+      await tick();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      const ackFrame = mockWs._sent.find(
+        (f) => f.kind === "lane.message.ack" && f.messageId === "msg-2",
+      );
+      expect(ackFrame).toBeDefined();
+    });
+
+    it("should send lane.message.ack even if handler throws", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      node.onError(() => {}); // suppress error logging
+      node.onMessage(() => {
+        throw new Error("Handler exploded");
+      });
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-3",
+        lane: "steer",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: laneMessage,
+      });
+
+      const ackFrame = mockWs._sent.find(
+        (f) => f.kind === "lane.message.ack" && f.messageId === "msg-3",
+      );
+      expect(ackFrame).toBeDefined();
+    });
+  });
+
   describe("config", () => {
     it("should expose resolved config with defaults", () => {
       const mockWs = createMockWs();
@@ -584,6 +794,190 @@ describe("TemplarNode", () => {
             { wsFactory: factory },
           ),
       ).toThrow();
+    });
+
+    it("should respect custom registrationTimeout", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig({ registrationTimeout: 50 }), { wsFactory: factory });
+
+      const startPromise = node.start();
+      await tick();
+      mockWs._simulateOpen();
+      await tick();
+
+      // Don't send register ack — let it timeout
+      await expect(startPromise).rejects.toThrow("registration timed out");
+    });
+  });
+
+  describe("handler error wrapping", () => {
+    it("should wrap non-Error throws from message handlers", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onMessage(() => {
+        throw "string error"; // non-Error throw
+      });
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-1",
+        lane: "steer",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: laneMessage,
+      });
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(NodeHandlerError);
+      expect(err.message).toContain("string error");
+    });
+
+    it("should wrap non-Error async rejections from message handlers", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onMessage(async () => {
+        throw 42; // non-Error rejection
+      });
+
+      await startAndConnect(node, mockWs);
+
+      const laneMessage: LaneMessage = {
+        id: "msg-1",
+        lane: "steer",
+        channelId: "channel-1",
+        payload: {},
+        timestamp: Date.now(),
+      };
+      mockWs._simulateMessage({
+        kind: "lane.message",
+        lane: "steer",
+        message: laneMessage,
+      });
+
+      await tick();
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(NodeHandlerError);
+      expect(err.message).toContain("42");
+    });
+
+    it("should wrap errors from session update handlers", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onSessionUpdate(() => {
+        throw new Error("Session handler failed");
+      });
+
+      await startAndConnect(node, mockWs);
+
+      mockWs._simulateMessage({
+        kind: "session.update",
+        sessionId: "session-1",
+        nodeId: "test-node-1",
+        state: "idle",
+        timestamp: Date.now(),
+      });
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(NodeHandlerError);
+    });
+
+    it("should wrap errors from config changed handlers", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onConfigChanged(() => {
+        throw new Error("Config handler failed");
+      });
+
+      await startAndConnect(node, mockWs);
+
+      mockWs._simulateMessage({
+        kind: "config.changed",
+        fields: ["timeout"],
+        timestamp: Date.now(),
+      });
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(NodeHandlerError);
+    });
+
+    it("should wrap non-Error throws from session/config handlers", async () => {
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      const errorHandler = vi.fn();
+      node.onError(errorHandler);
+      node.onSessionUpdate(() => {
+        throw "non-error string";
+      });
+
+      await startAndConnect(node, mockWs);
+
+      mockWs._simulateMessage({
+        kind: "session.update",
+        sessionId: "session-1",
+        nodeId: "test-node-1",
+        state: "idle",
+        timestamp: Date.now(),
+      });
+
+      expect(errorHandler).toHaveBeenCalledOnce();
+      const err = errorHandler.mock.calls[0]?.[0] as Error;
+      expect(err).toBeInstanceOf(NodeHandlerError);
+      expect(err.message).toContain("non-error string");
+    });
+  });
+
+  describe("error emission", () => {
+    it("should log to stderr when no error handler is registered", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const mockWs = createMockWs();
+      const factory: WsClientFactory = vi.fn(() => mockWs);
+      const node = new TemplarNode(makeConfig(), { wsFactory: factory });
+
+      // No error handler registered
+      await startAndConnect(node, mockWs);
+
+      // Trigger an error frame
+      mockWs._simulateMessage({
+        kind: "error",
+        error: { type: "about:blank", title: "Test error", status: 500, detail: "detail" },
+        timestamp: Date.now(),
+      });
+
+      expect(consoleSpy).toHaveBeenCalledOnce();
+      expect(consoleSpy.mock.calls[0]?.[0]).toContain("[TemplarNode]");
+
+      consoleSpy.mockRestore();
     });
   });
 });

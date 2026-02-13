@@ -1,3 +1,4 @@
+import { NodeFrameTooLargeError } from "@templar/errors";
 import type { GatewayFrame } from "@templar/gateway-protocol";
 import { safeParseFrame } from "@templar/gateway-protocol";
 
@@ -40,6 +41,7 @@ export class WsClient {
   private ws: WebSocketClientLike | undefined;
   private readonly factory: WsClientFactory | undefined;
   private nodeId = "";
+  private _maxFrameSize = 0;
 
   private messageHandlers: readonly ((frame: GatewayFrame) => void)[] = [];
   private closeHandlers: readonly ((code: number, reason: string) => void)[] = [];
@@ -50,11 +52,24 @@ export class WsClient {
   }
 
   /**
+   * Set the maximum allowed frame size in bytes. 0 = no limit.
+   */
+  setMaxFrameSize(size: number): void {
+    this._maxFrameSize = size;
+  }
+
+  /**
    * Connect to the gateway.
    * Resolves when the WebSocket is open.
-   * Rejects on error or unexpected close during handshake.
+   * Rejects on error, unexpected close, or signal abort during handshake.
    */
-  async connect(url: string, token: string): Promise<void> {
+  async connect(url: string, token: string, signal?: AbortSignal): Promise<void> {
+    // Check if already aborted
+    if (signal?.aborted) {
+      const reason = signal.reason instanceof Error ? signal.reason : new Error("Aborted");
+      throw reason;
+    }
+
     // Dispose previous connection if any
     if (this.ws) {
       this.disposeWs();
@@ -77,31 +92,46 @@ export class WsClient {
     return new Promise<void>((resolve, reject) => {
       let settled = false;
 
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener("abort", onAbort);
+        fn();
+      };
+
+      const onAbort = () => {
+        settle(() => {
+          this.disposeWs();
+          const reason =
+            signal?.reason instanceof Error ? signal.reason : new Error("Connection aborted");
+          reject(reason);
+        });
+      };
+
+      signal?.addEventListener("abort", onAbort, { once: true });
+
       ws.on("open", () => {
-        if (!settled) {
-          settled = true;
+        settle(() => {
           this.wireEventHandlers(ws);
           resolve();
-        }
+        });
       });
 
       ws.on("error", (err: unknown) => {
-        if (!settled) {
-          settled = true;
+        settle(() => {
           const error = err instanceof Error ? err : new Error(String(err));
           reject(error);
-        }
+        });
       });
 
       ws.on("close", (code: unknown, reason: unknown) => {
-        if (!settled) {
-          settled = true;
+        settle(() => {
           reject(
             new Error(
               `WebSocket closed during connect: code=${String(code)}, reason=${String(reason)}`,
             ),
           );
-        }
+        });
       });
     });
   }
@@ -193,6 +223,15 @@ export class WsClient {
   }
 
   private handleRawMessage(data: string): void {
+    // Check frame size before parsing
+    if (this._maxFrameSize > 0 && data.length > this._maxFrameSize) {
+      const error = new NodeFrameTooLargeError(data.length, this._maxFrameSize);
+      for (const handler of this.errorHandlers) {
+        handler(error);
+      }
+      return;
+    }
+
     let raw: unknown;
     try {
       raw = JSON.parse(data);

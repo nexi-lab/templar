@@ -53,7 +53,14 @@ export interface NodeConfig {
   readonly token: TokenProvider;
   readonly capabilities: NodeCapabilities;
   readonly reconnect?: ReconnectConfig;
+  readonly registrationTimeout?: number;
+  readonly connectionTimeout?: number;
+  readonly maxFrameSize?: number;
 }
+
+export const DEFAULT_REGISTRATION_TIMEOUT = 10_000;
+export const DEFAULT_CONNECTION_TIMEOUT = 30_000;
+export const DEFAULT_MAX_FRAME_SIZE = 1_048_576; // 1 MB
 
 export const NodeConfigSchema = z.object({
   nodeId: z.string().min(1),
@@ -61,6 +68,9 @@ export const NodeConfigSchema = z.object({
   token: z.union([z.string().min(1), z.function()]),
   capabilities: NodeCapabilitiesSchema,
   reconnect: ReconnectConfigSchema,
+  registrationTimeout: z.number().int().positive().default(DEFAULT_REGISTRATION_TIMEOUT),
+  connectionTimeout: z.number().int().positive().default(DEFAULT_CONNECTION_TIMEOUT),
+  maxFrameSize: z.number().int().positive().default(DEFAULT_MAX_FRAME_SIZE),
 });
 
 // ---------------------------------------------------------------------------
@@ -76,6 +86,9 @@ export interface ResolvedNodeConfig {
   readonly token: TokenProvider;
   readonly capabilities: NodeCapabilities;
   readonly reconnect: ReconnectConfig;
+  readonly registrationTimeout: number;
+  readonly connectionTimeout: number;
+  readonly maxFrameSize: number;
 }
 
 /**

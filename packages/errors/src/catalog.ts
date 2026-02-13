@@ -656,6 +656,66 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // NODE ERRORS — Local device agent runtime
+  // ============================================================================
+  NODE_START_ERROR: {
+    domain: "node",
+    httpStatus: 409,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    title: "Node start failed",
+    description: "The node cannot start from its current state",
+  },
+  NODE_REGISTRATION_TIMEOUT: {
+    domain: "node",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Node registration timeout",
+    description: "The node failed to complete registration with the gateway within the timeout",
+  },
+  NODE_AUTH_FAILURE: {
+    domain: "node",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    title: "Node authentication failure",
+    description: "The node failed to authenticate with the gateway",
+  },
+  NODE_RECONNECT_EXHAUSTED: {
+    domain: "node",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    title: "Node reconnection exhausted",
+    description: "The node exhausted all reconnection attempts to the gateway",
+  },
+  NODE_HANDLER_ERROR: {
+    domain: "node",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    title: "Node handler error",
+    description: "A user-registered handler threw an error during execution",
+  },
+  NODE_CONNECTION_TIMEOUT: {
+    domain: "node",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    title: "Node connection timeout",
+    description: "The WebSocket connection to the gateway timed out",
+  },
+  NODE_FRAME_TOO_LARGE: {
+    domain: "node",
+    httpStatus: 413,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    title: "Node frame too large",
+    description: "An incoming WebSocket frame exceeded the maximum allowed size",
+  },
+  NODE_STOPPED: {
+    domain: "node",
+    httpStatus: 503,
+    grpcCode: "CANCELLED" as const,
+    title: "Node stopped",
+    description: "The operation was cancelled because the node is stopping",
+  },
+
+  // ============================================================================
   // SANITIZE ERRORS — Content sanitization
   // ============================================================================
   SANITIZE_CONFIGURATION_INVALID: {

@@ -1,3 +1,10 @@
+import {
+  NodeAuthFailureError,
+  NodeHandlerError,
+  NodeReconnectExhaustedError,
+  NodeRegistrationTimeoutError,
+  NodeStartError,
+} from "@templar/errors";
 import type {
   GatewayFrame,
   LaneMessageFrame,
@@ -50,7 +57,7 @@ export interface TemplarNodeDeps {
  * - Heartbeat response (protocol level, before user dispatch)
  * - Frame dispatch to user-registered handlers
  * - Automatic reconnection with exponential backoff + full jitter
- * - Graceful shutdown
+ * - Graceful shutdown via AbortController
  */
 export class TemplarNode {
   private readonly resolvedConfig: ResolvedNodeConfig;
@@ -60,10 +67,9 @@ export class TemplarNode {
 
   private _state: NodeState = "disconnected";
   private _sessionId: string | undefined;
-  private cancelReconnect: (() => void) | undefined;
-  private stopping = false;
+  private abortController: AbortController | undefined;
 
-  // Event handlers (immutable arrays — Issue #5A)
+  // Event handlers (immutable arrays)
   private connectedHandlers: readonly ConnectedHandler[] = [];
   private disconnectedHandlers: readonly DisconnectedHandler[] = [];
   private reconnectingHandlers: readonly ReconnectingHandler[] = [];
@@ -78,6 +84,7 @@ export class TemplarNode {
 
     this.wsClient = new WsClient(deps.wsFactory);
     this.wsClient.setNodeId(this.resolvedConfig.nodeId);
+    this.wsClient.setMaxFrameSize(this.resolvedConfig.maxFrameSize);
 
     this.reconnectStrategy = new ReconnectStrategy(this.resolvedConfig.reconnect);
 
@@ -100,33 +107,32 @@ export class TemplarNode {
    */
   async start(): Promise<void> {
     if (this._state !== "disconnected") {
-      throw new Error(`Cannot start: node is in state "${this._state}"`);
+      throw new NodeStartError(this.resolvedConfig.nodeId, this._state);
     }
 
     this._state = "connecting";
+    this.abortController = new AbortController();
+
     try {
-      await this.connectAndRegister();
+      await this.connectAndRegister(this.abortController.signal);
     } catch (err) {
       this._state = "disconnected";
+      this.abortController = undefined;
       throw err;
     }
   }
 
   /**
-   * Gracefully disconnect: send deregister, cancel reconnection, close WS.
+   * Gracefully disconnect: abort in-flight ops, send deregister, close WS.
    */
   async stop(): Promise<void> {
     if (this._state === "disconnected") {
       return;
     }
 
-    this.stopping = true;
-
-    // Cancel any pending reconnection
-    if (this.cancelReconnect) {
-      this.cancelReconnect();
-      this.cancelReconnect = undefined;
-    }
+    // Abort all in-flight operations (cancels connect, ack wait, reconnection)
+    this.abortController?.abort();
+    this.abortController = undefined;
 
     // Send deregister if connected
     if (this._state === "connected") {
@@ -143,7 +149,10 @@ export class TemplarNode {
 
     this._state = "disconnected";
     this._sessionId = undefined;
-    this.stopping = false;
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.stop();
   }
 
   // -------------------------------------------------------------------------
@@ -166,46 +175,76 @@ export class TemplarNode {
   // Event Registration
   // -------------------------------------------------------------------------
 
-  onConnected(handler: ConnectedHandler): void {
+  onConnected(handler: ConnectedHandler): () => void {
     this.connectedHandlers = [...this.connectedHandlers, handler];
+    return () => {
+      this.connectedHandlers = this.connectedHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onDisconnected(handler: DisconnectedHandler): void {
+  onDisconnected(handler: DisconnectedHandler): () => void {
     this.disconnectedHandlers = [...this.disconnectedHandlers, handler];
+    return () => {
+      this.disconnectedHandlers = this.disconnectedHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onReconnecting(handler: ReconnectingHandler): void {
+  onReconnecting(handler: ReconnectingHandler): () => void {
     this.reconnectingHandlers = [...this.reconnectingHandlers, handler];
+    return () => {
+      this.reconnectingHandlers = this.reconnectingHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onReconnected(handler: ReconnectedHandler): void {
+  onReconnected(handler: ReconnectedHandler): () => void {
     this.reconnectedHandlers = [...this.reconnectedHandlers, handler];
+    return () => {
+      this.reconnectedHandlers = this.reconnectedHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onMessage(handler: MessageHandler): void {
+  onMessage(handler: MessageHandler): () => void {
     this.messageHandlers = [...this.messageHandlers, handler];
+    return () => {
+      this.messageHandlers = this.messageHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onSessionUpdate(handler: SessionUpdateHandler): void {
+  onSessionUpdate(handler: SessionUpdateHandler): () => void {
     this.sessionUpdateHandlers = [...this.sessionUpdateHandlers, handler];
+    return () => {
+      this.sessionUpdateHandlers = this.sessionUpdateHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onConfigChanged(handler: ConfigChangedHandler): void {
+  onConfigChanged(handler: ConfigChangedHandler): () => void {
     this.configChangedHandlers = [...this.configChangedHandlers, handler];
+    return () => {
+      this.configChangedHandlers = this.configChangedHandlers.filter((h) => h !== handler);
+    };
   }
 
-  onError(handler: ErrorHandler): void {
+  onError(handler: ErrorHandler): () => void {
     this.errorHandlers = [...this.errorHandlers, handler];
+    return () => {
+      this.errorHandlers = this.errorHandlers.filter((h) => h !== handler);
+    };
   }
 
   // -------------------------------------------------------------------------
   // Connection
   // -------------------------------------------------------------------------
 
-  private async connectAndRegister(): Promise<void> {
+  private async connectAndRegister(signal: AbortSignal): Promise<void> {
     const token = await this.resolveToken();
 
-    await this.wsClient.connect(this.resolvedConfig.gatewayUrl, token);
+    // Combine lifecycle abort signal with connection timeout
+    const connectionSignal = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(this.resolvedConfig.connectionTimeout),
+    ]);
+
+    await this.wsClient.connect(this.resolvedConfig.gatewayUrl, token, connectionSignal);
 
     // Send register frame
     const registerFrame: NodeRegisterFrame = {
@@ -217,7 +256,7 @@ export class TemplarNode {
     this.wsClient.send(registerFrame);
 
     // Wait for register ack
-    const sessionId = await this.waitForRegisterAck();
+    const sessionId = await this.waitForRegisterAck(signal);
     this._sessionId = sessionId;
     this._state = "connected";
     this.reconnectStrategy.reset();
@@ -227,17 +266,44 @@ export class TemplarNode {
     }
   }
 
-  private waitForRegisterAck(): Promise<string> {
-    const timeout = 10_000;
+  private waitForRegisterAck(signal: AbortSignal): Promise<string> {
+    const timeout = this.resolvedConfig.registrationTimeout;
     return new Promise<string>((resolve, reject) => {
+      if (signal.aborted) {
+        const reason = signal.reason instanceof Error ? signal.reason : new Error("Aborted");
+        reject(reason);
+        return;
+      }
+
+      let settled = false;
+
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal.removeEventListener("abort", onAbort);
+        fn();
+      };
+
       const timer = setTimeout(() => {
-        this._pendingAckResolve = undefined;
-        reject(new Error(`Registration timed out after ${timeout}ms`));
+        settle(() => {
+          this._pendingAckResolve = undefined;
+          reject(new NodeRegistrationTimeoutError(this.resolvedConfig.nodeId, timeout));
+        });
       }, timeout);
 
+      const onAbort = () => {
+        settle(() => {
+          this._pendingAckResolve = undefined;
+          const reason = signal.reason instanceof Error ? signal.reason : new Error("Aborted");
+          reject(reason);
+        });
+      };
+
+      signal.addEventListener("abort", onAbort, { once: true });
+
       this._pendingAckResolve = (sessionId: string) => {
-        clearTimeout(timer);
-        resolve(sessionId);
+        settle(() => resolve(sessionId));
       };
     });
   }
@@ -249,7 +315,7 @@ export class TemplarNode {
   // -------------------------------------------------------------------------
 
   private handleFrame(frame: GatewayFrame): void {
-    // 1. Heartbeat — protocol level, BEFORE user dispatch (Issue #15)
+    // 1. Heartbeat — protocol level, BEFORE user dispatch
     if (this.heartbeatResponder.handleFrame(frame)) {
       return;
     }
@@ -292,20 +358,43 @@ export class TemplarNode {
   private handleLaneMessage(frame: LaneMessageFrame): void {
     const { lane, message } = frame;
 
+    const promises: Promise<void>[] = [];
+
     for (const handler of this.messageHandlers) {
       try {
         const result = handler(lane, message);
-        // Handle async rejections (Issue #6A)
         if (result instanceof Promise) {
-          result.catch((err: unknown) => {
-            const error = err instanceof Error ? err : new Error(String(err));
-            this.emitError(error, "message-handler");
-          });
+          promises.push(
+            result.catch((err: unknown) => {
+              const cause = err instanceof Error ? err : new Error(String(err));
+              this.emitError(
+                new NodeHandlerError("message-handler", cause.message, cause),
+                "message-handler",
+              );
+            }),
+          );
         }
       } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        this.emitError(error, "message-handler");
+        const cause = err instanceof Error ? err : new Error(String(err));
+        this.emitError(
+          new NodeHandlerError("message-handler", cause.message, cause),
+          "message-handler",
+        );
       }
+    }
+
+    // Send ack after all handlers complete (sync + async)
+    const sendAck = () => {
+      this.wsClient.send({
+        kind: "lane.message.ack",
+        messageId: message.id,
+      });
+    };
+
+    if (promises.length > 0) {
+      void Promise.allSettled(promises).then(sendAck);
+    } else {
+      sendAck();
     }
   }
 
@@ -314,8 +403,11 @@ export class TemplarNode {
       try {
         handler(state);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        this.emitError(error, "session-update-handler");
+        const cause = err instanceof Error ? err : new Error(String(err));
+        this.emitError(
+          new NodeHandlerError("session-update-handler", cause.message, cause),
+          "session-update-handler",
+        );
       }
     }
   }
@@ -325,8 +417,11 @@ export class TemplarNode {
       try {
         handler(fields);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        this.emitError(error, "config-changed-handler");
+        const cause = err instanceof Error ? err : new Error(String(err));
+        this.emitError(
+          new NodeHandlerError("config-changed-handler", cause.message, cause),
+          "config-changed-handler",
+        );
       }
     }
   }
@@ -337,7 +432,7 @@ export class TemplarNode {
 
   private handleClose(code: number, reason: string): void {
     // If we're intentionally stopping, don't reconnect
-    if (this.stopping) {
+    if (this.abortController?.signal.aborted) {
       return;
     }
 
@@ -350,7 +445,10 @@ export class TemplarNode {
     if (AUTH_FAILURE_CODES.has(code)) {
       this._state = "disconnected";
       this._sessionId = undefined;
-      this.emitError(new Error(`Authentication failure (code ${code}): ${reason}`), "auth-failure");
+      this.emitError(
+        new NodeAuthFailureError(this.resolvedConfig.nodeId, code, reason),
+        "auth-failure",
+      );
       return;
     }
 
@@ -360,11 +458,16 @@ export class TemplarNode {
   }
 
   private scheduleReconnect(): void {
+    const signal = this.abortController?.signal;
+    if (!signal || signal.aborted) {
+      return;
+    }
+
     if (this.reconnectStrategy.exhausted) {
       this._state = "disconnected";
       this._sessionId = undefined;
       this.emitError(
-        new Error(`Reconnection failed after ${this.reconnectStrategy.attempt} attempts`),
+        new NodeReconnectExhaustedError(this.resolvedConfig.nodeId, this.reconnectStrategy.attempt),
         "reconnect-exhausted",
       );
       return;
@@ -373,10 +476,12 @@ export class TemplarNode {
     const attempt = this.reconnectStrategy.attempt;
 
     const { cancel, delay } = this.reconnectStrategy.schedule(async () => {
-      this.cancelReconnect = undefined;
       await this.attemptReconnect();
     });
-    this.cancelReconnect = cancel;
+
+    // Cancel scheduled reconnect on abort
+    const onAbort = () => cancel();
+    signal.addEventListener("abort", onAbort, { once: true });
 
     // Emit reconnecting with the current attempt number and computed delay
     for (const handler of this.reconnectingHandlers) {
@@ -385,11 +490,16 @@ export class TemplarNode {
   }
 
   private async attemptReconnect(): Promise<void> {
+    const signal = this.abortController?.signal;
+    if (!signal || signal.aborted) {
+      return;
+    }
+
     try {
-      // Dispose previous WS instance (fresh instance — Issue #16)
+      // Dispose previous WS instance (fresh instance for reconnect)
       this.wsClient.dispose();
 
-      await this.connectAndRegister();
+      await this.connectAndRegister(signal);
 
       // On success, emit reconnected
       const sessionId = this._sessionId;
@@ -399,11 +509,16 @@ export class TemplarNode {
         }
       }
     } catch (err) {
+      // Stopped during reconnect — silently exit
+      if (signal.aborted) {
+        return;
+      }
+
       const error = err instanceof Error ? err : new Error(String(err));
       this.emitError(error, "reconnect-attempt");
 
-      // Schedule next attempt if not stopping
-      if (!this.stopping && this._state === "reconnecting") {
+      // Schedule next attempt if still reconnecting
+      if (this._state === "reconnecting") {
         this.scheduleReconnect();
       }
     }

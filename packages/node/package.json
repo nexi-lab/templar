@@ -13,9 +13,11 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@templar/errors": "workspace:*",
     "@templar/gateway-protocol": "workspace:*",
     "zod": "^3.22.4"
   },

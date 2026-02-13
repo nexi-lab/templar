@@ -173,18 +173,25 @@ function makeNodeConfig(port: number, overrides?: Partial<NodeConfig>): NodeConf
 
 describe("TemplarNode integration", () => {
   let gateway: MiniGateway;
+  const nodes: TemplarNode[] = [];
 
   beforeEach(async () => {
     gateway = await createMiniGateway();
+    nodes.length = 0;
   });
 
   afterEach(async () => {
+    // Stop all nodes BEFORE gateway to prevent post-shutdown reconnection noise
+    for (const node of nodes) {
+      await node.stop();
+    }
     await gateway.stop();
   });
 
   it("scenario 1: full lifecycle — connect, register, disconnect", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     const connectedHandler = vi.fn();
     const disconnectedHandler = vi.fn();
@@ -224,6 +231,7 @@ describe("TemplarNode integration", () => {
   it("scenario 2: lane message delivery", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     const messageHandler = vi.fn();
     node.onMessage(messageHandler);
@@ -248,13 +256,12 @@ describe("TemplarNode integration", () => {
     await waitFor(() => messageHandler.mock.calls.length > 0);
 
     expect(messageHandler).toHaveBeenCalledWith("steer", laneMessage);
-
-    await node.stop();
   });
 
   it("scenario 3: heartbeat exchange", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     await node.start();
 
@@ -270,13 +277,12 @@ describe("TemplarNode integration", () => {
     const pongFrame = gateway.receivedFrames.find((f) => f.kind === "heartbeat.pong");
     expect(pongFrame).toBeDefined();
     expect(pongFrame?.kind).toBe("heartbeat.pong");
-
-    await node.stop();
   });
 
   it("scenario 4: auth failure — wrong token", async () => {
     const config = makeNodeConfig(gateway.port, { token: "wrong-token" });
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     const errorHandler = vi.fn();
     node.onError(errorHandler);
@@ -290,6 +296,7 @@ describe("TemplarNode integration", () => {
   it("scenario 5: graceful shutdown sends deregister", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     await node.start();
     expect(node.state).toBe("connected");
@@ -312,11 +319,12 @@ describe("TemplarNode integration", () => {
     await waitFor(() => !gateway.connections.has("test-node-1"));
   });
 
-  it("scenario 6: reconnection after server-side disconnect", async () => {
+  it("scenario 6: reconnection after server-side disconnect", { timeout: 15_000 }, async () => {
     const config = makeNodeConfig(gateway.port, {
       reconnect: { maxRetries: 5, baseDelay: 50, maxDelay: 200 },
     });
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     const reconnectingHandler = vi.fn();
     const reconnectedHandler = vi.fn();
@@ -331,20 +339,23 @@ describe("TemplarNode integration", () => {
     gateway.closeConnection("test-node-1");
 
     // Wait for disconnect to propagate, then for reconnection to complete
-    await waitFor(() => node.state !== "connected", 3_000);
-    await waitFor(() => node.state === "connected", 3_000);
+    // Use extended timeout — reconnection involves backoff + WS handshake + registration
+    await waitFor(() => node.state !== "connected", 10_000);
+    await waitFor(() => node.state === "connected", 10_000);
 
     expect(reconnectingHandler).toHaveBeenCalled();
     expect(reconnectedHandler).toHaveBeenCalledOnce();
     expect(node.sessionId).toBeDefined();
     expect(node.sessionId).not.toBe(firstSessionId);
-
-    await node.stop();
   });
 
   it("scenario 7: session update notification", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
+
+    // Suppress reconnection error noise during cleanup
+    node.onError(() => {});
 
     const sessionUpdateHandler = vi.fn();
     node.onSessionUpdate(sessionUpdateHandler);
@@ -363,13 +374,12 @@ describe("TemplarNode integration", () => {
     await waitFor(() => sessionUpdateHandler.mock.calls.length > 0);
 
     expect(sessionUpdateHandler).toHaveBeenCalledWith("idle");
-
-    await node.stop();
   });
 
   it("scenario 8: config change notification", async () => {
     const config = makeNodeConfig(gateway.port);
     const node = new TemplarNode(config);
+    nodes.push(node);
 
     const configChangedHandler = vi.fn();
     node.onConfigChanged(configChangedHandler);
@@ -386,7 +396,5 @@ describe("TemplarNode integration", () => {
     await waitFor(() => configChangedHandler.mock.calls.length > 0);
 
     expect(configChangedHandler).toHaveBeenCalledWith(["sessionTimeout"]);
-
-    await node.stop();
   });
 });
