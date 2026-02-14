@@ -11,15 +11,15 @@
  */
 
 import { TemplarError } from "./base.js";
-import { ERROR_CATALOG, type BaseErrorType, type CodesForBase, type ErrorCode } from "./catalog.js";
-import { ValidationError } from "./bases/validation-error.js";
-import { NotFoundError } from "./bases/not-found-error.js";
-import { PermissionError } from "./bases/permission-error.js";
 import { ConflictError } from "./bases/conflict-error.js";
-import { RateLimitError } from "./bases/rate-limit-error.js";
-import { TimeoutError } from "./bases/timeout-error.js";
 import { ExternalError } from "./bases/external-error.js";
 import { InternalError } from "./bases/internal-error.js";
+import { NotFoundError } from "./bases/not-found-error.js";
+import { PermissionError } from "./bases/permission-error.js";
+import { RateLimitError } from "./bases/rate-limit-error.js";
+import { TimeoutError } from "./bases/timeout-error.js";
+import { ValidationError } from "./bases/validation-error.js";
+import { type BaseErrorType, type CodesForBase, ERROR_CATALOG, type ErrorCode } from "./catalog.js";
 import type { ValidationIssue } from "./types.js";
 import { isValidErrorCode, wrapError } from "./utils.js";
 import {
@@ -127,19 +127,54 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
       });
     }
     case "NotFoundError":
-      return new NotFoundError({ code: narrowCode(code, "NotFoundError"), message, metadata, traceId });
+      return new NotFoundError({
+        code: narrowCode(code, "NotFoundError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "PermissionError":
-      return new PermissionError({ code: narrowCode(code, "PermissionError"), message, metadata, traceId });
+      return new PermissionError({
+        code: narrowCode(code, "PermissionError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "ConflictError":
-      return new ConflictError({ code: narrowCode(code, "ConflictError"), message, metadata, traceId });
+      return new ConflictError({
+        code: narrowCode(code, "ConflictError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "RateLimitError":
-      return new RateLimitError({ code: narrowCode(code, "RateLimitError"), message, metadata, traceId });
+      return new RateLimitError({
+        code: narrowCode(code, "RateLimitError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "TimeoutError":
-      return new TimeoutError({ code: narrowCode(code, "TimeoutError"), message, metadata, traceId });
+      return new TimeoutError({
+        code: narrowCode(code, "TimeoutError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "ExternalError":
-      return new ExternalError({ code: narrowCode(code, "ExternalError"), message, metadata, traceId });
+      return new ExternalError({
+        code: narrowCode(code, "ExternalError"),
+        message,
+        metadata,
+        traceId,
+      });
     case "InternalError":
-      return new InternalError({ code: narrowCode(code, "InternalError"), message, metadata, traceId });
+      return new InternalError({
+        code: narrowCode(code, "InternalError"),
+        message,
+        metadata,
+        traceId,
+      });
     default:
       return assertNever(baseType);
   }

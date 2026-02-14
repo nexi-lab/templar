@@ -10,14 +10,14 @@
  * @deprecated All classes in this file are deprecated. Use the 8 base types from ./bases/ instead.
  */
 
-import { ValidationError } from "./bases/validation-error.js";
-import { NotFoundError } from "./bases/not-found-error.js";
-import { PermissionError } from "./bases/permission-error.js";
 import { ConflictError } from "./bases/conflict-error.js";
-import { RateLimitError } from "./bases/rate-limit-error.js";
-import { TimeoutError } from "./bases/timeout-error.js";
 import { ExternalError } from "./bases/external-error.js";
 import { InternalError } from "./bases/internal-error.js";
+import { NotFoundError } from "./bases/not-found-error.js";
+import { PermissionError } from "./bases/permission-error.js";
+import { RateLimitError } from "./bases/rate-limit-error.js";
+import { TimeoutError } from "./bases/timeout-error.js";
+import { ValidationError } from "./bases/validation-error.js";
 
 // Re-export ValidationIssue for backward compat (was in classes.ts)
 export type { ValidationIssue } from "./types.js";
@@ -375,7 +375,9 @@ export class MemoryConfigurationError extends ValidationError<"MEMORY_CONFIGURAT
       message: `Invalid memory configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -679,7 +681,9 @@ export class PayConfigurationError extends ValidationError<"PAY_CONFIGURATION_IN
       message: `Invalid pay configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -776,7 +780,9 @@ export class AuditConfigurationError extends ValidationError<"AUDIT_CONFIGURATIO
       message: `Invalid audit configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -875,7 +881,9 @@ export class PermissionConfigurationError extends ValidationError<"PERMISSION_CO
       message: `Invalid permission configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -1082,7 +1090,9 @@ export class GatewayConfigInvalidError extends ValidationError<"GATEWAY_CONFIG_I
       message: `Invalid gateway configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -1144,7 +1154,9 @@ export class AguiInvalidInputError extends ValidationError<"AGUI_INVALID_INPUT">
       message: `Invalid AG-UI input: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "input", message: i, code: "INPUT_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "input", message: i, code: "INPUT_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -1258,7 +1270,9 @@ export class HookConfigurationError extends ValidationError<"HOOK_CONFIGURATION_
       message: `Invalid hook configuration: ${message}`,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -1627,7 +1641,9 @@ export class SanitizeConfigurationError extends ValidationError<"SANITIZE_CONFIG
       message,
       ...(metadata ? { metadata } : {}),
       ...(traceId ? { traceId } : {}),
-      ...(issues ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) } : {}),
+      ...(issues
+        ? { issues: issues.map((i) => ({ field: "config", message: i, code: "CONFIG_ISSUE" })) }
+        : {}),
     });
     this.configIssues = issues;
   }
@@ -1749,5 +1765,66 @@ export class ManifestInterpolationError extends ValidationError<"MANIFEST_INTERP
       metadata,
       traceId,
     });
+  }
+}
+
+// ============================================================================
+// SKILL ERRORS (legacy wrappers)
+// ============================================================================
+
+/** @deprecated Use `new NotFoundError({ code: "SKILL_NOT_FOUND", ... })` */
+export class SkillNotFoundError extends NotFoundError<"SKILL_NOT_FOUND"> {
+  constructor(
+    public readonly skillName: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "SKILL_NOT_FOUND",
+      message: `Skill '${skillName}' not found`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ValidationError({ code: "SKILL_PARSE_ERROR", ... })` */
+export class SkillParseError extends ValidationError<"SKILL_PARSE_ERROR"> {
+  constructor(
+    public readonly filePath: string | undefined,
+    message: string,
+    public override readonly cause?: Error | undefined,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "SKILL_PARSE_ERROR",
+      message: `Skill parse error${filePath ? ` (${filePath})` : ""}: ${message}`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ValidationError({ code: "SKILL_VALIDATION_ERROR", ... })` */
+export class SkillValidationError extends ValidationError<"SKILL_VALIDATION_ERROR"> {
+  readonly validationIssues?: readonly string[] | undefined;
+  constructor(
+    public readonly skillName: string | undefined,
+    issues: readonly string[],
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "SKILL_VALIDATION_ERROR",
+      message: `Skill validation failed${skillName ? ` for '${skillName}'` : ""}:\n${issues.map((i) => `  - ${i}`).join("\n")}`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+      ...(issues.length > 0
+        ? { issues: issues.map((i) => ({ field: "skill", message: i, code: "VALIDATION" })) }
+        : {}),
+    });
+    this.validationIssues = issues;
   }
 }

@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions } from "../types.js";
 
 type InternalCode = CodesForBase<"InternalError">;
@@ -8,9 +14,7 @@ type InternalCode = CodesForBase<"InternalError">;
  * Errors caused by bugs or unimplemented features.
  * HTTP 500/501. The `.code` field discriminates the specific error.
  */
-export class InternalError<
-  C extends InternalCode = "INTERNAL_ERROR",
-> extends TemplarError {
+export class InternalError<C extends InternalCode = "INTERNAL_ERROR"> extends TemplarError {
   readonly _tag = "InternalError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;

@@ -84,6 +84,7 @@ export abstract class TemplarError extends Error {
 
     // Preserve stack trace (V8 only, but degrades gracefully)
     if ("captureStackTrace" in Error) {
+      // biome-ignore lint/suspicious/noExplicitAny: V8-specific API not in lib types
       (Error as any).captureStackTrace(this, this.constructor);
     }
 

@@ -2,16 +2,16 @@
  * Type guards for the 8 base error types + code-level discrimination.
  */
 
-import type { ErrorCode } from "./catalog.js";
 import type { TemplarError } from "./base.js";
-import { ValidationError } from "./bases/validation-error.js";
-import { NotFoundError } from "./bases/not-found-error.js";
-import { PermissionError } from "./bases/permission-error.js";
 import { ConflictError } from "./bases/conflict-error.js";
-import { RateLimitError } from "./bases/rate-limit-error.js";
-import { TimeoutError } from "./bases/timeout-error.js";
 import { ExternalError } from "./bases/external-error.js";
 import { InternalError } from "./bases/internal-error.js";
+import { NotFoundError } from "./bases/not-found-error.js";
+import { PermissionError } from "./bases/permission-error.js";
+import { RateLimitError } from "./bases/rate-limit-error.js";
+import { TimeoutError } from "./bases/timeout-error.js";
+import { ValidationError } from "./bases/validation-error.js";
+import type { ErrorCode } from "./catalog.js";
 
 /** Check if an error is a ValidationError (bad input, config) */
 export function isValidationError(error: unknown): error is ValidationError {
@@ -69,12 +69,7 @@ export function hasCode<C extends ErrorCode>(
  * Returns false for non-TemplarError values.
  */
 export function isExpectedError(error: unknown): boolean {
-  if (
-    error !== null &&
-    error !== undefined &&
-    typeof error === "object" &&
-    "isExpected" in error
-  ) {
+  if (error !== null && error !== undefined && typeof error === "object" && "isExpected" in error) {
     return (error as TemplarError).isExpected;
   }
   return false;

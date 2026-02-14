@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions } from "../types.js";
 
 type ExternalCode = CodesForBase<"ExternalError">;
@@ -8,9 +14,7 @@ type ExternalCode = CodesForBase<"ExternalError">;
  * Errors caused by runtime failures in external dependencies or execution.
  * HTTP 500/502/503. The `.code` field discriminates the specific error.
  */
-export class ExternalError<
-  C extends ExternalCode = "INTERNAL_UNAVAILABLE",
-> extends TemplarError {
+export class ExternalError<C extends ExternalCode = "INTERNAL_UNAVAILABLE"> extends TemplarError {
   readonly _tag = "ExternalError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;

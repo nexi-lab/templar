@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions } from "../types.js";
 
 type RateLimitCode = CodesForBase<"RateLimitError">;
@@ -8,9 +14,7 @@ type RateLimitCode = CodesForBase<"RateLimitError">;
  * Errors when resource limits are exceeded (quotas, rate limits, payload size).
  * HTTP 429/413/507. The `.code` field discriminates the specific error.
  */
-export class RateLimitError<
-  C extends RateLimitCode = "RATE_LIMIT_EXCEEDED",
-> extends TemplarError {
+export class RateLimitError<C extends RateLimitCode = "RATE_LIMIT_EXCEEDED"> extends TemplarError {
   readonly _tag = "RateLimitError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;

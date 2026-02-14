@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ConflictError,
   ERROR_CATALOG,
-  type ErrorCode,
   ExternalError,
   getAllErrorCodes,
   hasCode,
@@ -317,19 +316,19 @@ describe("Catalog baseType consistency", () => {
       "InternalError",
     ]);
 
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       expect(validBaseTypes.has(entry.baseType)).toBe(true);
     }
   });
 
   it("every error code has an isExpected boolean", () => {
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       expect(typeof entry.isExpected).toBe("boolean");
     }
   });
 
   it("4xx HTTP codes should generally be isExpected=true", () => {
-    for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
+    for (const [_code, entry] of Object.entries(ERROR_CATALOG)) {
       if (entry.httpStatus >= 400 && entry.httpStatus < 500) {
         expect(entry.isExpected).toBe(true);
       }
@@ -349,6 +348,7 @@ describe("Catalog baseType consistency", () => {
   });
 
   it("constructs correct base type for every catalog code", () => {
+    // biome-ignore lint/suspicious/noExplicitAny: dynamic constructor map requires any
     const baseTypeToClass: Record<string, new (opts: any) => TemplarError> = {
       ValidationError,
       NotFoundError,

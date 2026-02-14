@@ -75,6 +75,20 @@ export const ScheduleSchema = z
 
 export const PromptSchema = z.string().min(1).max(10_000);
 
+/**
+ * Skill reference validation (agentskills.io name format):
+ * - 1-64 chars, lowercase alphanumeric + hyphens
+ * - No leading/trailing hyphens, no consecutive hyphens
+ */
+export const SkillRefSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(
+    /^[a-z0-9](?:[a-z0-9]|-(?!-))*[a-z0-9]$|^[a-z0-9]$/,
+    "Skill name must be lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens",
+  );
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -87,6 +101,7 @@ export const AgentManifestSchema = z.object({
   identity: IdentityConfigSchema.optional(),
   schedule: ScheduleSchema.optional(),
   prompt: PromptSchema.optional(),
+  skills: z.array(SkillRefSchema).optional(),
 });
 
 /**

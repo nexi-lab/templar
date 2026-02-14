@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions } from "../types.js";
 
 type TimeoutCode = CodesForBase<"TimeoutError">;
@@ -8,9 +14,7 @@ type TimeoutCode = CodesForBase<"TimeoutError">;
  * Errors when an operation exceeds its deadline.
  * HTTP 504. The `.code` field discriminates the specific error.
  */
-export class TimeoutError<
-  C extends TimeoutCode = "INTERNAL_TIMEOUT",
-> extends TemplarError {
+export class TimeoutError<C extends TimeoutCode = "INTERNAL_TIMEOUT"> extends TemplarError {
   readonly _tag = "TimeoutError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;

@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions, ValidationIssue } from "../types.js";
 
 type ValidationCode = CodesForBase<"ValidationError">;
@@ -8,9 +14,7 @@ type ValidationCode = CodesForBase<"ValidationError">;
  * Errors caused by invalid input, configuration, or request data.
  * HTTP 400-class. The `.code` field discriminates the specific error.
  */
-export class ValidationError<
-  C extends ValidationCode = "VALIDATION_FAILED",
-> extends TemplarError {
+export class ValidationError<C extends ValidationCode = "VALIDATION_FAILED"> extends TemplarError {
   readonly _tag = "ValidationError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;
@@ -29,9 +33,7 @@ export class ValidationError<
     traceId?: string,
   );
   constructor(
-    messageOrOptions:
-      | string
-      | (TemplarErrorOptions<C> & { issues?: readonly ValidationIssue[] }),
+    messageOrOptions: string | (TemplarErrorOptions<C> & { issues?: readonly ValidationIssue[] }),
     issues?: readonly ValidationIssue[],
     metadata?: Record<string, string>,
     traceId?: string,

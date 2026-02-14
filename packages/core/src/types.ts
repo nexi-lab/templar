@@ -76,6 +76,7 @@ export interface AgentManifest {
   identity?: IdentityConfig;
   schedule?: string;
   prompt?: string;
+  skills?: string[];
 }
 
 /**

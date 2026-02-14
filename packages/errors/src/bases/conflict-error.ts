@@ -1,5 +1,11 @@
-import { ERROR_CATALOG, type CodesForBase, type ErrorDomain, type GrpcStatusCode, type HttpStatusCode } from "../catalog.js";
 import { TemplarError } from "../base.js";
+import {
+  type CodesForBase,
+  ERROR_CATALOG,
+  type ErrorDomain,
+  type GrpcStatusCode,
+  type HttpStatusCode,
+} from "../catalog.js";
 import type { TemplarErrorOptions } from "../types.js";
 
 type ConflictCode = CodesForBase<"ConflictError">;
@@ -8,9 +14,7 @@ type ConflictCode = CodesForBase<"ConflictError">;
  * Errors when an operation conflicts with the current resource state.
  * HTTP 409. The `.code` field discriminates the specific error.
  */
-export class ConflictError<
-  C extends ConflictCode = "RESOURCE_CONFLICT",
-> extends TemplarError {
+export class ConflictError<C extends ConflictCode = "RESOURCE_CONFLICT"> extends TemplarError {
   readonly _tag = "ConflictError" as const;
   override readonly code: C;
   override readonly httpStatus: HttpStatusCode;
