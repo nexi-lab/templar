@@ -5,25 +5,22 @@
  * - RFC 9457 ProblemDetails (REST/HTTP)
  * - gRPC Status (gRPC)
  * - WebSocket error messages
+ *
+ * Uses the catalog's baseType field for lossless round-trip reconstruction
+ * of all error codes through any wire format.
  */
 
 import { TemplarError } from "./base.js";
-import { ERROR_CATALOG, type ErrorCode } from "./catalog.js";
-import {
-  AgentExecutionError,
-  AgentNotFoundError,
-  AlreadyExistsError,
-  ForbiddenError,
-  InsufficientScopeError,
-  InternalError,
-  NotFoundError,
-  TokenExpiredError,
-  TokenInvalidError,
-  TokenMissingError,
-  ValidationError,
-  type ValidationIssue,
-  WorkflowNotFoundError,
-} from "./classes.js";
+import { ERROR_CATALOG, type BaseErrorType, type CodesForBase, type ErrorCode } from "./catalog.js";
+import { ValidationError } from "./bases/validation-error.js";
+import { NotFoundError } from "./bases/not-found-error.js";
+import { PermissionError } from "./bases/permission-error.js";
+import { ConflictError } from "./bases/conflict-error.js";
+import { RateLimitError } from "./bases/rate-limit-error.js";
+import { TimeoutError } from "./bases/timeout-error.js";
+import { ExternalError } from "./bases/external-error.js";
+import { InternalError } from "./bases/internal-error.js";
+import type { ValidationIssue } from "./types.js";
 import { isValidErrorCode, wrapError } from "./utils.js";
 import {
   GRPC_ERROR_TYPES,
@@ -40,11 +37,12 @@ import { type WebSocketErrorMessage, WebSocketErrorMessageSchema } from "./wire/
 // ============================================================================
 
 /**
- * Serialize a TemplarError to RFC 9457 ProblemDetails format
+ * Serialize a TemplarError to RFC 9457 ProblemDetails format.
+ * Uses `.code` as the RFC 9457 `type` discriminator.
  */
 export function serializeToRFC9457(error: TemplarError): ProblemDetails {
   const problemDetails: ProblemDetails = {
-    type: `/errors/${error._tag}`,
+    type: `/errors/${error.code}`,
     title: ERROR_CATALOG[error.code].title,
     status: error.httpStatus,
     detail: error.message,
@@ -56,7 +54,7 @@ export function serializeToRFC9457(error: TemplarError): ProblemDetails {
   };
 
   // Add validation issues for ValidationError
-  if (error instanceof ValidationError) {
+  if (error instanceof ValidationError && error.issues.length > 0) {
     problemDetails.errors = error.issues.map((issue) => ({
       field: issue.field,
       message: issue.message,
@@ -69,14 +67,12 @@ export function serializeToRFC9457(error: TemplarError): ProblemDetails {
 }
 
 /**
- * Deserialize RFC 9457 ProblemDetails to TemplarError
- * Validates the wire format with Zod and reconstructs the appropriate error class
+ * Deserialize RFC 9457 ProblemDetails to TemplarError.
+ * Validates the wire format with Zod and reconstructs the appropriate base type.
  */
 export function deserializeFromRFC9457(raw: unknown): TemplarError {
-  // Validate wire format
   const parsed = ProblemDetailsSchema.parse(raw);
 
-  // If no code provided or invalid, return InternalError
   if (!parsed.code || !isValidErrorCode(parsed.code)) {
     return new InternalError(
       parsed.detail || parsed.title || "Unknown error",
@@ -86,89 +82,66 @@ export function deserializeFromRFC9457(raw: unknown): TemplarError {
   }
 
   const code = parsed.code as ErrorCode;
-
-  // Reconstruct appropriate error class based on code
   return reconstructError(code, parsed);
 }
 
 /**
- * Reconstruct a TemplarError from wire format data
+ * Narrow an ErrorCode to the codes belonging to a specific base type.
+ * The switch on `entry.baseType` guarantees correctness at runtime;
+ * this helper makes the cast explicit and grep-able.
+ */
+function narrowCode<B extends BaseErrorType>(code: ErrorCode, _baseType: B): CodesForBase<B> {
+  return code as CodesForBase<B>;
+}
+
+/** Compile-time exhaustiveness guard */
+function assertNever(value: never): never {
+  throw new Error(`Unexpected base type: ${value}`);
+}
+
+/**
+ * Reconstruct a TemplarError from wire format data using the catalog's baseType.
+ * Handles ALL codes losslessly — no default fallback to InternalError.
  */
 function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
-  const message = data.detail || ERROR_CATALOG[code].title;
+  const entry = ERROR_CATALOG[code];
+  const baseType = entry.baseType;
+  const message = data.detail || entry.title;
   const metadata = data.metadata;
   const traceId = data.traceId;
 
-  // Reconstruct specific error types with their custom fields
-  // This is a simplified reconstruction - in production you might want more sophisticated logic
-
-  switch (code) {
-    case "RESOURCE_NOT_FOUND":
-      return new NotFoundError(
-        metadata?.resourceType || "Resource",
-        metadata?.resourceId || "unknown",
-        metadata,
-        traceId,
-      );
-
-    case "AGENT_NOT_FOUND":
-      return new AgentNotFoundError(metadata?.agentId || "unknown", metadata, traceId);
-
-    case "WORKFLOW_NOT_FOUND":
-      return new WorkflowNotFoundError(metadata?.workflowId || "unknown", metadata, traceId);
-
-    case "VALIDATION_FAILED": {
-      const issues: ValidationIssue[] = (data.errors || []).map((e) => ({
+  switch (baseType) {
+    case "ValidationError": {
+      const issues: ValidationIssue[] = (data.errors ?? []).map((e) => ({
         field: e.field,
         message: e.message,
         code: e.code,
         value: e.value,
       }));
-      return new ValidationError(message, issues, metadata, traceId);
-    }
-
-    case "AGENT_EXECUTION_FAILED":
-      return new AgentExecutionError(
-        metadata?.agentId || "unknown",
+      return new ValidationError({
+        code: narrowCode(code, "ValidationError"),
         message,
-        undefined,
         metadata,
         traceId,
-      );
-
-    case "WORKFLOW_EXECUTION_FAILED":
-      return new WorkflowNotFoundError(metadata?.workflowId || "unknown", metadata, traceId);
-
-    // Auth errors
-    case "AUTH_TOKEN_EXPIRED":
-      return new TokenExpiredError(message, metadata, traceId);
-
-    case "AUTH_TOKEN_INVALID":
-      return new TokenInvalidError(message, metadata, traceId);
-
-    case "AUTH_TOKEN_MISSING":
-      return new TokenMissingError(message, metadata, traceId);
-
-    case "AUTH_INSUFFICIENT_SCOPE":
-      return new InsufficientScopeError(message, [], [], metadata, traceId);
-
-    case "AUTH_FORBIDDEN":
-      return new ForbiddenError(message, metadata, traceId);
-
-    // Resource errors
-    case "RESOURCE_ALREADY_EXISTS":
-      return new AlreadyExistsError(
-        metadata?.resourceType || "Resource",
-        metadata?.resourceId || "unknown",
-        metadata,
-        traceId,
-      );
-
-    // For all other errors, create a generic InternalError
-    // Note: This is a simplified approach. A production system might use
-    // a factory pattern with a registry of error constructors.
+        ...(issues.length > 0 ? { issues } : {}),
+      });
+    }
+    case "NotFoundError":
+      return new NotFoundError({ code: narrowCode(code, "NotFoundError"), message, metadata, traceId });
+    case "PermissionError":
+      return new PermissionError({ code: narrowCode(code, "PermissionError"), message, metadata, traceId });
+    case "ConflictError":
+      return new ConflictError({ code: narrowCode(code, "ConflictError"), message, metadata, traceId });
+    case "RateLimitError":
+      return new RateLimitError({ code: narrowCode(code, "RateLimitError"), message, metadata, traceId });
+    case "TimeoutError":
+      return new TimeoutError({ code: narrowCode(code, "TimeoutError"), message, metadata, traceId });
+    case "ExternalError":
+      return new ExternalError({ code: narrowCode(code, "ExternalError"), message, metadata, traceId });
+    case "InternalError":
+      return new InternalError({ code: narrowCode(code, "InternalError"), message, metadata, traceId });
     default:
-      return new InternalError(message, { ...metadata, originalCode: code }, traceId);
+      return assertNever(baseType);
   }
 }
 
@@ -181,8 +154,6 @@ function reconstructError(code: ErrorCode, data: ProblemDetails): TemplarError {
  */
 export function serializeToGrpc(error: TemplarError): GrpcStatus {
   const catalogEntry = ERROR_CATALOG[error.code];
-
-  // Map grpc code string to numeric value
   const grpcCodeValue = GRPC_STATUS_CODES[catalogEntry.grpcCode as keyof typeof GRPC_STATUS_CODES];
 
   const errorDetail: GrpcErrorDetail = {
@@ -207,10 +178,7 @@ export function serializeToGrpc(error: TemplarError): GrpcStatus {
  * Deserialize gRPC Status to TemplarError
  */
 export function deserializeFromGrpc(raw: unknown): TemplarError {
-  // Validate wire format
   const parsed = GrpcStatusSchema.parse(raw);
-
-  // Extract ErrorInfo detail (first one)
   const errorInfo = parsed.details.find((d) => d["@type"] === GRPC_ERROR_TYPES.ERROR_INFO);
 
   if (!errorInfo || !isValidErrorCode(errorInfo.reason)) {
@@ -222,11 +190,8 @@ export function deserializeFromGrpc(raw: unknown): TemplarError {
   }
 
   const code = errorInfo.reason as ErrorCode;
-  const metadata = { ...errorInfo.metadata };
-  const traceId = metadata.traceId;
-  delete metadata.traceId; // Remove traceId from metadata since it's a separate field
+  const { traceId, ...metadata } = errorInfo.metadata;
 
-  // Convert to ProblemDetails format for reconstruction
   const problemDetails: ProblemDetails = {
     type: `/errors/${code}`,
     title: ERROR_CATALOG[code].title,
@@ -264,10 +229,7 @@ export function serializeToWebSocket(
  * Deserialize WebSocket error message to TemplarError
  */
 export function deserializeFromWebSocket(raw: unknown): TemplarError {
-  // Validate wire format
   const parsed = WebSocketErrorMessageSchema.parse(raw);
-
-  // Deserialize the nested ProblemDetails
   return deserializeFromRFC9457(parsed.error);
 }
 
@@ -276,8 +238,8 @@ export function deserializeFromWebSocket(raw: unknown): TemplarError {
 // ============================================================================
 
 /**
- * Serialize any error (including non-TemplarError) to RFC 9457 format
- * Wraps unknown errors in InternalError first
+ * Serialize any error (including non-TemplarError) to RFC 9457 format.
+ * Wraps unknown errors in InternalError first.
  */
 export function serializeError(error: unknown, traceId?: string): ProblemDetails {
   const templarError = error instanceof TemplarError ? error : wrapError(error, traceId);

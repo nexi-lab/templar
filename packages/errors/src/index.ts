@@ -2,6 +2,14 @@
  * @templar/errors
  *
  * Shared error taxonomy for Templar AI Agent Execution Engine
+ *
+ * The error system is built on 8 behavioral base types:
+ * ValidationError, NotFoundError, PermissionError, ConflictError,
+ * RateLimitError, TimeoutError, ExternalError, InternalError
+ *
+ * Each error carries a `.code` from the catalog that discriminates
+ * the specific error condition. Use `error.code === "XXX"` for
+ * fine-grained matching, or `instanceof BaseType` for category matching.
  */
 
 // ============================================================================
@@ -11,6 +19,8 @@
 export { type ErrorJSON, isError, isTemplarError, TemplarError } from "./base.js";
 
 export {
+  type BaseErrorType,
+  type CodesForBase,
   ERROR_CATALOG,
   type ErrorCatalogEntry,
   type ErrorCode,
@@ -33,19 +43,56 @@ export {
 } from "./utils.js";
 
 // ============================================================================
-// ERROR CLASSES
+// 8 BASE ERROR TYPES (new consolidated hierarchy)
 // ============================================================================
 
-// Internal errors
-// Auth errors
-// Resource errors
-// Validation errors
-// Agent errors
-// Workflow errors
-// Deployment errors
-// Quota/Rate limit errors
-// Application-specific errors
-// Channel errors
+export { ConflictError } from "./bases/conflict-error.js";
+export { ExternalError } from "./bases/external-error.js";
+export { InternalError } from "./bases/internal-error.js";
+export { NotFoundError } from "./bases/not-found-error.js";
+export { PermissionError } from "./bases/permission-error.js";
+export { RateLimitError } from "./bases/rate-limit-error.js";
+export { TimeoutError } from "./bases/timeout-error.js";
+export { ValidationError } from "./bases/validation-error.js";
+
+// ============================================================================
+// TYPE INFRASTRUCTURE
+// ============================================================================
+
+export type {
+  ConflictCodes,
+  ExternalCodes,
+  InternalCodes,
+  NotFoundCodes,
+  PermissionCodes,
+  RateLimitCodes,
+  TemplarErrorOptions,
+  TimeoutCodes,
+  ValidationCodes,
+  ValidationIssue,
+} from "./types.js";
+
+// ============================================================================
+// TYPE GUARDS
+// ============================================================================
+
+export {
+  hasCode,
+  isConflictError,
+  isExpectedError,
+  isExternalError,
+  isInternalError,
+  isNotFoundError,
+  isPermissionError,
+  isRateLimitError,
+  isTimeoutError,
+  isValidationError,
+} from "./guards.js";
+
+// ============================================================================
+// LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
+// ============================================================================
+
 export {
   AgentConfigurationError,
   AgentExecutionError,
@@ -90,8 +137,11 @@ export {
   HookReentrancyError,
   HookTimeoutError,
   InsufficientScopeError,
-  InternalError,
   InvalidFormatError,
+  LegacyInternalError,
+  LegacyNotFoundError,
+  LegacyTimeoutError,
+  LegacyValidationError,
   ManifestFileNotFoundError,
   ManifestInterpolationError,
   ManifestParseError,
@@ -119,7 +169,6 @@ export {
   NodeRegistrationTimeoutError,
   NodeStartError,
   NodeStoppedError,
-  NotFoundError,
   NotImplementedError,
   OutOfRangeError,
   PayBalanceCheckError,
@@ -141,17 +190,14 @@ export {
   SanitizeRuleFailedError,
   ServiceUnavailableError,
   TemplarConfigError,
-  TimeoutError,
   TokenExpiredError,
   TokenInvalidError,
   TokenMissingError,
-  ValidationError,
-  type ValidationIssue,
   WorkflowExecutionError,
   WorkflowInvalidStateError,
   WorkflowNotFoundError,
   WorkflowStepError,
-} from "./classes.js";
+} from "./legacy.js";
 
 // ============================================================================
 // WIRE FORMATS

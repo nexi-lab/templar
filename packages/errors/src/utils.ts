@@ -1,6 +1,6 @@
 import { TemplarError } from "./base.js";
 import { ERROR_CATALOG, type ErrorCatalogEntry, type ErrorCode } from "./catalog.js";
-import { InternalError } from "./classes.js";
+import { InternalError } from "./bases/internal-error.js";
 
 /**
  * Look up error catalog entry by code
@@ -31,9 +31,9 @@ export function getErrorCodesByDomain(domain: string): ErrorCode[] {
 }
 
 /**
- * Wrap an unknown error into a TemplarError
- * If the error is already a TemplarError, return it as-is
- * Otherwise, wrap it in an InternalError
+ * Wrap an unknown error into a TemplarError.
+ * If the error is already a TemplarError, return it as-is.
+ * Otherwise, wrap it in an InternalError.
  */
 export function wrapError(error: unknown, traceId?: string): TemplarError {
   if (error instanceof TemplarError) {

@@ -33,7 +33,7 @@ describe("RFC 9457 serialization round-trips", () => {
     const original = new NotFoundError("Agent", "agent-123", { userId: "user-1" }, "trace-abc");
     const serialized = serializeToRFC9457(original);
 
-    expect(serialized.type).toBe("/errors/NotFoundError");
+    expect(serialized.type).toBe("/errors/RESOURCE_NOT_FOUND");
     expect(serialized.status).toBe(404);
     expect(serialized.code).toBe("RESOURCE_NOT_FOUND");
     expect(serialized.traceId).toBe("trace-abc");

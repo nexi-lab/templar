@@ -25,6 +25,7 @@ describe("TemplarError base class", () => {
     expect(error.httpStatus).toBe(500);
     expect(error.grpcCode).toBe("INTERNAL");
     expect(error.domain).toBe("internal");
+    expect(error.isExpected).toBe(false);
     expect(error.timestamp).toBeInstanceOf(Date);
   });
 
@@ -60,6 +61,7 @@ describe("TemplarError base class", () => {
       domain: "internal",
       httpStatus: 500,
       grpcCode: "INTERNAL",
+      isExpected: false,
       metadata: { key: "value" },
       traceId: "trace-123",
     });
@@ -79,15 +81,27 @@ describe("TemplarError base class", () => {
 });
 
 describe("NotFoundError", () => {
-  it("should construct with resource type and ID", () => {
+  it("should construct with resource type and ID (positional)", () => {
     const error = new NotFoundError("Agent", "agent-123");
 
     expect(error._tag).toBe("NotFoundError");
     expect(error.code).toBe("RESOURCE_NOT_FOUND");
-    expect(error.resourceType).toBe("Agent");
-    expect(error.resourceId).toBe("agent-123");
     expect(error.message).toBe("Agent with ID 'agent-123' not found");
     expect(error.httpStatus).toBe(404);
+    expect(error.isExpected).toBe(true);
+  });
+
+  it("should construct with options object", () => {
+    const error = new NotFoundError({
+      code: "AGENT_NOT_FOUND",
+      message: "Agent missing",
+      metadata: { agentId: "abc" },
+    });
+
+    expect(error._tag).toBe("NotFoundError");
+    expect(error.code).toBe("AGENT_NOT_FOUND");
+    expect(error.message).toBe("Agent missing");
+    expect(error.metadata).toEqual({ agentId: "abc" });
   });
 });
 
@@ -104,14 +118,16 @@ describe("ValidationError", () => {
     expect(error.code).toBe("VALIDATION_FAILED");
     expect(error.issues).toEqual(issues);
     expect(error.httpStatus).toBe(400);
+    expect(error.isExpected).toBe(true);
   });
 });
 
-describe("AgentNotFoundError", () => {
+describe("AgentNotFoundError (legacy)", () => {
   it("should construct with agent ID", () => {
     const error = new AgentNotFoundError("agent-xyz");
 
-    expect(error._tag).toBe("AgentNotFoundError");
+    // Legacy classes use the base type's _tag, discriminate via .code
+    expect(error._tag).toBe("NotFoundError");
     expect(error.code).toBe("AGENT_NOT_FOUND");
     expect(error.agentId).toBe("agent-xyz");
     expect(error.message).toBe("Agent 'agent-xyz' not found");
@@ -119,12 +135,12 @@ describe("AgentNotFoundError", () => {
   });
 });
 
-describe("AgentExecutionError", () => {
+describe("AgentExecutionError (legacy)", () => {
   it("should construct with agent ID and cause", () => {
     const cause = new Error("Underlying error");
     const error = new AgentExecutionError("agent-abc", "Execution failed", cause);
 
-    expect(error._tag).toBe("AgentExecutionError");
+    expect(error._tag).toBe("ExternalError");
     expect(error.code).toBe("AGENT_EXECUTION_FAILED");
     expect(error.agentId).toBe("agent-abc");
     expect(error.cause).toBe(cause);
@@ -133,29 +149,31 @@ describe("AgentExecutionError", () => {
   });
 });
 
-describe("TokenExpiredError", () => {
+describe("TokenExpiredError (legacy)", () => {
   it("should have correct auth domain and properties", () => {
     const error = new TokenExpiredError("Token expired");
 
-    expect(error._tag).toBe("TokenExpiredError");
+    expect(error._tag).toBe("PermissionError");
     expect(error.code).toBe("AUTH_TOKEN_EXPIRED");
     expect(error.domain).toBe("auth");
     expect(error.httpStatus).toBe(401);
     expect(error.grpcCode).toBe("UNAUTHENTICATED");
+    expect(error.isExpected).toBe(true);
   });
 });
 
-describe("QuotaExceededError", () => {
+describe("QuotaExceededError (legacy)", () => {
   it("should construct with quota details", () => {
     const error = new QuotaExceededError("API calls", 1000, 1050);
 
-    expect(error._tag).toBe("QuotaExceededError");
+    expect(error._tag).toBe("RateLimitError");
     expect(error.code).toBe("QUOTA_EXCEEDED");
     expect(error.quotaType).toBe("API calls");
     expect(error.limit).toBe(1000);
     expect(error.current).toBe(1050);
     expect(error.message).toContain("1050/1000");
     expect(error.httpStatus).toBe(429);
+    expect(error.isExpected).toBe(true);
   });
 });
 
@@ -188,6 +206,7 @@ describe("instanceof checks", () => {
     expect(error instanceof Error).toBe(true);
     expect(error instanceof TemplarError).toBe(true);
     expect(error instanceof AgentNotFoundError).toBe(true);
+    expect(error instanceof NotFoundError).toBe(true);
     expect(error instanceof InternalError).toBe(false);
   });
 });
