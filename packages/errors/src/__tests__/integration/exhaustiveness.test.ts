@@ -1,120 +1,127 @@
 import { describe, expect, it } from "vitest";
 import {
   AgentNotFoundError,
+  ConflictError,
+  ExternalError,
   InternalError,
   NotFoundError,
+  PermissionError,
+  RateLimitError,
   type TemplarError,
+  TimeoutError,
   TokenExpiredError,
   ValidationError,
 } from "../../index.js";
 
-describe("Exhaustive type checking with _tag discriminant", () => {
-  it("should enable exhaustive switch statements", () => {
+describe("Exhaustive type checking with _tag discriminant (8 base types)", () => {
+  it("should enable exhaustive switch on the 8 base _tag values", () => {
     function handleError(error: TemplarError): string {
       switch (error._tag) {
-        case "InternalError":
-          return "internal";
-        case "NotImplementedError":
-          return "not_implemented";
-        case "ServiceUnavailableError":
-          return "unavailable";
-        case "TimeoutError":
-          return "timeout";
-        case "TokenExpiredError":
-          return "token_expired";
-        case "TokenInvalidError":
-          return "token_invalid";
-        case "TokenMissingError":
-          return "token_missing";
-        case "InsufficientScopeError":
-          return "insufficient_scope";
-        case "ForbiddenError":
-          return "forbidden";
-        case "NotFoundError":
-          return "not_found";
-        case "AlreadyExistsError":
-          return "already_exists";
-        case "ResourceConflictError":
-          return "conflict";
-        case "ResourceGoneError":
-          return "gone";
         case "ValidationError":
           return "validation";
-        case "RequiredFieldError":
-          return "required_field";
-        case "InvalidFormatError":
-          return "invalid_format";
-        case "OutOfRangeError":
-          return "out_of_range";
-        case "AgentNotFoundError":
-          return "agent_not_found";
-        case "AgentExecutionError":
-          return "agent_execution";
-        case "AgentTimeoutError":
-          return "agent_timeout";
-        case "AgentInvalidStateError":
-          return "agent_invalid_state";
-        case "AgentConfigurationError":
-          return "agent_config";
-        case "WorkflowNotFoundError":
-          return "workflow_not_found";
-        case "WorkflowExecutionError":
-          return "workflow_execution";
-        case "WorkflowInvalidStateError":
-          return "workflow_invalid_state";
-        case "WorkflowStepError":
-          return "workflow_step";
-        case "DeploymentError":
-          return "deployment";
-        case "DeploymentNotFoundError":
-          return "deployment_not_found";
-        case "DeploymentConfigError":
-          return "deployment_config";
-        case "QuotaExceededError":
-          return "quota_exceeded";
-        case "RateLimitExceededError":
+        case "NotFoundError":
+          return "not_found";
+        case "PermissionError":
+          return "permission";
+        case "ConflictError":
+          return "conflict";
+        case "RateLimitError":
           return "rate_limit";
-        case "PayloadTooLargeError":
-          return "payload_too_large";
+        case "TimeoutError":
+          return "timeout";
+        case "ExternalError":
+          return "external";
+        case "InternalError":
+          return "internal";
         default: {
-          // This line would cause a compile error if we missed a case
           throw new Error("Exhaustive check failed");
         }
       }
     }
 
-    // Test a few cases
-    expect(handleError(new InternalError("test"))).toBe("internal");
-    expect(handleError(new NotFoundError("User", "123"))).toBe("not_found");
     expect(handleError(new ValidationError("test", []))).toBe("validation");
-    expect(handleError(new AgentNotFoundError("abc"))).toBe("agent_not_found");
-    expect(handleError(new TokenExpiredError("test"))).toBe("token_expired");
+    expect(handleError(new NotFoundError("User", "123"))).toBe("not_found");
+    expect(handleError(new PermissionError("denied"))).toBe("permission");
+    expect(handleError(new ConflictError("conflict"))).toBe("conflict");
+    expect(handleError(new RateLimitError("limited"))).toBe("rate_limit");
+    expect(handleError(new TimeoutError("timed out"))).toBe("timeout");
+    expect(handleError(new ExternalError("external fail"))).toBe("external");
+    expect(handleError(new InternalError("internal fail"))).toBe("internal");
   });
 
-  it("should enable type narrowing with _tag", () => {
-    function getResourceId(error: TemplarError): string | undefined {
-      if (error._tag === "NotFoundError") {
-        // TypeScript narrows to NotFoundError here
-        return (error as NotFoundError).resourceId;
+  it("should route legacy classes through their base _tag", () => {
+    function handleError(error: TemplarError): string {
+      switch (error._tag) {
+        case "ValidationError":
+          return "validation";
+        case "NotFoundError":
+          return "not_found";
+        case "PermissionError":
+          return "permission";
+        case "ConflictError":
+          return "conflict";
+        case "RateLimitError":
+          return "rate_limit";
+        case "TimeoutError":
+          return "timeout";
+        case "ExternalError":
+          return "external";
+        case "InternalError":
+          return "internal";
+        default:
+          throw new Error("Exhaustive check failed");
       }
-
-      if (error._tag === "AgentNotFoundError") {
-        // TypeScript narrows to AgentNotFoundError here
-        return (error as AgentNotFoundError).agentId;
-      }
-
-      return undefined;
     }
 
-    const notFound = new NotFoundError("User", "user-123");
+    // Legacy classes get the base type's _tag
+    expect(handleError(new AgentNotFoundError("abc"))).toBe("not_found");
+    expect(handleError(new TokenExpiredError("test"))).toBe("permission");
+  });
+});
+
+describe("Code-based discrimination (fine-grained)", () => {
+  it("should enable fine-grained matching via .code", () => {
+    function handleNotFound(error: TemplarError): string {
+      if (error._tag !== "NotFoundError") return "not_a_not_found";
+
+      // Fine-grained discrimination via .code
+      switch (error.code) {
+        case "AGENT_NOT_FOUND":
+          return "agent_missing";
+        case "RESOURCE_NOT_FOUND":
+          return "resource_missing";
+        case "WORKFLOW_NOT_FOUND":
+          return "workflow_missing";
+        default:
+          return "other_not_found";
+      }
+    }
+
     const agentNotFound = new AgentNotFoundError("agent-456");
+    const resourceNotFound = new NotFoundError("User", "user-123");
     const internal = new InternalError("test");
 
-    expect(getResourceId(notFound)).toBe("user-123");
-    expect(getResourceId(agentNotFound)).toBe("agent-456");
-    expect(getResourceId(internal)).toBeUndefined();
+    expect(handleNotFound(agentNotFound)).toBe("agent_missing");
+    expect(handleNotFound(resourceNotFound)).toBe("resource_missing");
+    expect(handleNotFound(internal)).toBe("not_a_not_found");
   });
 
+  it("should enable type narrowing with _tag + code", () => {
+    const error: TemplarError = new AgentNotFoundError("agent-456");
+
+    // Step 1: Narrow by _tag (category)
+    if (error._tag === "NotFoundError") {
+      expect(error.httpStatus).toBe(404);
+
+      // Step 2: Narrow by code (specific error)
+      if (error.code === "AGENT_NOT_FOUND") {
+        expect((error as AgentNotFoundError).agentId).toBe("agent-456");
+      }
+    }
+  });
+});
+
+describe("Discriminated union patterns", () => {
   it("should work with discriminated union patterns", () => {
     type ErrorResult<T> = { success: true; data: T } | { success: false; error: TemplarError };
 
@@ -134,21 +141,5 @@ describe("Exhaustive type checking with _tag discriminant", () => {
 
     expect(processResult(success)).toBe("hello");
     expect(() => processResult(failure)).toThrow(InternalError);
-  });
-});
-
-describe("Type inference from _tag", () => {
-  it("should infer correct type from _tag literal", () => {
-    const error: TemplarError = new AgentNotFoundError("test");
-
-    // This function expects the type to be inferred correctly
-    function requireAgentError(e: { _tag: "AgentNotFoundError"; agentId: string }) {
-      return e.agentId;
-    }
-
-    if (error._tag === "AgentNotFoundError") {
-      // TypeScript knows error is AgentNotFoundError here
-      expect(requireAgentError(error as AgentNotFoundError)).toBe("test");
-    }
   });
 });

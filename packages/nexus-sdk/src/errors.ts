@@ -21,6 +21,7 @@ export class NexusAPIError extends TemplarError {
   readonly httpStatus: HttpStatusCode = ERROR_CATALOG.INTERNAL_ERROR.httpStatus;
   readonly grpcCode: GrpcStatusCode = ERROR_CATALOG.INTERNAL_ERROR.grpcCode;
   readonly domain: ErrorDomain = ERROR_CATALOG.INTERNAL_ERROR.domain;
+  readonly isExpected: boolean = ERROR_CATALOG.INTERNAL_ERROR.isExpected;
 
   /**
    * HTTP status code from the API response
@@ -55,6 +56,7 @@ export class NexusTimeoutError extends TemplarError {
   readonly httpStatus: HttpStatusCode = ERROR_CATALOG.INTERNAL_TIMEOUT.httpStatus;
   readonly grpcCode: GrpcStatusCode = ERROR_CATALOG.INTERNAL_TIMEOUT.grpcCode;
   readonly domain: ErrorDomain = ERROR_CATALOG.INTERNAL_TIMEOUT.domain;
+  readonly isExpected: boolean = ERROR_CATALOG.INTERNAL_TIMEOUT.isExpected;
 
   /**
    * Timeout duration in milliseconds
@@ -76,6 +78,7 @@ export class NexusNetworkError extends TemplarError {
   readonly httpStatus: HttpStatusCode = ERROR_CATALOG.INTERNAL_UNAVAILABLE.httpStatus;
   readonly grpcCode: GrpcStatusCode = ERROR_CATALOG.INTERNAL_UNAVAILABLE.grpcCode;
   readonly domain: ErrorDomain = ERROR_CATALOG.INTERNAL_UNAVAILABLE.domain;
+  readonly isExpected: boolean = ERROR_CATALOG.INTERNAL_UNAVAILABLE.isExpected;
 
   constructor(message: string, options?: ErrorOptions) {
     super(message, undefined, undefined, options);
@@ -91,6 +94,7 @@ export class NexusValidationError extends TemplarError {
   readonly httpStatus: HttpStatusCode = ERROR_CATALOG.VALIDATION_FAILED.httpStatus;
   readonly grpcCode: GrpcStatusCode = ERROR_CATALOG.VALIDATION_FAILED.grpcCode;
   readonly domain: ErrorDomain = ERROR_CATALOG.VALIDATION_FAILED.domain;
+  readonly isExpected: boolean = ERROR_CATALOG.VALIDATION_FAILED.isExpected;
 
   /**
    * Field that failed validation

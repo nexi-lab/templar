@@ -4,16 +4,19 @@ import type { ErrorCode, ErrorDomain, GrpcStatusCode, HttpStatusCode } from "./c
  * Base class for all Templar errors
  *
  * Features:
- * - _tag discriminant for exhaustive pattern matching
+ * - _tag discriminant for exhaustive pattern matching (8 base types)
  * - Error code from catalog (single source of truth)
  * - HTTP status and gRPC code mapping
+ * - isExpected flag for observability (4xx = expected, 5xx = unexpected)
  * - Optional metadata for dynamic context
  * - Preserved stack traces
  */
 export abstract class TemplarError extends Error {
   /**
-   * Discriminant tag for exhaustive type checking
-   * Each concrete error class must define this as a unique string literal
+   * Discriminant tag for exhaustive type checking.
+   * One of the 8 base error types: ValidationError, NotFoundError,
+   * PermissionError, ConflictError, RateLimitError, TimeoutError,
+   * ExternalError, InternalError.
    */
   abstract readonly _tag: string;
 
@@ -36,6 +39,13 @@ export abstract class TemplarError extends Error {
    * Domain this error belongs to (auth, agent, workflow, etc.)
    */
   abstract readonly domain: ErrorDomain;
+
+  /**
+   * Whether this error represents an expected condition (4xx)
+   * or an unexpected failure (5xx). Useful for observability:
+   * expected errors are info-level, unexpected are error-level.
+   */
+  abstract readonly isExpected: boolean;
 
   /**
    * Optional metadata for dynamic context
@@ -74,6 +84,7 @@ export abstract class TemplarError extends Error {
 
     // Preserve stack trace (V8 only, but degrades gracefully)
     if ("captureStackTrace" in Error) {
+      // biome-ignore lint/suspicious/noExplicitAny: V8-specific API not in lib types
       (Error as any).captureStackTrace(this, this.constructor);
     }
 
@@ -95,6 +106,7 @@ export abstract class TemplarError extends Error {
       domain: this.domain,
       httpStatus: this.httpStatus,
       grpcCode: this.grpcCode,
+      isExpected: this.isExpected,
       metadata: this.metadata,
       traceId: this.traceId,
       timestamp: this.timestamp.toISOString(),
@@ -131,6 +143,7 @@ export interface ErrorJSON {
   domain: ErrorDomain;
   httpStatus: HttpStatusCode;
   grpcCode: GrpcStatusCode;
+  isExpected: boolean;
   metadata?: Record<string, string> | undefined;
   traceId?: string | undefined;
   timestamp: string;

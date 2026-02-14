@@ -29,16 +29,16 @@ describe("withSpan", () => {
 
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.name).toBe("test.operation");
-    expect(spans[0]!.attributes["test.key"]).toBe("value");
-    expect(spans[0]!.attributes["test.num"]).toBe(42);
+    expect(spans[0]?.name).toBe("test.operation");
+    expect(spans[0]?.attributes["test.key"]).toBe("value");
+    expect(spans[0]?.attributes["test.num"]).toBe(42);
   });
 
   it("should set OK status on success", async () => {
     await withSpan("test.ok", {}, async () => "result");
 
     const spans = exporter.getFinishedSpans();
-    expect(spans[0]!.status.code).toBe(SpanStatusCode.OK);
+    expect(spans[0]?.status.code).toBe(SpanStatusCode.OK);
   });
 
   it("should return the function's return value", async () => {
@@ -56,10 +56,10 @@ describe("withSpan", () => {
     ).rejects.toThrow("test failure");
 
     const spans = exporter.getFinishedSpans();
-    expect(spans[0]!.status.code).toBe(SpanStatusCode.ERROR);
-    expect(spans[0]!.status.message).toBe("test failure");
-    expect(spans[0]!.events).toHaveLength(1);
-    expect(spans[0]!.events[0]!.name).toBe("exception");
+    expect(spans[0]?.status.code).toBe(SpanStatusCode.ERROR);
+    expect(spans[0]?.status.message).toBe("test failure");
+    expect(spans[0]?.events).toHaveLength(1);
+    expect(spans[0]?.events[0]?.name).toBe("exception");
   });
 
   it("should handle non-Error throws", async () => {
@@ -70,8 +70,8 @@ describe("withSpan", () => {
     ).rejects.toBe("string error");
 
     const spans = exporter.getFinishedSpans();
-    expect(spans[0]!.status.code).toBe(SpanStatusCode.ERROR);
-    expect(spans[0]!.status.message).toBe("string error");
+    expect(spans[0]?.status.code).toBe(SpanStatusCode.ERROR);
+    expect(spans[0]?.status.message).toBe("string error");
   });
 
   it("should always end the span even on error", async () => {
@@ -104,14 +104,14 @@ describe("withSpan", () => {
     expect(child).toBeDefined();
     expect(parent).toBeDefined();
     // Child's parent span ID should match parent's span ID
-    expect(child!.parentSpanId).toBe(parent!.spanContext().spanId);
+    expect(child?.parentSpanId).toBe(parent?.spanContext().spanId);
   });
 
   it("should set boolean attributes", async () => {
     await withSpan("test.bool", { "test.flag": true }, async () => {});
 
     const spans = exporter.getFinishedSpans();
-    expect(spans[0]!.attributes["test.flag"]).toBe(true);
+    expect(spans[0]?.attributes["test.flag"]).toBe(true);
   });
 });
 
