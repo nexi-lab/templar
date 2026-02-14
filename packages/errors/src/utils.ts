@@ -1,6 +1,6 @@
 import { TemplarError } from "./base.js";
-import { ERROR_CATALOG, type ErrorCatalogEntry, type ErrorCode } from "./catalog.js";
 import { InternalError } from "./bases/internal-error.js";
+import { ERROR_CATALOG, type ErrorCatalogEntry, type ErrorCode } from "./catalog.js";
 
 /**
  * Look up error catalog entry by code
