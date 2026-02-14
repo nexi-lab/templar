@@ -57,13 +57,13 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await traced.onSessionStart!(createSessionContext());
+    await traced.onSessionStart?.(createSessionContext());
 
     expect(onSessionStart).toHaveBeenCalledOnce();
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.name).toBe("templar.middleware.audit.session_start");
-    expect(spans[0]!.attributes["session.id"]).toBe("test-session-1");
+    expect(spans[0]?.name).toBe("templar.middleware.audit.session_start");
+    expect(spans[0]?.attributes["session.id"]).toBe("test-session-1");
   });
 
   it("should create span for onBeforeTurn", async () => {
@@ -74,14 +74,14 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await traced.onBeforeTurn!(createTurnContext(3));
+    await traced.onBeforeTurn?.(createTurnContext(3));
 
     expect(onBeforeTurn).toHaveBeenCalledOnce();
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.name).toBe("templar.middleware.memory.before_turn");
-    expect(spans[0]!.attributes["session.id"]).toBe("test-session-1");
-    expect(spans[0]!.attributes["turn.number"]).toBe(3);
+    expect(spans[0]?.name).toBe("templar.middleware.memory.before_turn");
+    expect(spans[0]?.attributes["session.id"]).toBe("test-session-1");
+    expect(spans[0]?.attributes["turn.number"]).toBe(3);
   });
 
   it("should create span for onAfterTurn", async () => {
@@ -92,12 +92,12 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await traced.onAfterTurn!(createTurnContext(5));
+    await traced.onAfterTurn?.(createTurnContext(5));
 
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.name).toBe("templar.middleware.pay.after_turn");
-    expect(spans[0]!.attributes["turn.number"]).toBe(5);
+    expect(spans[0]?.name).toBe("templar.middleware.pay.after_turn");
+    expect(spans[0]?.attributes["turn.number"]).toBe(5);
   });
 
   it("should create span for onSessionEnd", async () => {
@@ -108,12 +108,12 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await traced.onSessionEnd!(createSessionContext({ sessionId: "s-42" }));
+    await traced.onSessionEnd?.(createSessionContext({ sessionId: "s-42" }));
 
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.name).toBe("templar.middleware.audit.session_end");
-    expect(spans[0]!.attributes["session.id"]).toBe("s-42");
+    expect(spans[0]?.name).toBe("templar.middleware.audit.session_end");
+    expect(spans[0]?.attributes["session.id"]).toBe("s-42");
   });
 
   it("should pass through undefined hooks", () => {
@@ -139,11 +139,13 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await expect(traced.onAfterTurn!(createTurnContext(1))).rejects.toThrow("BudgetExhaustedError");
+    await expect(traced.onAfterTurn?.(createTurnContext(1))).rejects.toThrow(
+      "BudgetExhaustedError",
+    );
 
     const spans = exporter.getFinishedSpans();
     expect(spans).toHaveLength(1);
-    expect(spans[0]!.events[0]!.name).toBe("exception");
+    expect(spans[0]?.events[0]?.name).toBe("exception");
   });
 
   it("should maintain parent-child span relationships", async () => {
@@ -158,8 +160,8 @@ describe("withTracing", () => {
     // Simulate a parent span wrapping both calls
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("parent.span", async (parentSpan) => {
-      await traced.onSessionStart!(createSessionContext());
-      await traced.onBeforeTurn!(createTurnContext(1));
+      await traced.onSessionStart?.(createSessionContext());
+      await traced.onBeforeTurn?.(createTurnContext(1));
       parentSpan.end();
     });
 
@@ -171,8 +173,8 @@ describe("withTracing", () => {
     const turnSpan = spans.find((s) => s.name === "templar.middleware.test.before_turn");
 
     expect(parentSpan).toBeDefined();
-    expect(sessionSpan!.parentSpanId).toBe(parentSpan!.spanContext().spanId);
-    expect(turnSpan!.parentSpanId).toBe(parentSpan!.spanContext().spanId);
+    expect(sessionSpan?.parentSpanId).toBe(parentSpan?.spanContext().spanId);
+    expect(turnSpan?.parentSpanId).toBe(parentSpan?.spanContext().spanId);
   });
 
   it("should pass context through to inner middleware", async () => {
@@ -187,9 +189,9 @@ describe("withTracing", () => {
     };
 
     const traced = withTracing(inner);
-    await traced.onBeforeTurn!(ctx);
+    await traced.onBeforeTurn?.(ctx);
 
     expect(capturedCtx).toBe(ctx);
-    expect((capturedCtx!.metadata as Record<string, unknown>)?.existing).toBe("data");
+    expect((capturedCtx?.metadata as Record<string, unknown>)?.existing).toBe("data");
   });
 });

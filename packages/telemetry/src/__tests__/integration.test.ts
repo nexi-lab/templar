@@ -38,10 +38,10 @@ describe("integration: span hierarchy", () => {
     const traced = withTracing(middleware);
 
     await withSpan("templar.agent.turn", { "agent.type": "high" }, async () => {
-      await traced.onSessionStart!({ sessionId: "s-1" });
-      await traced.onBeforeTurn!({ sessionId: "s-1", turnNumber: 1 });
-      await traced.onAfterTurn!({ sessionId: "s-1", turnNumber: 1 });
-      await traced.onSessionEnd!({ sessionId: "s-1" });
+      await traced.onSessionStart?.({ sessionId: "s-1" });
+      await traced.onBeforeTurn?.({ sessionId: "s-1", turnNumber: 1 });
+      await traced.onAfterTurn?.({ sessionId: "s-1", turnNumber: 1 });
+      await traced.onSessionEnd?.({ sessionId: "s-1" });
     });
 
     const spans = exporter.getFinishedSpans();
@@ -50,17 +50,17 @@ describe("integration: span hierarchy", () => {
     // All middleware spans should be children of the agent turn span
     const agentSpan = spans.find((s) => s.name === "templar.agent.turn");
     expect(agentSpan).toBeDefined();
-    expect(agentSpan!.attributes["agent.type"]).toBe("high");
+    expect(agentSpan?.attributes["agent.type"]).toBe("high");
 
     const middlewareSpans = spans.filter((s) => s.name.startsWith("templar.middleware."));
     expect(middlewareSpans).toHaveLength(4);
 
     for (const ms of middlewareSpans) {
-      expect(ms.parentSpanId).toBe(agentSpan!.spanContext().spanId);
+      expect(ms.parentSpanId).toBe(agentSpan?.spanContext().spanId);
     }
 
     // All spans share the same traceId
-    const traceId = agentSpan!.spanContext().traceId;
+    const traceId = agentSpan?.spanContext().traceId;
     for (const span of spans) {
       expect(span.spanContext().traceId).toBe(traceId);
     }
@@ -75,16 +75,16 @@ describe("integration: span hierarchy", () => {
     const traced = withTracing(middleware);
 
     await withSpan("templar.session", { "session.id": "s-42" }, async () => {
-      await traced.onBeforeTurn!({ sessionId: "s-42", turnNumber: 7 });
+      await traced.onBeforeTurn?.({ sessionId: "s-42", turnNumber: 7 });
     });
 
     const spans = exporter.getFinishedSpans();
     const sessionSpan = spans.find((s) => s.name === "templar.session");
     const turnSpan = spans.find((s) => s.name === "templar.middleware.memory.before_turn");
 
-    expect(sessionSpan!.attributes["session.id"]).toBe("s-42");
-    expect(turnSpan!.attributes["session.id"]).toBe("s-42");
-    expect(turnSpan!.attributes["turn.number"]).toBe(7);
+    expect(sessionSpan?.attributes["session.id"]).toBe("s-42");
+    expect(turnSpan?.attributes["session.id"]).toBe("s-42");
+    expect(turnSpan?.attributes["turn.number"]).toBe(7);
   });
 
   it("should export all spans to the in-memory exporter", async () => {
@@ -114,9 +114,9 @@ describe("integration: span hierarchy", () => {
     const inner = spans.find((s) => s.name === "inner");
     const outer = spans.find((s) => s.name === "outer");
 
-    expect(inner!.status.code).toBe(SpanStatusCode.ERROR);
-    expect(inner!.status.message).toBe("deep failure");
-    expect(outer!.status.code).toBe(SpanStatusCode.ERROR);
+    expect(inner?.status.code).toBe(SpanStatusCode.ERROR);
+    expect(inner?.status.message).toBe("deep failure");
+    expect(outer?.status.code).toBe(SpanStatusCode.ERROR);
   });
 
   it("should handle multiple traced middleware in sequence", async () => {
@@ -133,8 +133,8 @@ describe("integration: span hierarchy", () => {
     const traced2 = withTracing(mw2);
 
     await withSpan("templar.turn", {}, async () => {
-      await traced1.onBeforeTurn!({ sessionId: "s-1", turnNumber: 1 });
-      await traced2.onBeforeTurn!({ sessionId: "s-1", turnNumber: 1 });
+      await traced1.onBeforeTurn?.({ sessionId: "s-1", turnNumber: 1 });
+      await traced2.onBeforeTurn?.({ sessionId: "s-1", turnNumber: 1 });
     });
 
     const spans = exporter.getFinishedSpans();
@@ -144,7 +144,7 @@ describe("integration: span hierarchy", () => {
     const memorySpan = spans.find((s) => s.name === "templar.middleware.memory.before_turn");
     const turnSpan = spans.find((s) => s.name === "templar.turn");
 
-    expect(auditSpan!.parentSpanId).toBe(turnSpan!.spanContext().spanId);
-    expect(memorySpan!.parentSpanId).toBe(turnSpan!.spanContext().spanId);
+    expect(auditSpan?.parentSpanId).toBe(turnSpan?.spanContext().spanId);
+    expect(memorySpan?.parentSpanId).toBe(turnSpan?.spanContext().spanId);
   });
 });
