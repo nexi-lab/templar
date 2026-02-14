@@ -364,6 +364,7 @@ describe("Catalog baseType consistency", () => {
       const entry = ERROR_CATALOG[code];
       const ErrorClass = baseTypeToClass[entry.baseType];
       expect(ErrorClass).toBeDefined();
+      if (!ErrorClass) continue;
 
       const error = new ErrorClass({
         code,
