@@ -47,55 +47,67 @@ export async function setupTelemetry(config?: TelemetryConfig): Promise<boolean>
     return false;
   }
 
-  // Dynamic imports — only loaded when telemetry is enabled
-  const { NodeSDK } = await import("@opentelemetry/sdk-node");
-  const { OTLPTraceExporter } = await import("@opentelemetry/exporter-trace-otlp-http");
-  const { UndiciInstrumentation } = await import("@opentelemetry/instrumentation-undici");
-  const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import(
-    "@opentelemetry/semantic-conventions"
-  );
-  const { Resource } = await import("@opentelemetry/resources");
-  const { ParentBasedSampler, TraceIdRatioBasedSampler } = await import(
-    "@opentelemetry/sdk-trace-base"
-  );
-
-  const serviceName = config?.serviceName ?? process.env.OTEL_SERVICE_NAME ?? "templar";
-  const endpoint =
-    config?.endpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
-  const rawRatio = config?.sampleRatio ?? parseFloat(process.env.OTEL_TRACES_SAMPLER_ARG ?? "1.0");
-  const sampleRatio = Number.isNaN(rawRatio) ? 1.0 : Math.max(0, Math.min(1, rawRatio));
-  const environment = config?.environment ?? process.env.OTEL_ENVIRONMENT ?? "development";
-
-  const resource = new Resource({
-    [ATTR_SERVICE_NAME]: serviceName,
-    [ATTR_SERVICE_VERSION]: process.env.npm_package_version ?? "0.0.0",
-    "deployment.environment": environment,
-  });
-
-  const traceExporter = new OTLPTraceExporter({
-    url: `${endpoint}/v1/traces`,
-  });
-
-  const sampler = new ParentBasedSampler({
-    root: new TraceIdRatioBasedSampler(sampleRatio),
-  });
-
-  const sdk = new NodeSDK({
-    resource,
-    traceExporter,
-    sampler,
-    instrumentations: [new UndiciInstrumentation()],
-  });
-
-  sdk.start();
-
-  // Register middleware wrapper with @templar/core for auto-instrumentation
-  registerMiddlewareWrapper(withTracing);
-
-  sdkInstance = sdk;
+  // Claim the lock immediately to prevent concurrent initialization
   initialized = true;
 
-  return true;
+  try {
+    // Dynamic imports — only loaded when telemetry is enabled
+    const { NodeSDK } = await import("@opentelemetry/sdk-node");
+    const { OTLPTraceExporter } = await import("@opentelemetry/exporter-trace-otlp-http");
+    const { UndiciInstrumentation } = await import("@opentelemetry/instrumentation-undici");
+    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = await import(
+      "@opentelemetry/semantic-conventions"
+    );
+    const { Resource } = await import("@opentelemetry/resources");
+    const { ParentBasedSampler, TraceIdRatioBasedSampler } = await import(
+      "@opentelemetry/sdk-trace-base"
+    );
+
+    const serviceName = config?.serviceName ?? process.env.OTEL_SERVICE_NAME ?? "templar";
+    const endpoint =
+      config?.endpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
+    const rawRatio =
+      config?.sampleRatio ?? parseFloat(process.env.OTEL_TRACES_SAMPLER_ARG ?? "1.0");
+    const sampleRatio = Number.isNaN(rawRatio) ? 1.0 : Math.max(0, Math.min(1, rawRatio));
+    const environment = config?.environment ?? process.env.OTEL_ENVIRONMENT ?? "development";
+
+    const resource = new Resource({
+      [ATTR_SERVICE_NAME]: serviceName,
+      [ATTR_SERVICE_VERSION]: process.env.npm_package_version ?? "0.0.0",
+      "deployment.environment": environment,
+    });
+
+    const traceExporter = new OTLPTraceExporter({
+      url: `${endpoint}/v1/traces`,
+    });
+
+    const sampler = new ParentBasedSampler({
+      root: new TraceIdRatioBasedSampler(sampleRatio),
+    });
+
+    const sdk = new NodeSDK({
+      resource,
+      traceExporter,
+      sampler,
+      instrumentations: [new UndiciInstrumentation()],
+    });
+
+    sdk.start();
+
+    // Register middleware wrapper with @templar/core for auto-instrumentation
+    registerMiddlewareWrapper(withTracing);
+
+    sdkInstance = sdk;
+
+    return true;
+  } catch (error) {
+    // Release the lock on failure so retry is possible
+    initialized = false;
+    console.warn(
+      `[templar/telemetry] Failed to initialize OTel SDK: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    throw error;
+  }
 }
 
 /**
@@ -105,9 +117,17 @@ export async function setupTelemetry(config?: TelemetryConfig): Promise<boolean>
  */
 export async function shutdownTelemetry(): Promise<void> {
   if (sdkInstance !== undefined) {
-    await sdkInstance.shutdown();
-    unregisterMiddlewareWrapper();
-    sdkInstance = undefined;
-    initialized = false;
+    try {
+      await sdkInstance.shutdown();
+    } catch (error) {
+      // Log but don't prevent cleanup — some spans may be lost but state stays consistent
+      console.warn(
+        `[templar/telemetry] Error during OTel shutdown: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      unregisterMiddlewareWrapper();
+      sdkInstance = undefined;
+      initialized = false;
+    }
   }
 }

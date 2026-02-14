@@ -230,7 +230,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     const budget = this.extractBudget(context);
 
     const event: LlmCallEvent = {
-      ...this.createBaseFieldsWithSpan(sessionId, spanId),
+      ...this.createBaseFields(sessionId, spanId),
       type: "llm_call",
       model: usage.model,
       inputTokens: usage.inputTokens,
@@ -264,7 +264,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
 
       const record = call as Record<string, unknown>;
       const event: ToolCallEvent = {
-        ...this.createBaseFieldsWithSpan(sessionId, spanId),
+        ...this.createBaseFields(sessionId, spanId),
         type: "tool_call",
         toolName: typeof record.name === "string" ? record.name : "unknown",
         ...(this.logToolInputs && record.input !== undefined
@@ -285,7 +285,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     if (this.isEventEnabled("message_received") && context.input !== undefined) {
       const preview = this.redact(context.input);
       const event: MessageReceivedEvent = {
-        ...this.createBaseFieldsWithSpan(sessionId, spanId),
+        ...this.createBaseFields(sessionId, spanId),
         type: "message_received",
         ...(preview !== "" ? { contentPreview: preview } : {}),
       };
@@ -296,7 +296,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     if (this.isEventEnabled("message_sent") && context.output !== undefined) {
       const preview = this.redact(context.output);
       const event: MessageSentEvent = {
-        ...this.createBaseFieldsWithSpan(sessionId, spanId),
+        ...this.createBaseFields(sessionId, spanId),
         type: "message_sent",
         ...(preview !== "" ? { contentPreview: preview } : {}),
       };
@@ -315,7 +315,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     }
 
     const event: BudgetWarningEvent = {
-      ...this.createBaseFieldsWithSpan(sessionId, spanId),
+      ...this.createBaseFields(sessionId, spanId),
       type: "budget_warning",
       budget: budget.dailyBudget,
       spent: budget.sessionCost,
@@ -344,7 +344,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
 
     const record = err as Record<string, unknown>;
     const event: ErrorEvent = {
-      ...this.createBaseFieldsWithSpan(sessionId, spanId),
+      ...this.createBaseFields(sessionId, spanId),
       type: "error",
       ...(typeof record.code === "string" ? { errorCode: record.code } : {}),
       errorMessage: typeof record.message === "string" ? record.message : String(err),
@@ -375,7 +375,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     }
 
     const event: PermissionCheckEvent = {
-      ...this.createBaseFieldsWithSpan(sessionId, spanId),
+      ...this.createBaseFields(sessionId, spanId),
       type: "permission_check",
       resource: record.resource,
       action: record.action,
@@ -406,7 +406,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     }
 
     const event: StateChangeEvent = {
-      ...this.createBaseFieldsWithSpan(sessionId, spanId),
+      ...this.createBaseFields(sessionId, spanId),
       type: "state_change",
       key: record.key,
       ...(typeof record.previousValue === "string" ? { previousValue: record.previousValue } : {}),
@@ -531,25 +531,9 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
     return this.enabledEventTypes.has(type);
   }
 
-  private createBaseFields(sessionId: string): {
-    eventId: string;
-    timestamp: string;
-    sessionId: string;
-    spanId: string;
-    traceId?: string;
-  } {
-    return {
-      eventId: randomUUID(),
-      timestamp: new Date().toISOString(),
-      sessionId,
-      spanId: this.activeSpanId ?? "",
-      ...(this.activeTraceId !== undefined ? { traceId: this.activeTraceId } : {}),
-    };
-  }
-
-  private createBaseFieldsWithSpan(
+  private createBaseFields(
     sessionId: string,
-    spanId: string,
+    spanId?: string,
   ): {
     eventId: string;
     timestamp: string;
@@ -561,7 +545,7 @@ export class NexusAuditMiddleware implements TemplarMiddleware {
       eventId: randomUUID(),
       timestamp: new Date().toISOString(),
       sessionId,
-      spanId,
+      spanId: spanId ?? this.activeSpanId ?? "",
       ...(this.activeTraceId !== undefined ? { traceId: this.activeTraceId } : {}),
     };
   }
