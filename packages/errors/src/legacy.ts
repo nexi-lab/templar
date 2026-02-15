@@ -402,6 +402,90 @@ export class MemoryBatchError extends ExternalError<"MEMORY_BATCH_PARTIAL"> {
 }
 
 // ============================================================================
+// ENTITY ERRORS
+// ============================================================================
+
+/** @deprecated Use `new NotFoundError({ code: "ENTITY_NOT_FOUND", ... })` */
+export class EntityNotFoundError extends NotFoundError<"ENTITY_NOT_FOUND"> {
+  constructor(
+    public readonly entityId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "ENTITY_NOT_FOUND",
+      message: `Entity '${entityId}' not found`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "ENTITY_TRACK_FAILED", ... })` */
+export class EntityTrackError extends ExternalError<"ENTITY_TRACK_FAILED"> {
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "ENTITY_TRACK_FAILED",
+      message: `Entity track failed: ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ConflictError({ code: "ENTITY_DUPLICATE", ... })` */
+export class EntityDuplicateError extends ConflictError<"ENTITY_DUPLICATE"> {
+  constructor(
+    public readonly entityName: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "ENTITY_DUPLICATE",
+      message: `Ambiguous entity match for '${entityName}'`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ValidationError({ code: "ENTITY_CONFIGURATION_INVALID", ... })` */
+export class EntityConfigurationError extends ValidationError<"ENTITY_CONFIGURATION_INVALID"> {
+  constructor(message: string, metadata?: Record<string, string>, traceId?: string) {
+    super({
+      code: "ENTITY_CONFIGURATION_INVALID",
+      message: `Invalid entity memory configuration: ${message}`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "ENTITY_EXTRACTION_FAILED", ... })` */
+export class EntityExtractionError extends ExternalError<"ENTITY_EXTRACTION_FAILED"> {
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "ENTITY_EXTRACTION_FAILED",
+      message: `Entity extraction failed: ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+// ============================================================================
 // WORKFLOW ERRORS
 // ============================================================================
 

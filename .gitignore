@@ -6,5 +6,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.nexus-admin-env
+.nexus-admin-env
 test-results.json
 .DS_Store

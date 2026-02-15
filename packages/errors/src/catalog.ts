@@ -291,6 +291,55 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // ENTITY ERRORS - Entity memory and relationship graph
+  // ============================================================================
+  ENTITY_NOT_FOUND: {
+    domain: "entity",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Entity not found",
+    description: "The specified entity does not exist in the knowledge graph",
+  },
+  ENTITY_TRACK_FAILED: {
+    domain: "entity",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Entity track failed",
+    description: "Failed to track entity in the Nexus Memory knowledge graph",
+  },
+  ENTITY_DUPLICATE: {
+    domain: "entity",
+    httpStatus: 409,
+    grpcCode: "ALREADY_EXISTS" as const,
+    baseType: "ConflictError" as const,
+    isExpected: true,
+    title: "Entity duplicate",
+    description: "Entity resolution found an ambiguous match for the given name",
+  },
+  ENTITY_CONFIGURATION_INVALID: {
+    domain: "entity",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid entity memory configuration",
+    description: "The entity memory configuration is invalid",
+  },
+  ENTITY_EXTRACTION_FAILED: {
+    domain: "entity",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Entity extraction failed",
+    description: "The entity extractor failed to extract entities from content",
+  },
+
+  // ============================================================================
   // WORKFLOW ERRORS - Workflow orchestration
   // ============================================================================
   WORKFLOW_NOT_FOUND: {
