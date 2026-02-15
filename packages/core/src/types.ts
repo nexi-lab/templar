@@ -150,6 +150,14 @@ export interface VoiceMessageCapability {
   readonly formats: readonly string[];
 }
 
+export interface RealTimeVoiceCapability {
+  readonly supported: true;
+  readonly codecs: readonly string[]; // e.g., ["opus"]
+  readonly sampleRates: readonly number[]; // e.g., [16000, 48000]
+  readonly duplex: boolean; // true = full-duplex
+  readonly maxParticipants: number; // per room
+}
+
 export interface GroupCapability {
   readonly supported: true;
   readonly maxMembers: number;
@@ -175,6 +183,7 @@ export interface ChannelCapabilities {
   readonly typingIndicator?: TypingIndicatorCapability;
   readonly readReceipts?: ReadReceiptCapability;
   readonly voiceMessages?: VoiceMessageCapability;
+  readonly realTimeVoice?: RealTimeVoiceCapability;
   readonly groups?: GroupCapability;
   readonly identity?: IdentityCapability;
 }

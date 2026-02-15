@@ -645,6 +645,37 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // VOICE ERRORS - Real-time voice channel
+  // ============================================================================
+  VOICE_CONNECTION_FAILED: {
+    domain: "voice",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Voice connection failed",
+    description: "Failed to establish WebRTC connection to the voice room",
+  },
+  VOICE_PIPELINE_ERROR: {
+    domain: "voice",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Voice pipeline error",
+    description: "Error in STT/TTS voice processing pipeline",
+  },
+  VOICE_ROOM_ERROR: {
+    domain: "voice",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Voice room error",
+    description: "Error managing the LiveKit voice room lifecycle",
+  },
+
+  // ============================================================================
   // GATEWAY ERRORS - WebSocket control plane
   // ============================================================================
   GATEWAY_NODE_NOT_FOUND: {

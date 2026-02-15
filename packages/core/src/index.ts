@@ -68,6 +68,7 @@ export type {
   PermissionConfig,
   ReactionCapability,
   ReadReceiptCapability,
+  RealTimeVoiceCapability,
   RichTextCapability,
   SessionContext,
   TemplarConfig,
