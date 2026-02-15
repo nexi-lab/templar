@@ -1,5 +1,5 @@
-import type { NodeCapabilities } from "@templar/gateway-protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NodeCapabilities } from "../../protocol/index.js";
 import { HealthMonitor, type PingSender } from "../health-monitor.js";
 import { NodeRegistry } from "../node-registry.js";
 

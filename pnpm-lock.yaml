@@ -164,9 +164,9 @@ importers:
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
-      '@templar/gateway-protocol':
-        specifier: workspace:*
-        version: link:../gateway-protocol
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.2.2
@@ -180,15 +180,6 @@ importers:
       ws:
         specifier: ^8.19.0
         version: 8.19.0
-
-  packages/gateway-protocol:
-    dependencies:
-      '@templar/errors':
-        specifier: workspace:*
-        version: link:../errors
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
 
   packages/hooks:
     dependencies:
@@ -205,16 +196,6 @@ importers:
       vitest:
         specifier: ^4.0.0
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.11)(yaml@2.8.2)
-
-  packages/identity:
-    dependencies:
-      zod:
-        specifier: ^3.24.0
-        version: 3.25.76
-    devDependencies:
-      '@templar/core':
-        specifier: workspace:*
-        version: link:../core
 
   packages/manifest:
     dependencies:
@@ -271,6 +252,9 @@ importers:
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.30.0
@@ -284,12 +268,6 @@ importers:
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
-
-  packages/model-router:
-    dependencies:
-      '@templar/errors':
-        specifier: workspace:*
-        version: link:../errors
 
   packages/nexus-sdk:
     dependencies:
@@ -306,16 +284,13 @@ importers:
       '@templar/errors':
         specifier: workspace:*
         version: link:../errors
-      '@templar/gateway-protocol':
+      '@templar/gateway':
         specifier: workspace:*
-        version: link:../gateway-protocol
+        version: link:../gateway
       zod:
         specifier: ^3.22.4
         version: 3.25.76
     devDependencies:
-      '@templar/gateway':
-        specifier: workspace:*
-        version: link:../gateway
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
@@ -325,12 +300,6 @@ importers:
       ws:
         specifier: ^8.19.0
         version: 8.19.0
-
-  packages/sandbox:
-    dependencies:
-      '@templar/errors':
-        specifier: workspace:*
-        version: link:../errors
 
   packages/sanitize:
     dependencies:

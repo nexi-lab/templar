@@ -1,6 +1,6 @@
-import type { LaneMessage } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
 import { DeliveryTracker } from "../delivery-tracker.js";
+import type { LaneMessage } from "../protocol/index.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

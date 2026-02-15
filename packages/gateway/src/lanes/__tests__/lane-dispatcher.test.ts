@@ -1,5 +1,5 @@
-import type { LaneMessage } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
+import type { LaneMessage } from "../../protocol/index.js";
 import { LaneDispatcher } from "../lane-dispatcher.js";
 
 function makeLaneMessage(overrides: Partial<LaneMessage> = {}): LaneMessage {

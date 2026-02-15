@@ -1,5 +1,5 @@
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
-import type { SessionEvent, SessionInfo } from "@templar/gateway-protocol";
+import type { SessionEvent, SessionInfo } from "../protocol/index.js";
 import { mapDelete, mapSet } from "../utils/immutable-map.js";
 import { type TransitionResult, transition } from "./state-machine.js";
 

@@ -1,4 +1,4 @@
-import type { GatewayFrame, HeartbeatPongFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame, HeartbeatPongFrame } from "@templar/gateway/protocol";
 
 // ---------------------------------------------------------------------------
 // HeartbeatResponder

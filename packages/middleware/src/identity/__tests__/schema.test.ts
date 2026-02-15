@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ChannelIdentityConfigSchema, IdentityConfigSchema } from "../../schema.js";
+import { ChannelIdentityConfigSchema, IdentityConfigSchema } from "../schema.js";
 
 describe("ChannelIdentityConfigSchema", () => {
   it("accepts valid identity config", () => {

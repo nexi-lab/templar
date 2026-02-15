@@ -1,5 +1,5 @@
 import { NodeHandlerError, NodeReconnectExhaustedError, NodeStartError } from "@templar/errors";
-import type { LaneMessage } from "@templar/gateway-protocol";
+import type { LaneMessage } from "@templar/gateway/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { TemplarNode } from "../node.js";
 import type { WsClientFactory } from "../ws-client.js";

@@ -1,5 +1,5 @@
-import type { Lane, LaneMessage, NodeCapabilities, SessionState } from "@templar/gateway-protocol";
-import { NodeCapabilitiesSchema } from "@templar/gateway-protocol";
+import type { Lane, LaneMessage, NodeCapabilities, SessionState } from "@templar/gateway/protocol";
+import { NodeCapabilitiesSchema } from "@templar/gateway/protocol";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------

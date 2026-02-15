@@ -23,6 +23,10 @@
     "./permissions": {
       "types": "./dist/permissions.d.ts",
       "import": "./dist/permissions.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
     }
   },
   "scripts": {
@@ -35,7 +39,8 @@
     "@opentelemetry/api": "^1.9.0",
     "@templar/core": "workspace:*",
     "@nexus/sdk": "workspace:*",
-    "@templar/errors": "workspace:*"
+    "@templar/errors": "workspace:*",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "^1.30.0",

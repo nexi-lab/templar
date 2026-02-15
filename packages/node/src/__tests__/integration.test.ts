@@ -7,8 +7,8 @@
  */
 
 import { type AddressInfo, createServer } from "node:net";
-import type { GatewayFrame, LaneMessage, NodeRegisterFrame } from "@templar/gateway-protocol";
-import { safeParseFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame, LaneMessage, NodeRegisterFrame } from "@templar/gateway/protocol";
+import { safeParseFrame } from "@templar/gateway/protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";

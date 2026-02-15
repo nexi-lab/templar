@@ -1,6 +1,6 @@
 import type { IdentityConfig } from "@templar/core";
 import { describe, expect, it } from "vitest";
-import { resolveChannelIdentity, resolveIdentity } from "../../resolver.js";
+import { resolveChannelIdentity, resolveIdentity } from "../resolver.js";
 
 describe("resolveIdentity", () => {
   // #1 — No config (undefined)

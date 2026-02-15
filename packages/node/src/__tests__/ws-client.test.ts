@@ -1,4 +1,4 @@
-import type { GatewayFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame } from "@templar/gateway/protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WsClient, type WsClientFactory } from "../ws-client.js";
 import { createMockWs, type MockWs } from "./helpers.js";

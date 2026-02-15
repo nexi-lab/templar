@@ -5,8 +5,8 @@
  * and failure modes that are unlikely in normal operation.
  */
 
-import type { GatewayFrame, NodeCapabilities } from "@templar/gateway-protocol";
 import { describe, expect, it } from "vitest";
+import type { GatewayFrame, NodeCapabilities } from "../protocol/index.js";
 import { GatewayServer } from "../server.js";
 import {
   closeWs,

@@ -11,6 +11,10 @@
     "./sessions": {
       "types": "./dist/sessions/index.d.ts",
       "import": "./dist/sessions/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol/index.d.ts",
+      "import": "./dist/protocol/index.js"
     }
   },
   "scripts": {
@@ -22,7 +26,7 @@
   "dependencies": {
     "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*",
-    "@templar/gateway-protocol": "workspace:*"
+    "zod": "^3.22.4"
   },
   "peerDependencies": {
     "chokidar": ">=4.0.0",

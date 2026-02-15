@@ -1,5 +1,5 @@
 /**
- * @templar/gateway-protocol
+ * @templar/gateway/protocol
  *
  * Shared wire protocol types for the Templar Gateway control plane.
  * Used by both @templar/gateway (server) and @templar/node (client).
