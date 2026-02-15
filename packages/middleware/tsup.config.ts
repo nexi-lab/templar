@@ -8,6 +8,7 @@ export default defineConfig({
     audit: "src/audit/index.ts",
     permissions: "src/permissions/index.ts",
     identity: "src/identity/index.ts",
+    utils: "src/utils.ts",
   },
   format: ["esm"],
   dts: {

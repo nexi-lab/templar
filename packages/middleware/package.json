@@ -27,6 +27,10 @@
     "./identity": {
       "types": "./dist/identity.d.ts",
       "import": "./dist/identity.js"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js"
     }
   },
   "scripts": {
