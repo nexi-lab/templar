@@ -8,6 +8,7 @@ export default defineConfig({
       composite: false,
     },
   },
+  external: ["@templar/core", "@templar/errors", "@templar/channel-base"],
   clean: true,
   treeshake: true,
   target: "node22",

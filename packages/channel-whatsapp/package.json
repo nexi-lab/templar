@@ -21,6 +21,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@templar/channel-base": "workspace:*",
     "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*",
     "@types/node": "^22.0.0"

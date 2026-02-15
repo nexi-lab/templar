@@ -1,30 +1,25 @@
 import { ChannelLoadError, ChannelSendError } from "@templar/errors";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InMemoryAuthState } from "../helpers/in-memory-auth.js";
-import type { MockBaileysModule } from "../helpers/mock-baileys.js";
-import { createMockBaileysModule, createMockMessage } from "../helpers/mock-baileys.js";
+import { createMockMessage, createMockSocket, type MockWASocket } from "../helpers/mock-baileys.js";
 
 // ---------------------------------------------------------------------------
-// Module mock
+// Module mock — stable references that survive lazyLoad memoization
 // ---------------------------------------------------------------------------
 
-let mockBaileys: MockBaileysModule;
+let mockSocket: MockWASocket;
+
+const mockMakeWASocket = vi.fn((..._args: unknown[]) => mockSocket);
+const mockMakeCacheableSignalKeyStore = vi.fn((keys: unknown) => keys);
+const mockFetchLatestBaileysVersion = vi.fn(async () => ({ version: [2, 2412, 1] }));
 
 vi.mock("@whiskeysockets/baileys", () => ({
-  get default() {
-    return mockBaileys?.default;
-  },
-  get makeCacheableSignalKeyStore() {
-    return mockBaileys?.makeCacheableSignalKeyStore;
-  },
-  get fetchLatestBaileysVersion() {
-    return mockBaileys?.fetchLatestBaileysVersion;
-  },
-  get downloadMediaMessage() {
-    return mockBaileys?.downloadMediaMessage;
-  },
-  get Browsers() {
-    return mockBaileys?.Browsers;
+  default: mockMakeWASocket,
+  makeCacheableSignalKeyStore: mockMakeCacheableSignalKeyStore,
+  fetchLatestBaileysVersion: mockFetchLatestBaileysVersion,
+  downloadMediaMessage: vi.fn(async () => Buffer.from("mock-media-content")),
+  Browsers: {
+    macOS: (browser: string) => ["Templar", browser, "22.0"] as const,
   },
 }));
 
@@ -55,11 +50,11 @@ async function connectAdapter(adapter: InstanceType<typeof WhatsAppChannel>) {
   const connectPromise = adapter.connect();
   // Simulate Baileys emitting connection.open
   await vi.waitFor(() => {
-    const handlers = mockBaileys.mockSocket.ev.handlers.get("connection.update") ?? [];
+    const handlers = mockSocket.ev.handlers.get("connection.update") ?? [];
     if (handlers.length === 0) throw new Error("No handlers registered yet");
   });
   // Emit connection open
-  mockBaileys.mockSocket.ev.emit("connection.update", {
+  mockSocket.ev.emit("connection.update", {
     connection: "open",
   });
   await connectPromise;
@@ -71,7 +66,12 @@ async function connectAdapter(adapter: InstanceType<typeof WhatsAppChannel>) {
 
 describe("WhatsAppChannel", () => {
   beforeEach(() => {
-    mockBaileys = createMockBaileysModule();
+    vi.clearAllMocks();
+    mockSocket = createMockSocket();
+    // Re-set implementations so they return the new mockSocket
+    mockMakeWASocket.mockImplementation((..._args: unknown[]) => mockSocket);
+    mockMakeCacheableSignalKeyStore.mockImplementation((keys: unknown) => keys);
+    mockFetchLatestBaileysVersion.mockImplementation(async () => ({ version: [2, 2412, 1] }));
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
@@ -102,8 +102,8 @@ describe("WhatsAppChannel", () => {
     it("should lazy-load Baileys and create socket", async () => {
       const { adapter } = createAdapter();
       await connectAdapter(adapter);
-      expect(mockBaileys.default).toHaveBeenCalled();
-      expect(mockBaileys.fetchLatestBaileysVersion).toHaveBeenCalled();
+      expect(mockMakeWASocket).toHaveBeenCalled();
+      expect(mockFetchLatestBaileysVersion).toHaveBeenCalled();
     });
 
     it("should be idempotent (second call returns early)", async () => {
@@ -112,7 +112,7 @@ describe("WhatsAppChannel", () => {
 
       // Second call should return immediately
       await adapter.connect();
-      expect(mockBaileys.default).toHaveBeenCalledTimes(1);
+      expect(mockMakeWASocket).toHaveBeenCalledTimes(1);
     });
 
     it("should call onQR callback when QR is received", async () => {
@@ -121,17 +121,17 @@ describe("WhatsAppChannel", () => {
       const connectPromise = adapter.connect();
 
       await vi.waitFor(() => {
-        const handlers = mockBaileys.mockSocket.ev.handlers.get("connection.update") ?? [];
+        const handlers = mockSocket.ev.handlers.get("connection.update") ?? [];
         if (handlers.length === 0) throw new Error("Waiting for handlers");
       });
 
       // Emit QR
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         qr: "qr-code-string",
       });
 
       // Then connect
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "open",
       });
       await connectPromise;
@@ -159,7 +159,7 @@ describe("WhatsAppChannel", () => {
       await connectAdapter(adapter);
 
       await adapter.disconnect();
-      expect(mockBaileys.mockSocket.end).toHaveBeenCalled();
+      expect(mockSocket.end).toHaveBeenCalled();
     });
 
     it("should be idempotent (safe to call when not connected)", async () => {
@@ -191,7 +191,7 @@ describe("WhatsAppChannel", () => {
         blocks: [{ type: "text", content: "Hello" }],
       });
 
-      expect(mockBaileys.mockSocket.sendMessage).toHaveBeenCalledWith(
+      expect(mockSocket.sendMessage).toHaveBeenCalledWith(
         "5511999@s.whatsapp.net",
         { text: "Hello" },
         {},
@@ -216,7 +216,7 @@ describe("WhatsAppChannel", () => {
         remoteJid: "5511888@s.whatsapp.net",
       });
 
-      mockBaileys.mockSocket.ev.emit("messages.upsert", {
+      mockSocket.ev.emit("messages.upsert", {
         type: "notify",
         messages: [msg],
       });
@@ -241,7 +241,7 @@ describe("WhatsAppChannel", () => {
       await connectAdapter(adapter);
 
       const msg = createMockMessage({ text: "old message" });
-      mockBaileys.mockSocket.ev.emit("messages.upsert", {
+      mockSocket.ev.emit("messages.upsert", {
         type: "append",
         messages: [msg],
       });
@@ -258,7 +258,7 @@ describe("WhatsAppChannel", () => {
       await connectAdapter(adapter);
 
       const msg = createMockMessage({ text: "my own message", fromMe: true });
-      mockBaileys.mockSocket.ev.emit("messages.upsert", {
+      mockSocket.ev.emit("messages.upsert", {
         type: "notify",
         messages: [msg],
       });
@@ -280,7 +280,7 @@ describe("WhatsAppChannel", () => {
       await connectAdapter(adapter);
 
       // Simulate connectionLost
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "close",
         lastDisconnect: {
           error: { output: { statusCode: 428 } },
@@ -301,7 +301,7 @@ describe("WhatsAppChannel", () => {
       const { adapter, authState, onConnectionUpdate } = createAdapter();
       await connectAdapter(adapter);
 
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "close",
         lastDisconnect: {
           error: { output: { statusCode: 401 } },
@@ -322,7 +322,7 @@ describe("WhatsAppChannel", () => {
       const { adapter, onConnectionUpdate } = createAdapter();
       await connectAdapter(adapter);
 
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "close",
         lastDisconnect: {
           error: { output: { statusCode: 440 } },
@@ -342,7 +342,7 @@ describe("WhatsAppChannel", () => {
       const { adapter, authState, onConnectionUpdate } = createAdapter();
       await connectAdapter(adapter);
 
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "close",
         lastDisconnect: {
           error: { output: { statusCode: 411 } },
@@ -366,7 +366,7 @@ describe("WhatsAppChannel", () => {
       });
       await connectAdapter(adapter);
 
-      mockBaileys.mockSocket.ev.emit("connection.update", {
+      mockSocket.ev.emit("connection.update", {
         connection: "close",
         lastDisconnect: {
           error: { output: { statusCode: 428 } },

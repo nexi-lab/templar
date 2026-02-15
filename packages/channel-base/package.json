@@ -1,5 +1,5 @@
 {
-  "name": "@templar/channel-discord",
+  "name": "@templar/channel-base",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "scripts": {
@@ -16,11 +20,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "discord.js": "^14.18.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@templar/channel-base": "workspace:*",
     "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*",
     "@types/node": "^25.2.2"

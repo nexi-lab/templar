@@ -247,6 +247,9 @@ describe("DiscordChannel", () => {
         reference: null,
       });
 
+      // Allow async processing (base class handleInbound is async)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(handler).toHaveBeenCalledOnce();
       const inbound = handler.mock.calls[0]?.[0];
       expect(inbound.channelType).toBe("discord");
@@ -278,6 +281,9 @@ describe("DiscordChannel", () => {
         reference: null,
       });
 
+      // Allow async processing
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(handler).not.toHaveBeenCalled();
     });
 
@@ -302,6 +308,9 @@ describe("DiscordChannel", () => {
         reference: null,
       });
 
+      // Allow async processing (error handling is in base class handleInbound)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -322,15 +331,15 @@ describe("DiscordChannel", () => {
       expect(adapter.capabilities).toBe(DISCORD_CAPABILITIES);
     });
 
-    it("exposes getClient() that returns undefined before connect", () => {
+    it("exposes getDiscordClient() that returns undefined before connect", () => {
       const adapter = new DiscordChannel(VALID_CONFIG);
-      expect(adapter.getClient()).toBeUndefined();
+      expect(adapter.getDiscordClient()).toBeUndefined();
     });
 
-    it("exposes getClient() that returns Client after connect", async () => {
+    it("exposes getDiscordClient() that returns Client after connect", async () => {
       const adapter = new DiscordChannel(VALID_CONFIG);
       await adapter.connect();
-      expect(adapter.getClient()).toBeDefined();
+      expect(adapter.getDiscordClient()).toBeDefined();
     });
   });
 });

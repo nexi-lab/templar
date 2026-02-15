@@ -1,4 +1,4 @@
-import type { OutboundMessage } from "@templar/core";
+import { coalesceBlocks, type OutboundMessage, splitText } from "@templar/core";
 import { ChannelSendError } from "@templar/errors";
 
 // ---------------------------------------------------------------------------
@@ -59,64 +59,6 @@ interface ButtonCall {
 export type RenderPlanCall = TextCall | ImageCall | FileCall | AudioCall | ButtonCall;
 
 // ---------------------------------------------------------------------------
-// Text splitting (inline — WhatsApp's 65K limit rarely needs splitting)
-// ---------------------------------------------------------------------------
-
-function splitText(text: string, maxLength: number): readonly string[] {
-  if (text.length <= maxLength) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLength) {
-      chunks.push(remaining);
-      break;
-    }
-
-    // Try to split at newline
-    let splitAt = remaining.lastIndexOf("\n", maxLength);
-    if (splitAt <= 0) {
-      // Try to split at space
-      splitAt = remaining.lastIndexOf(" ", maxLength);
-    }
-    if (splitAt <= 0) {
-      // Hard cut
-      splitAt = maxLength;
-    }
-
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).trimStart();
-  }
-
-  return chunks;
-}
-
-// ---------------------------------------------------------------------------
-// Coalesce adjacent text blocks
-// ---------------------------------------------------------------------------
-
-function coalesceTextBlocks(blocks: OutboundMessage["blocks"]): OutboundMessage["blocks"] {
-  const result: Array<OutboundMessage["blocks"][number]> = [];
-
-  for (const block of blocks) {
-    if (block.type === "text" && result.length > 0 && result[result.length - 1]?.type === "text") {
-      const prev = result[result.length - 1];
-      if (prev?.type === "text") {
-        result[result.length - 1] = {
-          type: "text",
-          content: `${prev.content}\n${block.content}`,
-        };
-        continue;
-      }
-    }
-    result.push(block);
-  }
-
-  return result;
-}
-
-// ---------------------------------------------------------------------------
 // Render plan builder
 // ---------------------------------------------------------------------------
 
@@ -134,7 +76,7 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderPlanCa
   const { blocks } = message;
   if (blocks.length === 0) return [];
 
-  const coalesced = coalesceTextBlocks(blocks);
+  const coalesced = coalesceBlocks(blocks);
   const plan: RenderPlanCall[] = [];
 
   let pendingText: string | undefined;

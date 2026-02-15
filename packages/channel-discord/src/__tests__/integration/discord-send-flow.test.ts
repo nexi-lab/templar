@@ -56,7 +56,7 @@ describe("Discord send flow (integration)", () => {
     // --- Connect ---
     await adapter.connect();
     expect(mockClient.login).toHaveBeenCalledWith("Bot integration-test-token");
-    expect(adapter.getClient()).toBeDefined();
+    expect(adapter.getDiscordClient()).toBeDefined();
 
     // --- Register message handler ---
     const handler = vi.fn();
@@ -109,7 +109,7 @@ describe("Discord send flow (integration)", () => {
     // --- Disconnect ---
     await adapter.disconnect();
     expect(mockClient.destroy).toHaveBeenCalledOnce();
-    expect(adapter.getClient()).toBeUndefined();
+    expect(adapter.getDiscordClient()).toBeUndefined();
   });
 
   it("handles send failure with proper error wrapping", async () => {

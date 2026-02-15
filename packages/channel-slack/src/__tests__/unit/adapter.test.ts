@@ -228,6 +228,9 @@ describe("SlackChannel", () => {
         client: mockApp.client,
       });
 
+      // Allow async processing (base class handleInbound is async)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });

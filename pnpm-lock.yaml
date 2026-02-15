@@ -68,6 +68,22 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/channel-base:
+    dependencies:
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/channel-discord:
     dependencies:
       discord.js:
@@ -77,6 +93,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@templar/channel-base':
+        specifier: workspace:*
+        version: link:../channel-base
       '@templar/core':
         specifier: workspace:*
         version: link:../core
@@ -96,6 +115,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@templar/channel-base':
+        specifier: workspace:*
+        version: link:../channel-base
       '@templar/core':
         specifier: workspace:*
         version: link:../core
@@ -118,6 +140,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@templar/channel-base':
+        specifier: workspace:*
+        version: link:../channel-base
       '@templar/core':
         specifier: workspace:*
         version: link:../core
@@ -140,6 +165,9 @@ importers:
         specifier: ^3.24.0
         version: 3.25.76
     devDependencies:
+      '@templar/channel-base':
+        specifier: workspace:*
+        version: link:../channel-base
       '@templar/core':
         specifier: workspace:*
         version: link:../core
