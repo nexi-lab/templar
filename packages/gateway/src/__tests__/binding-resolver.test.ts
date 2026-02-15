@@ -6,22 +6,7 @@ import {
   matchField,
 } from "../binding-resolver.js";
 import type { AgentBinding } from "../protocol/bindings.js";
-import type { LaneMessage } from "../protocol/lanes.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeMessage(overrides: Partial<LaneMessage> = {}): LaneMessage {
-  return {
-    id: `msg-${Math.random().toString(36).slice(2)}`,
-    lane: "steer",
-    channelId: "default-channel",
-    payload: null,
-    timestamp: Date.now(),
-    ...overrides,
-  };
-}
+import { makeMessage } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // compilePattern
@@ -361,6 +346,39 @@ describe("BindingResolver", () => {
       expect(compiled[0]?.agentId).toBe("a");
       expect(compiled[0]?.matchers.channel?.type).toBe("prefix");
       expect(compiled[1]?.agentId).toBe("b");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Adversarial / edge-case patterns (#11B)
+  // -----------------------------------------------------------------------
+
+  describe("adversarial patterns", () => {
+    it("rejects double wildcard pattern '*foo*'", () => {
+      expect(() => compilePattern("*foo*")).toThrow(/multiple wildcards/);
+    });
+
+    it("rejects interior wildcard pattern 'foo-*-bar'", () => {
+      expect(() => compilePattern("foo-*-bar")).toThrow(/wildcard must be at start or end/);
+    });
+
+    it("rejects triple wildcard pattern '**'", () => {
+      expect(() => compilePattern("**")).toThrow(/multiple wildcards/);
+    });
+
+    it("handles special regex characters as literal strings", () => {
+      // These should be treated as exact matches, not regex
+      expect(compilePattern("slack.work")).toEqual({ type: "exact", value: "slack.work" });
+      expect(compilePattern("slack[1]")).toEqual({ type: "exact", value: "slack[1]" });
+      expect(compilePattern("ch+plus")).toEqual({ type: "exact", value: "ch+plus" });
+    });
+
+    it("handles unicode channel names", () => {
+      const resolver = new BindingResolver();
+      resolver.updateBindings([{ agentId: "intl", match: { channel: "日本語" } }]);
+
+      expect(resolver.resolve(makeMessage({ channelId: "日本語" }))).toBe("intl");
+      expect(resolver.resolve(makeMessage({ channelId: "english" }))).toBeUndefined();
     });
   });
 });

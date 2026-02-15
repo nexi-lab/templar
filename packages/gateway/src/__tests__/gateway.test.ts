@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GatewayFrame } from "../protocol/index.js";
-import { closeWs, createTestGateway, DEFAULT_CAPS, sendFrame } from "./helpers.js";
+import { closeWs, createTestGateway, DEFAULT_CAPS, makeMessage, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -550,6 +550,219 @@ describe("TemplarGateway", () => {
       });
 
       expect(gateway.getConversationStore().size).toBe(0);
+
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Error paths (#10A)
+  // -------------------------------------------------------------------------
+
+  describe("error paths", () => {
+    it("rejects lane message from unregistered connection", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+
+      const ws = wss.connect("unregistered-1");
+
+      // Send a lane message without registering first
+      sendFrame(ws, {
+        kind: "lane.message",
+        lane: "steer",
+        message: makeMessage({ channelId: "ch-1" }),
+      });
+
+      const frames = ws.sentFrames();
+      const errorFrame = frames.find((f) => f.kind === "error");
+      expect(errorFrame).toBeDefined();
+      expect((errorFrame as { error: { status: number } }).error.status).toBe(403);
+
+      await gateway.stop();
+    });
+
+    it("rejects cross-node deregistration attempt", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+
+      // Register node-1 on ws1
+      const ws1 = wss.connect("ws-1");
+      sendFrame(ws1, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      // Try to deregister node-1 from ws2 (different connection)
+      const ws2 = wss.connect("ws-2");
+      sendFrame(ws2, {
+        kind: "node.register",
+        nodeId: "node-2",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      sendFrame(ws2, {
+        kind: "node.deregister",
+        nodeId: "node-1",
+      });
+
+      const frames = ws2.sentFrames();
+      const errorFrame = frames.find((f) => f.kind === "error");
+      expect(errorFrame).toBeDefined();
+      expect((errorFrame as { error: { status: number } }).error.status).toBe(403);
+
+      // node-1 should still be registered
+      expect(gateway.getRegistry().get("node-1")).toBeDefined();
+
+      await gateway.stop();
+    });
+
+    it("sends error on lane message routing failure", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+
+      const ws = wss.connect("ws-1");
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      // Route to a channel that has no binding → should fail
+      sendFrame(ws, {
+        kind: "lane.message",
+        lane: "steer",
+        message: makeMessage({ channelId: "unbound-channel" }),
+      });
+
+      const frames = ws.sentFrames();
+      const errorFrame = frames.find((f) => f.kind === "error");
+      expect(errorFrame).toBeDefined();
+      expect((errorFrame as { error: { status: number } }).error.status).toBe(500);
+
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-agent routing integration (#12A)
+  // -------------------------------------------------------------------------
+
+  describe("multi-agent routing integration", () => {
+    it("full flow: register with agentIds → binding resolves → dispatch", async () => {
+      const { gateway, wss } = createTestGateway({
+        bindings: [
+          { agentId: "work-agent", match: { channel: "slack" } },
+          { agentId: "personal-agent", match: { channel: "whatsapp" } },
+        ],
+      });
+      await gateway.start();
+
+      // Register node-1 serving work-agent
+      const ws1 = wss.connect("ws-1");
+      sendFrame(ws1, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["work-agent"] },
+        token: "test-key",
+      });
+
+      // Register node-2 serving personal-agent
+      const ws2 = wss.connect("ws-2");
+      sendFrame(ws2, {
+        kind: "node.register",
+        nodeId: "node-2",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["personal-agent"] },
+        token: "test-key",
+      });
+
+      // Bind channels for lane message delivery
+      gateway.bindChannel("slack", "node-1");
+      gateway.bindChannel("whatsapp", "node-2");
+
+      // Send slack message from ws1 → should route to node-1 via binding
+      sendFrame(ws1, {
+        kind: "lane.message",
+        lane: "steer",
+        message: makeMessage({ channelId: "slack" }),
+      });
+
+      // Ack should come back
+      const frames1 = ws1.sentFrames();
+      expect(frames1.some((f) => f.kind === "lane.message.ack")).toBe(true);
+
+      // Verify agent mapping
+      const agentMap = gateway.getAgentToNodeMap();
+      expect(agentMap.get("work-agent")).toBe("node-1");
+      expect(agentMap.get("personal-agent")).toBe("node-2");
+
+      await gateway.stop();
+    });
+
+    it("node deregistration clears agent index in registry", async () => {
+      const { gateway, wss } = createTestGateway({
+        bindings: [{ agentId: "test-agent", match: { channel: "slack" } }],
+      });
+      await gateway.start();
+
+      const ws = wss.connect("ws-1");
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["test-agent"] },
+        token: "test-key",
+      });
+
+      expect(gateway.getAgentToNodeMap().get("test-agent")).toBe("node-1");
+
+      // Deregister
+      sendFrame(ws, {
+        kind: "node.deregister",
+        nodeId: "node-1",
+      });
+
+      expect(gateway.getAgentToNodeMap().get("test-agent")).toBeUndefined();
+      await gateway.stop();
+    });
+
+    it("binding resolver accessor returns resolver when bindings configured", () => {
+      const { gateway } = createTestGateway({
+        bindings: [{ agentId: "agent-a", match: { channel: "slack" } }],
+      });
+      expect(gateway.getBindingResolver()).toBeDefined();
+    });
+
+    it("binding resolver accessor returns undefined when no bindings", () => {
+      const { gateway } = createTestGateway();
+      expect(gateway.getBindingResolver()).toBeUndefined();
+    });
+
+    it("multiple nodes with overlapping agentIds — last-write wins", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+
+      const ws1 = wss.connect("ws-1");
+      sendFrame(ws1, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["shared-agent"] },
+        token: "test-key",
+      });
+
+      // node-2 also claims shared-agent — should overwrite
+      const ws2 = wss.connect("ws-2");
+      sendFrame(ws2, {
+        kind: "node.register",
+        nodeId: "node-2",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["shared-agent"] },
+        token: "test-key",
+      });
+
+      // Last registration wins
+      expect(gateway.getAgentToNodeMap().get("shared-agent")).toBe("node-2");
 
       await gateway.stop();
     });
