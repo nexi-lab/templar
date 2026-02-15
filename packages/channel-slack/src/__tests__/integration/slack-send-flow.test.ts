@@ -33,8 +33,8 @@ describe("Slack send flow (integration)", () => {
     expect(calls[0]?.method).toBe("chat.postMessage");
 
     const call = calls[0];
-    expect(call).toBeDefined();
-    const payload = call?.payload;
+    if (!call) throw new Error("expected call");
+    const { payload } = call;
     expect(payload.channel).toBe("C123");
 
     // Verify Block Kit blocks
