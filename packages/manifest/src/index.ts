@@ -24,12 +24,12 @@ export {
   type ResolveBootstrapOptions,
   resolveBootstrapFiles,
 } from "./bootstrap-resolver.js";
+export { fileExists, readTextFile } from "./fs-utils.js";
 export {
   type TruncateOptions,
   type TruncateResult,
   truncateContent,
 } from "./truncate.js";
-export { fileExists, readTextFile } from "./fs-utils.js";
 
 // ============================================================================
 // SCHEMA

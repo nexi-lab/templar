@@ -39,11 +39,7 @@ describe("@templar/manifest exports", () => {
 
   it("exports BOOTSTRAP_FILENAMES", () => {
     expect(manifest.BOOTSTRAP_FILENAMES).toBeDefined();
-    expect(Object.keys(manifest.BOOTSTRAP_FILENAMES)).toEqual([
-      "instructions",
-      "tools",
-      "context",
-    ]);
+    expect(Object.keys(manifest.BOOTSTRAP_FILENAMES)).toEqual(["instructions", "tools", "context"]);
   });
 
   it("exports truncateContent function", () => {

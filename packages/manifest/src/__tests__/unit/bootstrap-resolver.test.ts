@@ -1,13 +1,13 @@
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { resolveBootstrapFiles, DEFAULT_BUDGET } from "../../bootstrap-resolver.js";
+import { DEFAULT_BUDGET, resolveBootstrapFiles } from "../../bootstrap-resolver.js";
 import {
+  BOOTSTRAP_CONTEXT_MD,
   BOOTSTRAP_TEMPLAR_MD,
   BOOTSTRAP_TOOLS_MD,
-  BOOTSTRAP_CONTEXT_MD,
   OVERSIZED_CONTENT,
 } from "../helpers/fixtures.js";
 
@@ -24,10 +24,7 @@ describe("resolveBootstrapFiles", () => {
   });
 
   // Helper: create a fresh subdirectory with optional files
-  async function makeDir(
-    name: string,
-    files: Record<string, string> = {},
-  ): Promise<string> {
+  async function makeDir(name: string, files: Record<string, string> = {}): Promise<string> {
     const sub = join(dir, name);
     await mkdir(sub, { recursive: true });
     for (const [fname, content] of Object.entries(files)) {
@@ -47,9 +44,9 @@ describe("resolveBootstrapFiles", () => {
     const ctx = await resolveBootstrapFiles({ manifestDir: d });
 
     expect(ctx.files).toHaveLength(3);
-    expect(ctx.files[0]!.kind).toBe("instructions");
-    expect(ctx.files[1]!.kind).toBe("tools");
-    expect(ctx.files[2]!.kind).toBe("context");
+    expect(ctx.files[0]?.kind).toBe("instructions");
+    expect(ctx.files[1]?.kind).toBe("tools");
+    expect(ctx.files[2]?.kind).toBe("context");
     expect(ctx.totalSize).toBeGreaterThan(0);
     expect(ctx.resolvedFrom).toBe(d);
   });
@@ -63,8 +60,8 @@ describe("resolveBootstrapFiles", () => {
     const ctx = await resolveBootstrapFiles({ manifestDir: d });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.kind).toBe("instructions");
-    expect(ctx.files[0]!.content).toBe(BOOTSTRAP_TEMPLAR_MD);
+    expect(ctx.files[0]?.kind).toBe("instructions");
+    expect(ctx.files[0]?.content).toBe(BOOTSTRAP_TEMPLAR_MD);
   });
 
   // ---- Edge case 3: No files — empty BootstrapContext ----
@@ -86,11 +83,9 @@ describe("resolveBootstrapFiles", () => {
     const ctx = await resolveBootstrapFiles({ manifestDir: d });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.truncated).toBe(true);
-    expect(ctx.files[0]!.originalSize).toBe(OVERSIZED_CONTENT.length);
-    expect(ctx.files[0]!.content.length).toBeLessThanOrEqual(
-      DEFAULT_BUDGET.instructions,
-    );
+    expect(ctx.files[0]?.truncated).toBe(true);
+    expect(ctx.files[0]?.originalSize).toBe(OVERSIZED_CONTENT.length);
+    expect(ctx.files[0]?.content.length).toBeLessThanOrEqual(DEFAULT_BUDGET.instructions);
   });
 
   // ---- Edge case 5: Oversized with custom budget ----
@@ -104,8 +99,8 @@ describe("resolveBootstrapFiles", () => {
       bootstrap: { budget: { instructions: 200 } },
     });
 
-    expect(ctx.files[0]!.truncated).toBe(true);
-    expect(ctx.files[0]!.content.length).toBeLessThanOrEqual(200);
+    expect(ctx.files[0]?.truncated).toBe(true);
+    expect(ctx.files[0]?.content.length).toBeLessThanOrEqual(200);
   });
 
   // ---- Edge case 6: Binary file → BootstrapParseFailedError ----
@@ -114,9 +109,9 @@ describe("resolveBootstrapFiles", () => {
       "TEMPLAR.md": "Hello\0World",
     });
 
-    await expect(
-      resolveBootstrapFiles({ manifestDir: d }),
-    ).rejects.toThrow("File appears to be binary");
+    await expect(resolveBootstrapFiles({ manifestDir: d })).rejects.toThrow(
+      "File appears to be binary",
+    );
   });
 
   // ---- Edge case 7: Empty file → empty string, no error ----
@@ -128,9 +123,9 @@ describe("resolveBootstrapFiles", () => {
     const ctx = await resolveBootstrapFiles({ manifestDir: d });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.content).toBe("");
-    expect(ctx.files[0]!.originalSize).toBe(0);
-    expect(ctx.files[0]!.truncated).toBe(false);
+    expect(ctx.files[0]?.content).toBe("");
+    expect(ctx.files[0]?.originalSize).toBe(0);
+    expect(ctx.files[0]?.truncated).toBe(false);
   });
 
   // ---- Edge case 8: BOM handling ----
@@ -141,8 +136,8 @@ describe("resolveBootstrapFiles", () => {
 
     const ctx = await resolveBootstrapFiles({ manifestDir: d });
 
-    expect(ctx.files[0]!.content).toBe("# Instructions with BOM");
-    expect(ctx.files[0]!.content.charCodeAt(0)).not.toBe(0xfeff);
+    expect(ctx.files[0]?.content).toBe("# Instructions with BOM");
+    expect(ctx.files[0]?.content.charCodeAt(0)).not.toBe(0xfeff);
   });
 
   // ---- Edge case 9: Dark Templar → only instructions ----
@@ -159,7 +154,7 @@ describe("resolveBootstrapFiles", () => {
     });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.kind).toBe("instructions");
+    expect(ctx.files[0]?.kind).toBe("instructions");
   });
 
   // ---- Path traversal guard ----
@@ -189,8 +184,8 @@ describe("resolveBootstrapFiles", () => {
     });
 
     expect(ctx.files).toHaveLength(2);
-    expect(ctx.files[0]!.content).toBe("Custom instructions");
-    expect(ctx.files[1]!.content).toBe("Custom tools");
+    expect(ctx.files[0]?.content).toBe("Custom instructions");
+    expect(ctx.files[1]?.content).toBe("Custom tools");
   });
 
   // ---- Edge case 11: Symlink resolution ----
@@ -202,10 +197,7 @@ describe("resolveBootstrapFiles", () => {
     try {
       await symlink(join(src, "TEMPLAR.md"), join(dir, "symlink-target.md"));
       await mkdir(link, { recursive: true });
-      await symlink(
-        join(dir, "symlink-target.md"),
-        join(link, "TEMPLAR.md"),
-      );
+      await symlink(join(dir, "symlink-target.md"), join(link, "TEMPLAR.md"));
     } catch {
       // Symlinks may not be supported on all platforms
       return;
@@ -214,7 +206,7 @@ describe("resolveBootstrapFiles", () => {
     const ctx = await resolveBootstrapFiles({ manifestDir: link });
 
     expect(ctx.files.length).toBeGreaterThanOrEqual(1);
-    expect(ctx.files[0]!.content).toBe("Symlinked content");
+    expect(ctx.files[0]?.content).toBe("Symlinked content");
   });
 
   // ---- Edge case 12: Permission denied → error ----
@@ -229,8 +221,8 @@ describe("resolveBootstrapFiles", () => {
     const ctx1 = await resolveBootstrapFiles({ manifestDir: d });
     const ctx2 = await resolveBootstrapFiles({ manifestDir: d });
 
-    expect(ctx1.files[0]!.contentHash).toBe(ctx2.files[0]!.contentHash);
-    expect(ctx1.files[0]!.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(ctx1.files[0]?.contentHash).toBe(ctx2.files[0]?.contentHash);
+    expect(ctx1.files[0]?.contentHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
   // ---- Immutability ----
@@ -259,9 +251,7 @@ describe("resolveBootstrapFiles", () => {
     // All 3 files resolved
     expect(ctx.files).toHaveLength(3);
     expect(ctx.totalSize).toBe(
-      BOOTSTRAP_TEMPLAR_MD.length +
-        BOOTSTRAP_TOOLS_MD.length +
-        BOOTSTRAP_CONTEXT_MD.length,
+      BOOTSTRAP_TEMPLAR_MD.length + BOOTSTRAP_TOOLS_MD.length + BOOTSTRAP_CONTEXT_MD.length,
     );
   });
 });

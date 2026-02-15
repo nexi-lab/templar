@@ -2,15 +2,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  resolveBootstrapFiles,
-  DEFAULT_BUDGET,
   BOOTSTRAP_FILENAMES,
+  DEFAULT_BUDGET,
+  resolveBootstrapFiles,
 } from "../../bootstrap-resolver.js";
 
-const FIXTURES = resolve(
-  import.meta.dirname,
-  "../fixtures/bootstrap",
-);
+const FIXTURES = resolve(import.meta.dirname, "../fixtures/bootstrap");
 
 describe("bootstrap integration (real fixtures)", () => {
   it("resolves minimal fixture (TEMPLAR.md only)", async () => {
@@ -19,9 +16,9 @@ describe("bootstrap integration (real fixtures)", () => {
     });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.kind).toBe("instructions");
-    expect(ctx.files[0]!.content).toContain("minimal Templar agent");
-    expect(ctx.files[0]!.truncated).toBe(false);
+    expect(ctx.files[0]?.kind).toBe("instructions");
+    expect(ctx.files[0]?.content).toContain("minimal Templar agent");
+    expect(ctx.files[0]?.truncated).toBe(false);
     expect(ctx.resolvedFrom).toBe(resolve(FIXTURES, "minimal"));
   });
 
@@ -31,17 +28,13 @@ describe("bootstrap integration (real fixtures)", () => {
     });
 
     expect(ctx.files).toHaveLength(3);
-    expect(ctx.files.map((f) => f.kind)).toEqual([
-      "instructions",
-      "tools",
-      "context",
-    ]);
+    expect(ctx.files.map((f) => f.kind)).toEqual(["instructions", "tools", "context"]);
     expect(ctx.totalSize).toBeGreaterThan(0);
 
     // Verify content was actually read
-    expect(ctx.files[0]!.content).toContain("full Templar agent");
-    expect(ctx.files[1]!.content).toContain("web_search");
-    expect(ctx.files[2]!.content).toContain("Project: Templar");
+    expect(ctx.files[0]?.content).toContain("full Templar agent");
+    expect(ctx.files[1]?.content).toContain("web_search");
+    expect(ctx.files[2]?.content).toContain("Project: Templar");
   });
 
   it("truncates oversized fixture", async () => {
@@ -50,13 +43,9 @@ describe("bootstrap integration (real fixtures)", () => {
     });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.truncated).toBe(true);
-    expect(ctx.files[0]!.originalSize).toBeGreaterThan(
-      DEFAULT_BUDGET.instructions,
-    );
-    expect(ctx.files[0]!.content.length).toBeLessThanOrEqual(
-      DEFAULT_BUDGET.instructions,
-    );
+    expect(ctx.files[0]?.truncated).toBe(true);
+    expect(ctx.files[0]?.originalSize).toBeGreaterThan(DEFAULT_BUDGET.instructions);
+    expect(ctx.files[0]?.content.length).toBeLessThanOrEqual(DEFAULT_BUDGET.instructions);
   });
 
   it("returns frozen output", async () => {
@@ -80,7 +69,7 @@ describe("bootstrap integration (real fixtures)", () => {
     });
 
     for (let i = 0; i < ctx1.files.length; i++) {
-      expect(ctx1.files[i]!.contentHash).toBe(ctx2.files[i]!.contentHash);
+      expect(ctx1.files[i]?.contentHash).toBe(ctx2.files[i]?.contentHash);
     }
   });
 
@@ -91,7 +80,7 @@ describe("bootstrap integration (real fixtures)", () => {
     });
 
     expect(ctx.files).toHaveLength(1);
-    expect(ctx.files[0]!.kind).toBe("instructions");
+    expect(ctx.files[0]?.kind).toBe("instructions");
   });
 
   it("exports DEFAULT_BUDGET and BOOTSTRAP_FILENAMES", () => {

@@ -103,21 +103,9 @@ const bootstrapPathMessage = {
 };
 
 export const BootstrapPathConfigSchema = z.object({
-  instructions: z
-    .string()
-    .min(1)
-    .refine(bootstrapPathRefine, bootstrapPathMessage)
-    .optional(),
-  tools: z
-    .string()
-    .min(1)
-    .refine(bootstrapPathRefine, bootstrapPathMessage)
-    .optional(),
-  context: z
-    .string()
-    .min(1)
-    .refine(bootstrapPathRefine, bootstrapPathMessage)
-    .optional(),
+  instructions: z.string().min(1).refine(bootstrapPathRefine, bootstrapPathMessage).optional(),
+  tools: z.string().min(1).refine(bootstrapPathRefine, bootstrapPathMessage).optional(),
+  context: z.string().min(1).refine(bootstrapPathRefine, bootstrapPathMessage).optional(),
   budget: BootstrapBudgetSchema.optional(),
 });
 

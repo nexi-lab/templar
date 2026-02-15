@@ -23,10 +23,7 @@ export interface TruncateResult {
  * If content fits, returns it unchanged. Otherwise, keeps head + tail
  * with a marker indicating how many characters were dropped.
  */
-export function truncateContent(
-  content: string,
-  options: TruncateOptions,
-): TruncateResult {
+export function truncateContent(content: string, options: TruncateOptions): TruncateResult {
   if (content.length <= options.budget) {
     return { content, originalSize: content.length, truncated: false };
   }
@@ -39,10 +36,7 @@ export function truncateContent(
   const available = options.budget - markerOverhead;
   if (available <= 0) {
     // Budget is too small even for the marker — return empty with marker
-    const marker = markerTemplate.replace(
-      "{dropped}",
-      String(content.length),
-    );
+    const marker = markerTemplate.replace("{dropped}", String(content.length));
     return {
       content: marker.slice(0, options.budget),
       originalSize: content.length,

@@ -53,8 +53,8 @@ describe("truncateContent", () => {
 
   it("preserves head and tail of content", () => {
     // Build a content string with distinct head and tail
-    const head = "HEAD_MARKER_" + "a".repeat(5_000);
-    const tail = "b".repeat(5_000) + "_TAIL_MARKER";
+    const head = `HEAD_MARKER_${"a".repeat(5_000)}`;
+    const tail = `${"b".repeat(5_000)}_TAIL_MARKER`;
     const content = head + tail;
     const result = truncateContent(content, { budget: 5_000, filePath });
 
@@ -83,14 +83,11 @@ describe("truncateContent", () => {
     const markerStart = result.content.indexOf("\n\n---\n[Truncated:");
     expect(markerStart).toBeGreaterThan(0);
 
-    const markerEnd = result.content.indexOf(
-      "Reduce file size for full content.]\n",
-    );
+    const markerEnd = result.content.indexOf("Reduce file size for full content.]\n");
     expect(markerEnd).toBeGreaterThan(markerStart);
 
     const headLen = markerStart;
-    const markerLen =
-      markerEnd + "Reduce file size for full content.]\n".length - markerStart;
+    const markerLen = markerEnd + "Reduce file size for full content.]\n".length - markerStart;
     const tailLen = result.content.length - markerStart - markerLen;
 
     // Head should be roughly 78% of available space

@@ -7,9 +7,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { join, resolve, relative, isAbsolute } from "node:path";
-
-import { BootstrapParseFailedError } from "@templar/errors";
+import { isAbsolute, relative, resolve } from "node:path";
 import type {
   BootstrapBudget,
   BootstrapContext,
@@ -17,6 +15,7 @@ import type {
   BootstrapFileKind,
   BootstrapPathConfig,
 } from "@templar/core";
+import { BootstrapParseFailedError } from "@templar/errors";
 
 import { deepFreeze } from "./freeze.js";
 import { fileExists, readTextFile } from "./fs-utils.js";
@@ -30,12 +29,11 @@ export const DEFAULT_BUDGET: Readonly<BootstrapBudget> = {
 };
 
 /** Default file names for each bootstrap kind */
-export const BOOTSTRAP_FILENAMES: Readonly<Record<BootstrapFileKind, string>> =
-  {
-    instructions: "TEMPLAR.md",
-    tools: "TOOLS.md",
-    context: "CONTEXT.md",
-  };
+export const BOOTSTRAP_FILENAMES: Readonly<Record<BootstrapFileKind, string>> = {
+  instructions: "TEMPLAR.md",
+  tools: "TOOLS.md",
+  context: "CONTEXT.md",
+};
 
 export interface ResolveBootstrapOptions {
   readonly manifestDir: string;
@@ -62,9 +60,7 @@ export async function resolveBootstrapFiles(
 
   // Dark Templar: only instructions
   const kinds: readonly BootstrapFileKind[] =
-    options.agentType === "dark"
-      ? ["instructions"]
-      : ["instructions", "tools", "context"];
+    options.agentType === "dark" ? ["instructions"] : ["instructions", "tools", "context"];
 
   // Resolve file paths (custom or default) with path traversal guard
   const manifestDirResolved = resolve(options.manifestDir);
@@ -75,10 +71,7 @@ export async function resolveBootstrapFiles(
     // Guard against path traversal outside manifest directory
     const rel = relative(manifestDirResolved, filePath);
     if (rel.startsWith("..") || isAbsolute(rel)) {
-      throw new BootstrapParseFailedError(
-        rawPath,
-        "Bootstrap path escapes the manifest directory",
-      );
+      throw new BootstrapParseFailedError(rawPath, "Bootstrap path escapes the manifest directory");
     }
 
     return { kind, filePath, budget: budget[kind] };
@@ -119,9 +112,7 @@ export async function resolveBootstrapFiles(
     }),
   );
 
-  const files = results.filter(
-    (f): f is BootstrapFile => f !== undefined,
-  );
+  const files = results.filter((f): f is BootstrapFile => f !== undefined);
 
   return deepFreeze({
     files,

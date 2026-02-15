@@ -22,10 +22,7 @@ export async function readTextFile(filePath: string): Promise<string> {
   // Binary detection: check for null bytes in first 8KB
   const checkRegion = content.slice(0, NULL_BYTE_CHECK_SIZE);
   if (checkRegion.includes("\0")) {
-    throw new BootstrapParseFailedError(
-      absolutePath,
-      "File appears to be binary, not text",
-    );
+    throw new BootstrapParseFailedError(absolutePath, "File appears to be binary, not text");
   }
 
   // Strip BOM if present
