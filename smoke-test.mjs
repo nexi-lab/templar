@@ -77,7 +77,7 @@ assert.strictEqual(adapter.isConnected, false);
 await adapter.connect();
 assert.strictEqual(adapter.isConnected, true);
 await adapter.connect(); // idempotent
-assert.strictEqual(adapter.calls.filter(c => c.method === "doConnect").length, 1);
+assert.strictEqual(adapter.calls.filter((c) => c.method === "doConnect").length, 1);
 console.log("✓ BaseChannelAdapter: connect idempotent");
 
 await adapter.send({ channelId: "ch1", blocks: [{ type: "text", content: "hello" }] });
@@ -94,24 +94,28 @@ try {
 }
 
 await adapter.disconnect(); // idempotent
-assert.strictEqual(adapter.calls.filter(c => c.method === "doDisconnect").length, 1);
+assert.strictEqual(adapter.calls.filter((c) => c.method === "doDisconnect").length, 1);
 console.log("✓ BaseChannelAdapter: disconnect idempotent");
 
 // onMessage normalization
 await adapter.connect();
 const messages = [];
-adapter.onMessage((msg) => { messages.push(msg); });
+adapter.onMessage((msg) => {
+  messages.push(msg);
+});
 adapter.simulateInbound("test-payload");
-await new Promise(r => setTimeout(r, 50));
+await new Promise((r) => setTimeout(r, 50));
 assert.strictEqual(messages.length, 1);
 assert.strictEqual(messages[0].channelType, "smoke-test");
 assert.strictEqual(messages[0].blocks[0].content, "test-payload");
 console.log("✓ BaseChannelAdapter: onMessage normalizes + dispatches");
 
 // onMessage error resilience
-adapter.onMessage(() => { throw new Error("handler crash"); });
+adapter.onMessage(() => {
+  throw new Error("handler crash");
+});
 adapter.simulateInbound("crash-trigger");
-await new Promise(r => setTimeout(r, 50));
+await new Promise((r) => setTimeout(r, 50));
 console.log("✓ BaseChannelAdapter: onMessage survives handler errors");
 
 // ---- 6. Verify all channel adapter dist exports ----
@@ -134,7 +138,7 @@ const { DiscordChannel } = await import(join(root, "packages/channel-discord/dis
 try {
   new DiscordChannel({});
   assert.fail("Should throw for empty config");
-} catch (e) {
+} catch (_e) {
   console.log("✓ DiscordChannel: rejects invalid config from dist");
 }
 
@@ -142,7 +146,7 @@ const { TelegramChannel } = await import(join(root, "packages/channel-telegram/d
 try {
   new TelegramChannel({});
   assert.fail("Should throw for empty config");
-} catch (e) {
+} catch (_e) {
   console.log("✓ TelegramChannel: rejects invalid config from dist");
 }
 
@@ -150,7 +154,7 @@ const { SlackChannel } = await import(join(root, "packages/channel-slack/dist/in
 try {
   new SlackChannel({});
   assert.fail("Should throw for empty config");
-} catch (e) {
+} catch (_e) {
   console.log("✓ SlackChannel: rejects invalid config from dist");
 }
 
@@ -189,7 +193,9 @@ try {
 }
 
 // ---- 10. Verify instanceof chain (ChannelLoadError, ChannelSendError) ----
-const { ChannelLoadError, ChannelSendError } = await import(join(root, "packages/errors/dist/index.js"));
+const { ChannelLoadError, ChannelSendError } = await import(
+  join(root, "packages/errors/dist/index.js")
+);
 
 try {
   new DiscordChannel({});

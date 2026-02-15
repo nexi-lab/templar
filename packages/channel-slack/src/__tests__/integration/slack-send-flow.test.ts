@@ -34,7 +34,7 @@ describe("Slack send flow (integration)", () => {
 
     const call = calls[0];
     expect(call).toBeDefined();
-    const payload = call!.payload;
+    const payload = call?.payload;
     expect(payload.channel).toBe("C123");
 
     // Verify Block Kit blocks
