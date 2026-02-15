@@ -335,6 +335,25 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/model-router:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/nexus-sdk:
     dependencies:
       '@templar/errors':
@@ -450,6 +469,10 @@ importers:
       vitest:
         specifier: '>=4.0.0'
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.2)(yaml@2.8.2)
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
 
 packages:
 

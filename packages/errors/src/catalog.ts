@@ -1010,6 +1010,82 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // MODEL ERRORS — Multi-provider LLM routing and failover
+  // ============================================================================
+  MODEL_PROVIDER_AUTH_FAILED: {
+    domain: "model",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Model provider authentication failed",
+    description: "The API key or credentials for the model provider are invalid",
+  },
+  MODEL_PROVIDER_BILLING_FAILED: {
+    domain: "model",
+    httpStatus: 402,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "ExternalError" as const,
+    isExpected: true,
+    title: "Model provider billing failed",
+    description: "The model provider rejected the request due to billing issues",
+  },
+  MODEL_PROVIDER_RATE_LIMITED: {
+    domain: "model",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "RateLimitError" as const,
+    isExpected: true,
+    title: "Model provider rate limited",
+    description: "The model provider rate-limited the request",
+  },
+  MODEL_PROVIDER_TIMEOUT: {
+    domain: "model",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Model provider timeout",
+    description: "The model provider did not respond within the timeout",
+  },
+  MODEL_CONTEXT_OVERFLOW: {
+    domain: "model",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Model context overflow",
+    description: "The request exceeds the model's context window",
+  },
+  MODEL_PROVIDER_ERROR: {
+    domain: "model",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Model provider error",
+    description: "The model provider returned an unexpected error",
+  },
+  MODEL_ALL_PROVIDERS_FAILED: {
+    domain: "model",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "All model providers failed",
+    description: "All providers in the fallback chain have been exhausted",
+  },
+  MODEL_INVALID_CONFIG: {
+    domain: "model",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid model router configuration",
+    description: "The model router configuration is invalid",
+  },
+
+  // ============================================================================
   // APPLICATION-SPECIFIC ERRORS — Templar SDK and Nexus client
   // ============================================================================
   TEMPLAR_CONFIG_INVALID: {
