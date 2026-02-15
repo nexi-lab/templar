@@ -25,6 +25,8 @@ export {
   type OverflowHandler,
 } from "./lanes/lane-dispatcher.js";
 export { BoundedFifoQueue } from "./lanes/queue.js";
+// Protocol (shared with @templar/node via @templar/gateway/protocol subpath)
+export * from "./protocol/index.js";
 export {
   HealthMonitor,
   type HealthMonitorConfig,

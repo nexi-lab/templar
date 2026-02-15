@@ -1,6 +1,6 @@
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
-import type { NodeCapabilities, TaskRequirements } from "@templar/gateway-protocol";
 import { describe, expect, it } from "vitest";
+import type { NodeCapabilities, TaskRequirements } from "../../protocol/index.js";
 import { NodeRegistry } from "../node-registry.js";
 
 const DEFAULT_CAPS: NodeCapabilities = {

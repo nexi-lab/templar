@@ -1,4 +1,4 @@
-import type { LaneMessage } from "@templar/gateway-protocol";
+import type { LaneMessage } from "./protocol/index.js";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -7,11 +7,13 @@ export default defineConfig({
     pay: "src/pay/index.ts",
     audit: "src/audit/index.ts",
     permissions: "src/permissions/index.ts",
+    identity: "src/identity/index.ts",
   },
   format: ["esm"],
   dts: {
     compilerOptions: {
       composite: false,
+      isolatedDeclarations: false,
     },
   },
   clean: true,

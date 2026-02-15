@@ -1,3 +1,6 @@
+import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
+import { DeliveryTracker } from "./delivery-tracker.js";
+import { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import type {
   GatewayConfig,
   GatewayFrame,
@@ -6,10 +9,7 @@ import type {
   LaneMessageFrame,
   NodeDeregisterFrame,
   NodeRegisterFrame,
-} from "@templar/gateway-protocol";
-import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
-import { DeliveryTracker } from "./delivery-tracker.js";
-import { LaneDispatcher } from "./lanes/lane-dispatcher.js";
+} from "./protocol/index.js";
 import { HealthMonitor } from "./registry/health-monitor.js";
 import { NodeRegistry } from "./registry/node-registry.js";
 import { AgentRouter } from "./router.js";

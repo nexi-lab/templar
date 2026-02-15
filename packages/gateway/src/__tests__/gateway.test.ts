@@ -1,5 +1,5 @@
-import type { GatewayFrame } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
+import type { GatewayFrame } from "../protocol/index.js";
 import { closeWs, createTestGateway, DEFAULT_CAPS, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------

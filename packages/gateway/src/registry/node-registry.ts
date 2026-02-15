@@ -1,5 +1,5 @@
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
-import type { NodeCapabilities, TaskRequirements } from "@templar/gateway-protocol";
+import type { NodeCapabilities, TaskRequirements } from "../protocol/index.js";
 import { mapDelete, mapSet } from "../utils/immutable-map.js";
 
 // ---------------------------------------------------------------------------

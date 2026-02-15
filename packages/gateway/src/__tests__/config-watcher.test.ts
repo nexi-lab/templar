@@ -1,9 +1,9 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { GatewayConfig } from "@templar/gateway-protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigWatcher, type ConfigWatcherDeps } from "../config-watcher.js";
+import type { GatewayConfig } from "../protocol/index.js";
 
 const VALID_CONFIG: GatewayConfig = {
   port: 18789,

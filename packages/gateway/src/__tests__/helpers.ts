@@ -5,10 +5,10 @@
  * and frame simulation helpers across server, gateway, and integration tests.
  */
 
-import type { GatewayConfig, GatewayFrame, NodeCapabilities } from "@templar/gateway-protocol";
 import { vi } from "vitest";
 import type { TemplarGatewayDeps } from "../gateway.js";
 import { TemplarGateway } from "../gateway.js";
+import type { GatewayConfig, GatewayFrame, NodeCapabilities } from "../protocol/index.js";
 import type { WebSocketLike, WebSocketServerLike, WsServerFactory } from "../server.js";
 
 // ---------------------------------------------------------------------------

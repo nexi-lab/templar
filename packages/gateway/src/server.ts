@@ -1,6 +1,6 @@
 import type { IncomingMessage } from "node:http";
-import type { GatewayFrame } from "@templar/gateway-protocol";
-import { safeParseFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame } from "./protocol/index.js";
+import { safeParseFrame } from "./protocol/index.js";
 import { createEmitter, type Emitter } from "./utils/emitter.js";
 import { SlidingWindowRateLimiter } from "./utils/rate-limiter.js";
 

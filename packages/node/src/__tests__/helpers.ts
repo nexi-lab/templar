@@ -1,4 +1,4 @@
-import type { GatewayFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame } from "@templar/gateway/protocol";
 import type { TemplarNode } from "../node.js";
 import type { NodeConfig } from "../types.js";
 import type { WebSocketClientLike } from "../ws-client.js";

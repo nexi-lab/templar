@@ -1,7 +1,7 @@
 import { GatewayNodeNotFoundError } from "@templar/errors";
-import type { LaneMessage, NodeCapabilities } from "@templar/gateway-protocol";
 import { describe, expect, it } from "vitest";
 import { LaneDispatcher } from "../lanes/lane-dispatcher.js";
+import type { LaneMessage, NodeCapabilities } from "../protocol/index.js";
 import { NodeRegistry } from "../registry/node-registry.js";
 import { AgentRouter } from "../router.js";
 

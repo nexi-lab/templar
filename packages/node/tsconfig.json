@@ -6,5 +6,5 @@
     "isolatedDeclarations": false
   },
   "include": ["src"],
-  "references": [{ "path": "../errors" }, { "path": "../gateway-protocol" }]
+  "references": [{ "path": "../errors" }, { "path": "../gateway" }]
 }

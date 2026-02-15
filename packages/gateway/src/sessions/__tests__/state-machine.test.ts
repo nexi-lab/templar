@@ -1,5 +1,5 @@
-import { SESSION_EVENTS, SESSION_STATES, SESSION_TRANSITIONS } from "@templar/gateway-protocol";
 import { describe, expect, it } from "vitest";
+import { SESSION_EVENTS, SESSION_STATES, SESSION_TRANSITIONS } from "../../protocol/index.js";
 import { transition } from "../state-machine.js";
 
 describe("state-machine: transition()", () => {

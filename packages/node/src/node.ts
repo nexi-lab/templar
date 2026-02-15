@@ -10,7 +10,7 @@ import type {
   LaneMessageFrame,
   NodeRegisterFrame,
   SessionState,
-} from "@templar/gateway-protocol";
+} from "@templar/gateway/protocol";
 import { HeartbeatResponder } from "./heartbeat-responder.js";
 import { ReconnectStrategy } from "./reconnect.js";
 import type {

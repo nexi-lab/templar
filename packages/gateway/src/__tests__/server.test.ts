@@ -1,5 +1,5 @@
-import type { GatewayFrame } from "@templar/gateway-protocol";
 import { describe, expect, it, vi } from "vitest";
+import type { GatewayFrame } from "../protocol/index.js";
 import { GatewayServer } from "../server.js";
 import { createMockFactory, createMockWs, createMockWss } from "./helpers.js";
 

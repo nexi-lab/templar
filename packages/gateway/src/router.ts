@@ -1,6 +1,6 @@
 import { GatewayNodeNotFoundError } from "@templar/errors";
-import type { LaneMessage } from "@templar/gateway-protocol";
 import type { LaneDispatcher } from "./lanes/lane-dispatcher.js";
+import type { LaneMessage } from "./protocol/index.js";
 import type { NodeRegistry } from "./registry/node-registry.js";
 import { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";
 

@@ -1,6 +1,6 @@
 import { NodeFrameTooLargeError } from "@templar/errors";
-import type { GatewayFrame } from "@templar/gateway-protocol";
-import { safeParseFrame } from "@templar/gateway-protocol";
+import type { GatewayFrame } from "@templar/gateway/protocol";
+import { safeParseFrame } from "@templar/gateway/protocol";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -1,5 +1,5 @@
-import type { LaneMessage, QueuedLane } from "@templar/gateway-protocol";
-import { QUEUED_LANES } from "@templar/gateway-protocol";
+import type { LaneMessage, QueuedLane } from "../protocol/index.js";
+import { QUEUED_LANES } from "../protocol/index.js";
 import { createEmitter, type Emitter } from "../utils/emitter.js";
 import { BoundedFifoQueue } from "./queue.js";
 

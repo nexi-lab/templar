@@ -1,8 +1,4 @@
-import {
-  SESSION_TRANSITIONS,
-  type SessionEvent,
-  type SessionState,
-} from "@templar/gateway-protocol";
+import { SESSION_TRANSITIONS, type SessionEvent, type SessionState } from "../protocol/index.js";
 
 /**
  * Result of a state transition attempt.
