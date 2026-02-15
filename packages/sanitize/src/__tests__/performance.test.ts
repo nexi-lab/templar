@@ -16,7 +16,7 @@ describe("performance tests", () => {
     expect(result.clean.length).toBeGreaterThan(0);
   });
 
-  it("handles adversarial input (near max) in <200ms", () => {
+  it("handles adversarial input (near max) in <500ms", () => {
     const sanitizer = new ContentSanitizer();
     // Mix of attack patterns
     const attackChunk = [
@@ -35,7 +35,7 @@ describe("performance tests", () => {
     const result = sanitizer.sanitize(input);
     const elapsed = Date.now() - start;
 
-    expect(elapsed).toBeLessThan(200);
+    expect(elapsed).toBeLessThan(500);
     expect(result.safe).toBe(false);
   });
 

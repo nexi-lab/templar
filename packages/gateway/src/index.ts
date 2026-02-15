@@ -42,8 +42,17 @@ export {
 } from "./registry/health-monitor.js";
 // Registry
 export { NodeRegistry, type RegisteredNode } from "./registry/node-registry.js";
+// Binding resolver
+export {
+  BindingResolver,
+  type CompiledBinding,
+  type FieldMatcher,
+  compileBindings,
+  compilePattern,
+  matchField,
+} from "./binding-resolver.js";
 // Router
-export { AgentRouter, type MessageRouter } from "./router.js";
+export { AgentRouter, type AgentNodeResolver, type MessageRouter } from "./router.js";
 // Server
 export {
   type ConnectionHandler,
