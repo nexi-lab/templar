@@ -123,6 +123,7 @@ export {
   DeploymentError,
   DeploymentNotFoundError,
   ForbiddenError,
+  GatewayAgentNotFoundError,
   GatewayAuthFailedError,
   GatewayConfigInvalidError,
   GatewayConfigReloadFailedError,

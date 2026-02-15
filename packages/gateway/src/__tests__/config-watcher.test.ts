@@ -207,6 +207,106 @@ describe("ConfigWatcher", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Binding hot-reload
+  // -------------------------------------------------------------------------
+
+  describe("binding hot-reload", () => {
+    it("detects binding change from [A, B] to [A, C]", async () => {
+      const configWithBindings: GatewayConfig = {
+        ...VALID_CONFIG,
+        bindings: [
+          { agentId: "agent-a", match: { channel: "slack" } },
+          { agentId: "agent-b", match: { channel: "discord" } },
+        ],
+      };
+      const updatedHandler = vi.fn();
+      const watcher = new ConfigWatcher(configWithBindings, 10, createMockDeps());
+      watcher.onUpdated(updatedHandler);
+
+      const newConfig: GatewayConfig = {
+        ...VALID_CONFIG,
+        bindings: [
+          { agentId: "agent-a", match: { channel: "slack" } },
+          { agentId: "agent-c", match: { channel: "whatsapp" } },
+        ],
+      };
+      await writeFile(configPath, JSON.stringify(newConfig));
+
+      await watcher.watch(configPath);
+      await watcher.triggerReload();
+
+      expect(updatedHandler).toHaveBeenCalledTimes(1);
+      const [, fields] = updatedHandler.mock.calls[0] as [GatewayConfig, string[]];
+      expect(fields).toContain("bindings");
+    });
+
+    it("detects removal of all bindings (set to empty array)", async () => {
+      const configWithBindings: GatewayConfig = {
+        ...VALID_CONFIG,
+        bindings: [{ agentId: "agent-a", match: { channel: "slack" } }],
+      };
+      const updatedHandler = vi.fn();
+      const watcher = new ConfigWatcher(configWithBindings, 10, createMockDeps());
+      watcher.onUpdated(updatedHandler);
+
+      // New config has empty bindings array
+      const newConfig: GatewayConfig = { ...VALID_CONFIG, bindings: [] };
+      await writeFile(configPath, JSON.stringify(newConfig));
+
+      await watcher.watch(configPath);
+      await watcher.triggerReload();
+
+      expect(updatedHandler).toHaveBeenCalledTimes(1);
+      const [config, fields] = updatedHandler.mock.calls[0] as [GatewayConfig, string[]];
+      expect(fields).toContain("bindings");
+      expect(config.bindings).toHaveLength(0);
+    });
+
+    it("detects adding bindings to empty config", async () => {
+      const updatedHandler = vi.fn();
+      const watcher = new ConfigWatcher(VALID_CONFIG, 10, createMockDeps());
+      watcher.onUpdated(updatedHandler);
+
+      const newConfig: GatewayConfig = {
+        ...VALID_CONFIG,
+        bindings: [{ agentId: "agent-a", match: { channel: "slack" } }],
+      };
+      await writeFile(configPath, JSON.stringify(newConfig));
+
+      await watcher.watch(configPath);
+      await watcher.triggerReload();
+
+      expect(updatedHandler).toHaveBeenCalledTimes(1);
+      const [config, fields] = updatedHandler.mock.calls[0] as [GatewayConfig, string[]];
+      expect(fields).toContain("bindings");
+      expect(config.bindings).toHaveLength(1);
+    });
+
+    it("retains old config when new config has invalid bindings", async () => {
+      const configWithBindings: GatewayConfig = {
+        ...VALID_CONFIG,
+        bindings: [{ agentId: "agent-a", match: { channel: "slack" } }],
+      };
+      const errorHandler = vi.fn();
+      const watcher = new ConfigWatcher(configWithBindings, 10, createMockDeps());
+      watcher.onError(errorHandler);
+
+      // Invalid: agentId is empty string (min length 1)
+      const invalidConfig = {
+        ...VALID_CONFIG,
+        bindings: [{ agentId: "", match: { channel: "slack" } }],
+      };
+      await writeFile(configPath, JSON.stringify(invalidConfig));
+
+      await watcher.watch(configPath);
+      await watcher.triggerReload();
+
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(watcher.getConfig()).toEqual(configWithBindings);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Stop
   // -------------------------------------------------------------------------
 

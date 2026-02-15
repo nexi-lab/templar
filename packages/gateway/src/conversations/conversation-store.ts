@@ -33,10 +33,16 @@ export interface ConversationStoreConfig {
  * - TTL sweep:       removes bindings older than `conversationTtl`
  * - Capacity eviction: evicts oldest binding when `maxConversations` is reached
  */
+/** Capacity threshold (80%) at which a warning is emitted. */
+const CAPACITY_WARNING_THRESHOLD = 0.8;
+/** Hysteresis threshold (70%) at which the warning flag is reset. */
+const CAPACITY_WARNING_RESET = 0.7;
+
 export class ConversationStore {
   private bindings: ReadonlyMap<string, ConversationBinding> = new Map();
   private nodeIndex: ReadonlyMap<string, ReadonlySet<string>> = new Map();
   private config: ConversationStoreConfig;
+  private capacityWarningEmitted = false;
 
   constructor(config: ConversationStoreConfig) {
     this.config = config;
@@ -70,6 +76,9 @@ export class ConversationStore {
 
     this.bindings = mapSet(this.bindings, key, binding);
     this.addToNodeIndex(nodeId, key);
+
+    // Capacity warning with hysteresis
+    this.checkCapacityWarning();
 
     return binding;
   }
@@ -178,6 +187,18 @@ export class ConversationStore {
       this.nodeIndex = mapDelete(this.nodeIndex, nodeId);
     } else {
       this.nodeIndex = mapSet(this.nodeIndex, nodeId, next);
+    }
+  }
+
+  private checkCapacityWarning(): void {
+    const ratio = this.bindings.size / this.config.maxConversations;
+    if (ratio >= CAPACITY_WARNING_THRESHOLD && !this.capacityWarningEmitted) {
+      this.capacityWarningEmitted = true;
+      console.warn(
+        `[ConversationStore] Capacity warning: ${this.bindings.size}/${this.config.maxConversations} conversations (${Math.round(ratio * 100)}%)`,
+      );
+    } else if (ratio < CAPACITY_WARNING_RESET && this.capacityWarningEmitted) {
+      this.capacityWarningEmitted = false;
     }
   }
 

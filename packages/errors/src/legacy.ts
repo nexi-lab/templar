@@ -990,6 +990,22 @@ export class GatewayNodeNotFoundError extends NotFoundError<"GATEWAY_NODE_NOT_FO
   }
 }
 
+/** @deprecated Use `new NotFoundError({ code: "GATEWAY_AGENT_NOT_FOUND", ... })` */
+export class GatewayAgentNotFoundError extends NotFoundError<"GATEWAY_AGENT_NOT_FOUND"> {
+  constructor(
+    public readonly agentId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "GATEWAY_AGENT_NOT_FOUND",
+      message: `Agent '${agentId}' is not served by any registered node`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
 /** @deprecated Use `new ConflictError({ code: "GATEWAY_NODE_ALREADY_REGISTERED", ... })` */
 export class GatewayNodeAlreadyRegisteredError extends ConflictError<"GATEWAY_NODE_ALREADY_REGISTERED"> {
   constructor(

@@ -607,6 +607,15 @@ export const ERROR_CATALOG = {
     title: "Gateway node not found",
     description: "The specified node is not registered with the gateway",
   },
+  GATEWAY_AGENT_NOT_FOUND: {
+    domain: "gateway",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Gateway agent not found",
+    description: "The specified agent is not served by any registered node",
+  },
   GATEWAY_NODE_ALREADY_REGISTERED: {
     domain: "gateway",
     httpStatus: 409,

@@ -5,6 +5,14 @@
  * Used by both @templar/gateway (server) and @templar/node (client).
  */
 
+// Bindings
+export {
+  type AgentBinding,
+  AgentBindingSchema,
+  type BindingMatch,
+  BindingMatchSchema,
+} from "./bindings.js";
+
 // Conversations
 export {
   CONVERSATION_SCOPES,
