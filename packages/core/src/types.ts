@@ -77,6 +77,46 @@ export interface AgentManifest {
   schedule?: string;
   prompt?: string;
   skills?: string[];
+  bootstrap?: BootstrapPathConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Bootstrap File Hierarchy
+// ---------------------------------------------------------------------------
+
+/** Bootstrap file kind — determines which files to load per agent type */
+export type BootstrapFileKind = "instructions" | "tools" | "context";
+
+/** Per-file size budgets (characters) */
+export interface BootstrapBudget {
+  readonly instructions: number;
+  readonly tools: number;
+  readonly context: number;
+}
+
+/** Resolved bootstrap file content (output of resolution) */
+export interface BootstrapFile {
+  readonly kind: BootstrapFileKind;
+  readonly content: string;
+  readonly filePath: string;
+  readonly originalSize: number;
+  readonly truncated: boolean;
+  readonly contentHash: string;
+}
+
+/** Complete resolved bootstrap context */
+export interface BootstrapContext {
+  readonly files: readonly BootstrapFile[];
+  readonly totalSize: number;
+  readonly resolvedFrom: string;
+}
+
+/** Bootstrap path overrides in agent manifest */
+export interface BootstrapPathConfig {
+  readonly instructions?: string;
+  readonly tools?: string;
+  readonly context?: string;
+  readonly budget?: Partial<BootstrapBudget>;
 }
 
 /**

@@ -176,4 +176,35 @@ describe("normalizeManifest", () => {
       expect(raw).toEqual(rawCopy);
     });
   });
+
+  describe("bootstrap normalization", () => {
+    it("converts bootstrap: true to empty object", () => {
+      const raw = { ...minimal, bootstrap: true };
+      const result = normalizeManifest(raw);
+      expect(result.bootstrap).toEqual({});
+    });
+
+    it("converts bootstrap: false to undefined", () => {
+      const raw = { ...minimal, bootstrap: false };
+      const result = normalizeManifest(raw);
+      expect(result.bootstrap).toBeUndefined();
+    });
+
+    it("passes through object bootstrap unchanged", () => {
+      const raw = { ...minimal, bootstrap: { instructions: "AGENT.md" } };
+      const result = normalizeManifest(raw);
+      expect(result.bootstrap).toEqual({ instructions: "AGENT.md" });
+    });
+
+    it("leaves bootstrap undefined when not present", () => {
+      const result = normalizeManifest({ ...minimal });
+      expect(result.bootstrap).toBeUndefined();
+    });
+
+    it("converts null to undefined", () => {
+      const raw = { ...minimal, bootstrap: null };
+      const result = normalizeManifest(raw);
+      expect(result.bootstrap).toBeUndefined();
+    });
+  });
 });

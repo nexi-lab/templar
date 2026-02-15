@@ -89,6 +89,38 @@ export const SkillRefSchema = z
     "Skill name must be lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens",
   );
 
+export const BootstrapBudgetSchema = z.object({
+  instructions: z.number().int().min(100).max(50_000).optional(),
+  tools: z.number().int().min(100).max(50_000).optional(),
+  context: z.number().int().min(100).max(50_000).optional(),
+});
+
+/** Relative path without ".." traversal segments or absolute prefixes */
+const SAFE_BOOTSTRAP_PATH = /^(?!\/)(?!.*\.\.\/)[\w.\-/]+$/;
+const bootstrapPathRefine = (v: string) => SAFE_BOOTSTRAP_PATH.test(v);
+const bootstrapPathMessage = {
+  message: "Must be a relative path without '..' segments",
+};
+
+export const BootstrapPathConfigSchema = z.object({
+  instructions: z
+    .string()
+    .min(1)
+    .refine(bootstrapPathRefine, bootstrapPathMessage)
+    .optional(),
+  tools: z
+    .string()
+    .min(1)
+    .refine(bootstrapPathRefine, bootstrapPathMessage)
+    .optional(),
+  context: z
+    .string()
+    .min(1)
+    .refine(bootstrapPathRefine, bootstrapPathMessage)
+    .optional(),
+  budget: BootstrapBudgetSchema.optional(),
+});
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -102,6 +134,7 @@ export const AgentManifestSchema = z.object({
   schedule: ScheduleSchema.optional(),
   prompt: PromptSchema.optional(),
   skills: z.array(SkillRefSchema).optional(),
+  bootstrap: BootstrapPathConfigSchema.optional(),
 });
 
 /**

@@ -113,6 +113,25 @@ function normalizeIdentity(prompt: unknown, identity: unknown): IdentityConfig |
 }
 
 /**
+ * Normalizes `bootstrap` sugar:
+ * - `bootstrap: true`  → `bootstrap: {}` (use all defaults)
+ * - `bootstrap: false` or absent → `undefined` (no bootstrap files)
+ * - object form passes through as-is
+ */
+function normalizeBootstrap(bootstrap: unknown): Record<string, unknown> | undefined {
+  if (bootstrap === true) {
+    return {};
+  }
+  if (bootstrap === false || bootstrap === undefined || bootstrap === null) {
+    return undefined;
+  }
+  if (typeof bootstrap === "object") {
+    return bootstrap as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+/**
  * Normalizes sugar syntax in a raw manifest object into the full structured
  * form expected by the Zod schema.
  *
@@ -120,12 +139,13 @@ function normalizeIdentity(prompt: unknown, identity: unknown): IdentityConfig |
  * - `model: "claude-sonnet-4-5"` → `model: { provider: "anthropic", name: "claude-sonnet-4-5" }`
  * - `channels: ["slack"]` → `channels: [{ type: "slack", config: {} }]`
  * - `prompt: "..."` → `identity.default.systemPromptPrefix: "..."`
+ * - `bootstrap: true` → `bootstrap: {}` (use all defaults)
  * - `schedule` passes through unchanged
  *
  * Always returns a **new object** — never mutates the input.
  */
 export function normalizeManifest(raw: Record<string, unknown>): Record<string, unknown> {
-  const { model, channels, prompt, ...rest } = raw;
+  const { model, channels, prompt, bootstrap, ...rest } = raw;
 
   const normalized: Record<string, unknown> = { ...rest };
 
@@ -142,6 +162,11 @@ export function normalizeManifest(raw: Record<string, unknown>): Record<string, 
   const normalizedIdentity = normalizeIdentity(prompt, rest.identity);
   if (normalizedIdentity !== undefined) {
     normalized.identity = normalizedIdentity;
+  }
+
+  const normalizedBootstrap = normalizeBootstrap(bootstrap);
+  if (normalizedBootstrap !== undefined) {
+    normalized.bootstrap = normalizedBootstrap;
   }
 
   // prompt is consumed by normalizeIdentity — do not carry it forward

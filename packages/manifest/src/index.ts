@@ -15,11 +15,30 @@ export { normalizeManifest } from "./normalize.js";
 export { type ParseManifestOptions, parseManifestYaml } from "./parser.js";
 
 // ============================================================================
+// BOOTSTRAP
+// ============================================================================
+
+export {
+  BOOTSTRAP_FILENAMES,
+  DEFAULT_BUDGET,
+  type ResolveBootstrapOptions,
+  resolveBootstrapFiles,
+} from "./bootstrap-resolver.js";
+export {
+  type TruncateOptions,
+  type TruncateResult,
+  truncateContent,
+} from "./truncate.js";
+export { fileExists, readTextFile } from "./fs-utils.js";
+
+// ============================================================================
 // SCHEMA
 // ============================================================================
 
 export {
   AgentManifestSchema,
+  BootstrapBudgetSchema,
+  BootstrapPathConfigSchema,
   ChannelIdentityConfigSchema,
   IdentityConfigSchema,
   PromptSchema,

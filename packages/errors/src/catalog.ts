@@ -1059,6 +1059,39 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // BOOTSTRAP ERRORS — Bootstrap file hierarchy
+  // ============================================================================
+  BOOTSTRAP_FILE_NOT_FOUND: {
+    domain: "bootstrap",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Bootstrap file not found",
+    description: "A referenced bootstrap file does not exist on disk",
+  },
+  BOOTSTRAP_FILE_TOO_LARGE: {
+    domain: "bootstrap",
+    httpStatus: 413,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Bootstrap file too large",
+    description:
+      "A bootstrap file exceeds the character budget after truncation marker",
+  },
+  BOOTSTRAP_PARSE_FAILED: {
+    domain: "bootstrap",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Bootstrap file parse failed",
+    description:
+      "A bootstrap file is binary, has invalid encoding, or could not be read",
+  },
+
+  // ============================================================================
   // MODEL ERRORS — Multi-provider LLM routing and failover
   // ============================================================================
   MODEL_PROVIDER_AUTH_FAILED: {
