@@ -7,6 +7,7 @@ import type { NodeRegistry, RegisteredNode } from "./node-registry.js";
 
 export type NodeDeadHandler = (node: RegisteredNode) => void;
 export type PingSender = (nodeId: string) => void;
+export type SweepHandler = () => void;
 
 export interface HealthMonitorConfig {
   /** Health check interval in ms */
@@ -19,6 +20,7 @@ export interface HealthMonitorConfig {
 
 type HealthMonitorEvents = {
   "node.dead": [node: RegisteredNode];
+  sweep: [];
 };
 
 // ---------------------------------------------------------------------------
@@ -75,6 +77,14 @@ export class HealthMonitor {
   }
 
   /**
+   * Register a handler called on each sweep cycle.
+   * Returns a disposer function.
+   */
+  onSweep(handler: SweepHandler): () => void {
+    return this.events.on("sweep", handler);
+  }
+
+  /**
    * Handle a pong response from a node.
    */
   handlePong(nodeId: string): void {
@@ -93,6 +103,7 @@ export class HealthMonitor {
   // -------------------------------------------------------------------------
 
   private sweep(): void {
+    this.events.emit("sweep");
     const nodes = this.registry.all();
     for (const node of nodes) {
       if (!node.isAlive) {

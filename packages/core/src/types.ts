@@ -311,7 +311,12 @@ export interface ChannelModule {
 }
 
 /**
- * Session context — passed to middleware on session start/end
+ * Session context — passed to middleware on session start/end.
+ *
+ * NOTE: This type represents a conversation-level context (agent + user + scope),
+ * NOT the node connection lifecycle (see @templar/gateway-protocol SessionInfo).
+ * A type alias `ConversationContext` is provided for clarity in new code.
+ * Full rename planned for a follow-up PR.
  */
 export interface SessionContext {
   /** Unique session identifier */
@@ -325,6 +330,9 @@ export interface SessionContext {
   /** Arbitrary metadata */
   metadata?: Record<string, unknown>;
 }
+
+/** @see SessionContext — alias for clarity in conversation-scoping code */
+export type ConversationContext = SessionContext;
 
 /**
  * Turn context — passed to middleware before/after each turn

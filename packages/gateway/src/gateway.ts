@@ -1,4 +1,5 @@
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
+import { ConversationStore } from "./conversations/conversation-store.js";
 import { DeliveryTracker } from "./delivery-tracker.js";
 import { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import type {
@@ -61,6 +62,7 @@ type GatewayEvents = {
  * - AgentRouter (channel → node routing)
  * - LaneDispatcher (per-node priority queues)
  * - ConfigWatcher (hot-reload)
+ * - ConversationStore (conversation-to-node bindings with TTL)
  */
 export class TemplarGateway {
   private readonly registry: NodeRegistry;
@@ -70,6 +72,7 @@ export class TemplarGateway {
   private readonly configWatcher: ConfigWatcher;
   private readonly server: GatewayServer;
   private readonly deliveryTracker: DeliveryTracker;
+  private readonly conversationStore: ConversationStore;
   private readonly events: Emitter<GatewayEvents> = createEmitter();
 
   // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
@@ -119,6 +122,14 @@ export class TemplarGateway {
     // 7. Delivery tracker for lane message ack
     this.deliveryTracker = new DeliveryTracker(config.laneCapacity);
 
+    // 8. Conversation store for session scoping
+    this.conversationStore = new ConversationStore({
+      maxConversations: config.maxConversations,
+      conversationTtl: config.conversationTtl,
+    });
+    this.router.setConversationStore(this.conversationStore);
+    this.router.setConversationScope(config.defaultConversationScope);
+
     // Wire all event handlers
     this.wireFrameHandlers(config);
     this.wireConnectionHandlers();
@@ -154,6 +165,7 @@ export class TemplarGateway {
     this.sessionManager.dispose();
     this.registry.clear();
     this.deliveryTracker.clear();
+    this.conversationStore.clear();
     this.connectionToNode.clear();
     this.nodeToConnection.clear();
     this.events.clear();
@@ -235,6 +247,13 @@ export class TemplarGateway {
     return this.deliveryTracker;
   }
 
+  /**
+   * Get the conversation store (read-only access).
+   */
+  getConversationStore(): ConversationStore {
+    return this.conversationStore;
+  }
+
   // -------------------------------------------------------------------------
   // Event registration (returns disposers)
   // -------------------------------------------------------------------------
@@ -308,10 +327,29 @@ export class TemplarGateway {
       this.cleanupNode(node.nodeId);
       this.events.emit("node.dead", node.nodeId);
     });
+
+    // Piggyback conversation TTL sweep on health check interval
+    this.healthMonitor.onSweep(() => {
+      this.conversationStore.sweep();
+    });
   }
 
   private wireConfigWatcherHandlers(): void {
-    this.configWatcher.onUpdated((_newConfig, changedFields) => {
+    this.configWatcher.onUpdated((newConfig, changedFields) => {
+      // Handle conversation scope changes — clear store to prevent stale bindings
+      if (changedFields.includes("defaultConversationScope")) {
+        this.router.setConversationScope(newConfig.defaultConversationScope);
+        this.conversationStore.clear();
+      }
+
+      // Update conversation store config on relevant field changes
+      if (changedFields.includes("maxConversations") || changedFields.includes("conversationTtl")) {
+        this.conversationStore.updateConfig({
+          maxConversations: newConfig.maxConversations,
+          conversationTtl: newConfig.conversationTtl,
+        });
+      }
+
       // Broadcast config change to all connected nodes
       const frame: GatewayFrame = {
         kind: "config.changed",
@@ -480,6 +518,7 @@ export class TemplarGateway {
   private cleanupNode(nodeId: string): void {
     // Remove in reverse order of creation
     this.router.removeDispatcher(nodeId);
+    this.conversationStore.removeNode(nodeId);
     this.deliveryTracker.removeNode(nodeId);
 
     const session = this.sessionManager.getSession(nodeId);

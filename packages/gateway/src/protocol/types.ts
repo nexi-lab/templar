@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type ConversationScope, ConversationScopeSchema } from "./conversations.js";
 
 // ---------------------------------------------------------------------------
 // Node Capabilities
@@ -55,6 +56,9 @@ export const HOT_RELOADABLE_FIELDS = [
   "healthCheckInterval",
   "laneCapacity",
   "maxFramesPerSecond",
+  "defaultConversationScope",
+  "maxConversations",
+  "conversationTtl",
 ] as const;
 export type HotReloadableField = (typeof HOT_RELOADABLE_FIELDS)[number];
 
@@ -89,6 +93,12 @@ export interface GatewayConfig {
   readonly maxConnections: number;
   /** Max frames per second per connection before rate limiting (default: 100) */
   readonly maxFramesPerSecond: number;
+  /** Default conversation scoping mode for DM isolation (default: 'per-channel-peer') */
+  readonly defaultConversationScope: ConversationScope;
+  /** Maximum number of tracked conversations before eviction (default: 100_000) */
+  readonly maxConversations: number;
+  /** Conversation TTL in ms — inactive conversations are swept (default: 86_400_000 = 24h) */
+  readonly conversationTtl: number;
 }
 
 export const GatewayConfigSchema = z.object({
@@ -101,6 +111,9 @@ export const GatewayConfigSchema = z.object({
   laneCapacity: z.number().int().positive(),
   maxConnections: z.number().int().positive(),
   maxFramesPerSecond: z.number().int().positive(),
+  defaultConversationScope: ConversationScopeSchema,
+  maxConversations: z.number().int().positive(),
+  conversationTtl: z.number().int().positive(),
 });
 
 /**
@@ -114,4 +127,7 @@ export const DEFAULT_GATEWAY_CONFIG: Omit<GatewayConfig, "nexusUrl" | "nexusApiK
   laneCapacity: 256,
   maxConnections: 1024,
   maxFramesPerSecond: 100,
+  defaultConversationScope: "per-channel-peer",
+  maxConversations: 100_000,
+  conversationTtl: 86_400_000,
 } as const;
