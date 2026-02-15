@@ -15,6 +15,9 @@ const VALID_CONFIG: GatewayConfig = {
   laneCapacity: 256,
   maxConnections: 1024,
   maxFramesPerSecond: 100,
+  defaultConversationScope: "per-channel-peer",
+  maxConversations: 100_000,
+  conversationTtl: 86_400_000,
 };
 
 function createMockDeps(): ConfigWatcherDeps {

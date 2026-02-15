@@ -43,6 +43,7 @@ export type {
   ReactionCapability,
   ReadReceiptCapability,
   RichTextCapability,
+  ConversationContext,
   SessionContext,
   TemplarConfig,
   TemplarMiddleware,

@@ -26,6 +26,9 @@ describe("GatewayConfig", () => {
     laneCapacity: 256,
     maxConnections: 1024,
     maxFramesPerSecond: 100,
+    defaultConversationScope: "per-channel-peer" as const,
+    maxConversations: 100_000,
+    conversationTtl: 86_400_000,
   };
 
   it("accepts valid config", () => {
@@ -70,6 +73,9 @@ describe("DEFAULT_GATEWAY_CONFIG", () => {
     expect(DEFAULT_GATEWAY_CONFIG.suspendTimeout).toBe(300_000);
     expect(DEFAULT_GATEWAY_CONFIG.healthCheckInterval).toBe(30_000);
     expect(DEFAULT_GATEWAY_CONFIG.laneCapacity).toBe(256);
+    expect(DEFAULT_GATEWAY_CONFIG.defaultConversationScope).toBe("per-channel-peer");
+    expect(DEFAULT_GATEWAY_CONFIG.maxConversations).toBe(100_000);
+    expect(DEFAULT_GATEWAY_CONFIG.conversationTtl).toBe(86_400_000);
   });
 });
 
@@ -160,6 +166,23 @@ describe("LaneMessage", () => {
       timestamp: Date.now(),
     };
     expect(LaneMessageSchema.parse(msg)).toEqual(msg);
+  });
+
+  it("accepts message with routingContext", () => {
+    const msg = {
+      id: "msg-2",
+      lane: "steer" as const,
+      channelId: "ch-1",
+      payload: { text: "hello" },
+      timestamp: Date.now(),
+      routingContext: {
+        peerId: "peer-1",
+        accountId: "acc-1",
+        messageType: "dm" as const,
+      },
+    };
+    const result = LaneMessageSchema.parse(msg);
+    expect(result.routingContext?.peerId).toBe("peer-1");
   });
 
   it("rejects empty id", () => {
