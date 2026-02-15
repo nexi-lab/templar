@@ -50,6 +50,7 @@ export type {
   ChannelIdentityConfig,
   ChannelModule,
   ContentBlock,
+  ConversationContext,
   DeepAgentConfig,
   FileBlock,
   FileCapability,

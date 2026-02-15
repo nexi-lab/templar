@@ -14,6 +14,12 @@ export {
   ConfigWatcher,
   type ConfigWatcherDeps,
 } from "./config-watcher.js";
+// Conversations
+export {
+  type ConversationBinding,
+  ConversationStore,
+  type ConversationStoreConfig,
+} from "./conversations/index.js";
 // Delivery tracking
 export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
 // Orchestrator
@@ -32,6 +38,7 @@ export {
   type HealthMonitorConfig,
   type NodeDeadHandler,
   type PingSender,
+  type SweepHandler,
 } from "./registry/health-monitor.js";
 // Registry
 export { NodeRegistry, type RegisteredNode } from "./registry/node-registry.js";

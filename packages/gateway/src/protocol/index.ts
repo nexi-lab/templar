@@ -5,6 +5,23 @@
  * Used by both @templar/gateway (server) and @templar/node (client).
  */
 
+// Conversations
+export {
+  CONVERSATION_SCOPES,
+  type ConversationKey,
+  type ConversationKeyInput,
+  type ConversationKeyResult,
+  type ConversationScope,
+  ConversationScopeSchema,
+  MESSAGE_TYPES,
+  type MessageRoutingContext,
+  MessageRoutingContextSchema,
+  type MessageType,
+  MessageTypeSchema,
+  parseConversationKey,
+  resolveConversationKey,
+} from "./conversations.js";
+
 // Frames
 export {
   type ConfigChangedFrame,

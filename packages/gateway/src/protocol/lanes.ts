@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type MessageRoutingContext, MessageRoutingContextSchema } from "./conversations.js";
 
 // ---------------------------------------------------------------------------
 // Lane Priority
@@ -47,6 +48,8 @@ export interface LaneMessage {
   readonly channelId: string;
   readonly payload: unknown;
   readonly timestamp: number;
+  /** Routing context for conversation scoping (populated by channel adapter) */
+  readonly routingContext?: MessageRoutingContext;
 }
 
 export const LaneMessageSchema = z.object({
@@ -55,4 +58,5 @@ export const LaneMessageSchema = z.object({
   channelId: z.string().min(1),
   payload: z.unknown(),
   timestamp: z.number().int().positive(),
+  routingContext: MessageRoutingContextSchema.optional(),
 });

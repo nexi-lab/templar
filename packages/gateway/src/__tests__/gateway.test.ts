@@ -284,12 +284,274 @@ describe("TemplarGateway", () => {
   // -------------------------------------------------------------------------
 
   describe("subsystem accessors", () => {
-    it("exposes registry, session manager, router, and delivery tracker", () => {
+    it("exposes registry, session manager, router, delivery tracker, and conversation store", () => {
       const { gateway } = createTestGateway();
       expect(gateway.getRegistry()).toBeDefined();
       expect(gateway.getSessionManager()).toBeDefined();
       expect(gateway.getRouter()).toBeDefined();
       expect(gateway.getDeliveryTracker()).toBeDefined();
+      expect(gateway.getConversationStore()).toBeDefined();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Conversation scoping
+  // -------------------------------------------------------------------------
+
+  describe("conversation scoping", () => {
+    it("creates conversation binding when routing with scope", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      // Register node
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      // Bind channel
+      gateway.bindChannel("ch-1", "agent-1");
+
+      // Route with scope
+      const router = gateway.getRouter();
+      const result = router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: { text: "hello" },
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+
+      expect(result.key).toBe("agent:bot-1:ch-1:dm:peer-1");
+      expect(result.degraded).toBe(false);
+
+      // Verify conversation store has the binding
+      const store = gateway.getConversationStore();
+      const binding = store.get(result.key);
+      expect(binding).toBeDefined();
+      expect(binding?.nodeId).toBe("agent-1");
+
+      await gateway.stop();
+    });
+
+    it("same peer on two channels with per-channel-peer → separate conversations", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("whatsapp", "agent-1");
+      gateway.bindChannel("telegram", "agent-1");
+
+      const router = gateway.getRouter();
+      const msg = (channelId: string) => ({
+        id: `msg-${channelId}`,
+        lane: "steer" as const,
+        channelId,
+        payload: {},
+        timestamp: Date.now(),
+        routingContext: { peerId: "peer-1", messageType: "dm" as const },
+      });
+
+      const r1 = router.routeWithScope(msg("whatsapp"), "bot-1");
+      const r2 = router.routeWithScope(msg("telegram"), "bot-1");
+
+      expect(r1.key).not.toBe(r2.key);
+      expect(r1.key).toContain("whatsapp");
+      expect(r2.key).toContain("telegram");
+
+      await gateway.stop();
+    });
+
+    it("same peer on two channels with per-peer → shared conversation", async () => {
+      const { gateway, wss } = createTestGateway({
+        defaultConversationScope: "per-peer",
+      });
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("whatsapp", "agent-1");
+      gateway.bindChannel("telegram", "agent-1");
+
+      const router = gateway.getRouter();
+      const msg = (channelId: string) => ({
+        id: `msg-${channelId}`,
+        lane: "steer" as const,
+        channelId,
+        payload: {},
+        timestamp: Date.now(),
+        routingContext: { peerId: "peer-1", messageType: "dm" as const },
+      });
+
+      const r1 = router.routeWithScope(msg("whatsapp"), "bot-1");
+      const r2 = router.routeWithScope(msg("telegram"), "bot-1");
+
+      expect(r1.key).toBe(r2.key);
+      expect(r1.key).toBe("agent:bot-1:dm:peer-1");
+
+      await gateway.stop();
+    });
+
+    it("group message ignores DM scope", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("slack", "agent-1");
+
+      const router = gateway.getRouter();
+      const result = router.routeWithScope(
+        {
+          id: "msg-grp",
+          lane: "steer",
+          channelId: "slack",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { groupId: "grp-42", messageType: "group" },
+        },
+        "bot-1",
+      );
+
+      expect(result.key).toBe("agent:bot-1:slack:group:grp-42");
+
+      await gateway.stop();
+    });
+
+    it("agent-level scope override", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      const router = gateway.getRouter();
+      router.setAgentScope("bot-special", "main");
+
+      const result = router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-special",
+      );
+
+      expect(result.key).toBe("agent:bot-special:main");
+
+      await gateway.stop();
+    });
+
+    it("missing routingContext falls back to main", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      const router = gateway.getRouter();
+      const result = router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          // No routingContext — peerId will be undefined
+        },
+        "bot-1",
+      );
+
+      // per-channel-peer with no peerId degrades to main
+      expect(result.key).toBe("agent:bot-1:main");
+      expect(result.degraded).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
+
+      await gateway.stop();
+    });
+
+    it("cleanupNode removes conversation bindings via reverse index", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      const router = gateway.getRouter();
+      router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+
+      expect(gateway.getConversationStore().size).toBe(1);
+
+      // Deregister the node
+      sendFrame(ws, {
+        kind: "node.deregister",
+        nodeId: "agent-1",
+        reason: "shutting down",
+      });
+
+      expect(gateway.getConversationStore().size).toBe(0);
+
+      await gateway.stop();
     });
   });
 });
