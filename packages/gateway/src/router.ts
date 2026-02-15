@@ -58,10 +58,21 @@ export type AgentNodeResolver = (agentId: string) => string | undefined;
 /**
  * Routes channel messages to the appropriate node's lane dispatcher.
  *
- * Supports two routing paths (binding-based takes precedence):
- * 1. **Binding-based**: Declarative AgentBinding rules resolve to an agentId,
- *    then the agentId is mapped to a nodeId via the injected resolver.
- * 2. **Channel-based**: Explicit channelId → nodeId bindings (backward compat).
+ * **Routing precedence** (first path that matches wins):
+ *
+ * 1. **Binding-based** (multi-agent routing): If a `BindingResolver` is
+ *    configured, each inbound message is tested against declarative
+ *    `AgentBinding` rules in declaration order (first match wins). The
+ *    matched agentId is resolved to a nodeId via the injected
+ *    `AgentNodeResolver`. If no binding matches, falls through to path 2.
+ *
+ * 2. **Channel-based** (backward compat / fallback): Explicit
+ *    `channelId → nodeId` bindings set via `bind()`. This is the legacy
+ *    API for single-agent gateways.
+ *
+ * **Implication**: A catch-all binding (`match: {}`) will prevent *all*
+ * channel-based routing. Partial binding sets allow mixed routing where
+ * unmatched channels fall through to channel bindings.
  *
  * Supports conversation scoping via ConversationStore to isolate
  * conversations by peer, channel, and account.
@@ -139,26 +150,22 @@ export class AgentRouter {
 
   /**
    * Route a message to the appropriate node's lane dispatcher.
+   * Returns the nodeId that the message was dispatched to.
    *
-   * Path 1 (binding-based): If a BindingResolver is configured, resolve
-   * the message to an agentId, then look up the nodeId. Falls through
-   * to path 2 if no binding matches.
-   *
-   * Path 2 (channel-based): Use explicit channelId → nodeId binding.
+   * See class-level JSDoc for routing precedence rules.
    */
-  route(message: LaneMessage): void {
-    // Path 1: Binding-based routing
+  route(message: LaneMessage): string {
+    // Path 1: Binding-based routing (takes precedence)
     if (this.bindingResolver) {
       const agentId = this.bindingResolver.resolve(message);
       if (agentId) {
-        this.dispatchToAgent(agentId, message);
-        return;
+        return this.resolveAndDispatchAgent(agentId, message);
       }
       // No binding matched — fall through to channel binding
     }
 
-    // Path 2: Channel → node binding (backward compat)
-    this.dispatchToChannel(message);
+    // Path 2: Channel → node binding (backward compat / fallback)
+    return this.resolveAndDispatchChannel(message);
   }
 
   /**
@@ -175,12 +182,12 @@ export class AgentRouter {
     const input = buildKeyInput(scope, agentId, message.channelId, message.routingContext);
     const result = resolveConversationKey(input);
 
-    // Dispatch first — if route() throws, no stale conversation binding is created
-    this.route(message);
+    // Dispatch first — if route() throws, no stale conversation binding is created.
+    // route() returns the nodeId it dispatched to, eliminating double resolution.
+    const nodeId = this.route(message);
 
     // Bind conversation to node only after successful dispatch
-    const nodeId = this.resolveNodeForMessage(message);
-    if (nodeId && this.conversationStore) {
+    if (this.conversationStore) {
       this.conversationStore.bind(result.key, nodeId);
     }
 
@@ -280,9 +287,9 @@ export class AgentRouter {
   // -------------------------------------------------------------------------
 
   /**
-   * Dispatch a message to a node by agentId (binding-based path).
+   * Resolve agentId → nodeId and dispatch the message. Returns the nodeId.
    */
-  private dispatchToAgent(agentId: string, message: LaneMessage): void {
+  private resolveAndDispatchAgent(agentId: string, message: LaneMessage): string {
     if (!this.agentNodeResolver) {
       throw new GatewayAgentNotFoundError(agentId);
     }
@@ -290,40 +297,31 @@ export class AgentRouter {
     if (!nodeId) {
       throw new GatewayAgentNotFoundError(agentId);
     }
-    const dispatcher = this.dispatchers.get(nodeId);
-    if (!dispatcher) {
-      throw new GatewayNodeNotFoundError(nodeId);
-    }
-    dispatcher.dispatch(message);
+    this.dispatchToNode(nodeId, message);
+    return nodeId;
   }
 
   /**
-   * Dispatch a message to a node by channel binding (legacy path).
+   * Resolve channelId → nodeId and dispatch the message. Returns the nodeId.
    */
-  private dispatchToChannel(message: LaneMessage): void {
+  private resolveAndDispatchChannel(message: LaneMessage): string {
     const nodeId = this.channelBindings.get(message.channelId);
     if (!nodeId) {
       throw new GatewayNodeNotFoundError(`No binding for channel '${message.channelId}'`);
     }
+    this.dispatchToNode(nodeId, message);
+    return nodeId;
+  }
+
+  /**
+   * Dispatch a message to a node's lane dispatcher by nodeId.
+   * Throws if the node has no registered dispatcher.
+   */
+  private dispatchToNode(nodeId: string, message: LaneMessage): void {
     const dispatcher = this.dispatchers.get(nodeId);
     if (!dispatcher) {
       throw new GatewayNodeNotFoundError(nodeId);
     }
     dispatcher.dispatch(message);
-  }
-
-  /**
-   * Resolve the nodeId a message was routed to (for conversation binding).
-   */
-  private resolveNodeForMessage(message: LaneMessage): string | undefined {
-    // Try binding-based resolution first
-    if (this.bindingResolver && this.agentNodeResolver) {
-      const agentId = this.bindingResolver.resolve(message);
-      if (agentId) {
-        return this.agentNodeResolver(agentId);
-      }
-    }
-    // Fall back to channel binding
-    return this.channelBindings.get(message.channelId);
   }
 }

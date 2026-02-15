@@ -8,7 +8,12 @@
 import { vi } from "vitest";
 import type { TemplarGatewayDeps } from "../gateway.js";
 import { TemplarGateway } from "../gateway.js";
-import type { GatewayConfig, GatewayFrame, NodeCapabilities } from "../protocol/index.js";
+import type {
+  GatewayConfig,
+  GatewayFrame,
+  LaneMessage,
+  NodeCapabilities,
+} from "../protocol/index.js";
 import type { WebSocketLike, WebSocketServerLike, WsServerFactory } from "../server.js";
 
 // ---------------------------------------------------------------------------
@@ -36,6 +41,25 @@ export const DEFAULT_CAPS: NodeCapabilities = {
   maxConcurrency: 4,
   channels: [],
 };
+
+// ---------------------------------------------------------------------------
+// Message factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a test LaneMessage with sensible defaults.
+ * Override any field via the `overrides` parameter.
+ */
+export function makeMessage(overrides: Partial<LaneMessage> = {}): LaneMessage {
+  return {
+    id: `msg-${Math.random().toString(36).slice(2)}`,
+    lane: "steer",
+    channelId: "ch-1",
+    payload: null,
+    timestamp: Date.now(),
+    ...overrides,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Mock WebSocket

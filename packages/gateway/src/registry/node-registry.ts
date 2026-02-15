@@ -32,11 +32,16 @@ interface CapabilitySets {
 
 /**
  * Registry of connected nodes with capability-based lookup.
+ *
+ * Maintains a reverse index from agentId → nodeId for O(1) agent resolution,
+ * kept in sync automatically during register/deregister.
  */
 export class NodeRegistry {
   private nodes: ReadonlyMap<string, RegisteredNode> = new Map();
   /** Pre-computed capability Sets for O(1) membership checks */
   private capSets: ReadonlyMap<string, CapabilitySets> = new Map();
+  /** Reverse index: agentId → nodeId (updated during register/deregister) */
+  private agentIndex: ReadonlyMap<string, string> = new Map();
 
   /**
    * Register a node with the gateway.
@@ -60,6 +65,14 @@ export class NodeRegistry {
       tools: new Set(capabilities.tools),
       channels: new Set(capabilities.channels),
     });
+    // Update agentId → nodeId reverse index
+    if (capabilities.agentIds) {
+      let nextIndex = this.agentIndex;
+      for (const agentId of capabilities.agentIds) {
+        nextIndex = mapSet(nextIndex, agentId, nodeId);
+      }
+      this.agentIndex = nextIndex;
+    }
     return node;
   }
 
@@ -67,8 +80,19 @@ export class NodeRegistry {
    * Deregister a node from the gateway.
    */
   deregister(nodeId: string): void {
-    if (!this.nodes.has(nodeId)) {
+    const node = this.nodes.get(nodeId);
+    if (!node) {
       throw new GatewayNodeNotFoundError(nodeId);
+    }
+    // Remove agentId → nodeId entries owned by this node
+    if (node.capabilities.agentIds) {
+      let nextIndex = this.agentIndex;
+      for (const agentId of node.capabilities.agentIds) {
+        if (this.agentIndex.get(agentId) === nodeId) {
+          nextIndex = mapDelete(nextIndex, agentId);
+        }
+      }
+      this.agentIndex = nextIndex;
     }
     this.nodes = mapDelete(this.nodes, nodeId);
     this.capSets = mapDelete(this.capSets, nodeId);
@@ -148,6 +172,21 @@ export class NodeRegistry {
   }
 
   /**
+   * Resolve a logical agentId to the nodeId that serves it.
+   * Uses the reverse index maintained during register/deregister.
+   */
+  resolveAgent(agentId: string): string | undefined {
+    return this.agentIndex.get(agentId);
+  }
+
+  /**
+   * Get the agentId → nodeId reverse index (for testing/inspection).
+   */
+  getAgentIndex(): ReadonlyMap<string, string> {
+    return this.agentIndex;
+  }
+
+  /**
    * Get the count of registered nodes.
    */
   get size(): number {
@@ -160,5 +199,6 @@ export class NodeRegistry {
   clear(): void {
     this.nodes = new Map();
     this.capSets = new Map();
+    this.agentIndex = new Map();
   }
 }

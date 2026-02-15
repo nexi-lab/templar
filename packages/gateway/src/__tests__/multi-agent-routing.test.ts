@@ -3,25 +3,10 @@ import { describe, expect, it } from "vitest";
 import { BindingResolver } from "../binding-resolver.js";
 import { LaneDispatcher } from "../lanes/lane-dispatcher.js";
 import type { AgentBinding } from "../protocol/bindings.js";
-import type { LaneMessage, NodeCapabilities } from "../protocol/index.js";
+import type { NodeCapabilities } from "../protocol/index.js";
 import { NodeRegistry } from "../registry/node-registry.js";
 import { AgentRouter } from "../router.js";
-import { createTestGateway, DEFAULT_CAPS, sendFrame } from "./helpers.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeMessage(overrides: Partial<LaneMessage> = {}): LaneMessage {
-  return {
-    id: `msg-${Math.random().toString(36).slice(2)}`,
-    lane: "steer",
-    channelId: "ch-1",
-    payload: null,
-    timestamp: Date.now(),
-    ...overrides,
-  };
-}
+import { createTestGateway, DEFAULT_CAPS, makeMessage, sendFrame } from "./helpers.js";
 
 function setupRouterWithBindings(
   bindings: AgentBinding[],

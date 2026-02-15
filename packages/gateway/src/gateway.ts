@@ -18,7 +18,6 @@ import { AgentRouter } from "./router.js";
 import { GatewayServer, type WsServerFactory } from "./server.js";
 import { SessionManager } from "./sessions/session-manager.js";
 import { createEmitter, type Emitter } from "./utils/emitter.js";
-import { mapDelete, mapSet } from "./utils/immutable-map.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,9 +81,6 @@ export class TemplarGateway {
   private connectionToNode = new Map<string, string>();
   private nodeToConnection = new Map<string, string>();
 
-  // agentId → nodeId mapping for multi-agent routing.
-  // Updated incrementally during node register/deregister.
-  private agentToNode: ReadonlyMap<string, string> = new Map();
   private bindingResolver: BindingResolver | undefined;
 
   constructor(config: GatewayConfig, deps: TemplarGatewayDeps = {}) {
@@ -143,7 +139,9 @@ export class TemplarGateway {
       this.bindingResolver.updateBindings(config.bindings);
       this.router.setBindingResolver(this.bindingResolver);
     }
-    this.router.setAgentNodeResolver((agentId) => this.resolveAgentNode(agentId));
+    // Agent resolution is delegated to the registry's reverse index.
+    // NodeRegistry maintains agentId → nodeId automatically during register/deregister.
+    this.router.setAgentNodeResolver((agentId) => this.registry.resolveAgent(agentId));
 
     // Wire all event handlers
     this.wireFrameHandlers(config);
@@ -278,9 +276,10 @@ export class TemplarGateway {
 
   /**
    * Get the agentId → nodeId map (for testing/inspection).
+   * Delegates to NodeRegistry's reverse index.
    */
   getAgentToNodeMap(): ReadonlyMap<string, string> {
-    return this.agentToNode;
+    return this.registry.getAgentIndex();
   }
 
   // -------------------------------------------------------------------------
@@ -383,8 +382,13 @@ export class TemplarGateway {
             this.router.setBindingResolver(this.bindingResolver);
           }
         }
-        // If bindings removed, the resolver stays but with empty compiled list
-        // which means no matches → falls through to channel bindings
+        // When bindings are removed from config, we clear the resolver's compiled
+        // list rather than removing the resolver entirely. An empty resolver produces
+        // no matches, so route() falls through to channel bindings — which is the
+        // correct backward-compatible behavior. We intentionally keep the resolver
+        // instance because router.setBindingResolver() was already called and there
+        // is no clearBindingResolver() API (nor should there be — empty resolver
+        // achieves the same effect with less complexity).
         if (this.bindingResolver && (!newConfig.bindings || newConfig.bindings.length === 0)) {
           this.bindingResolver.updateBindings([]);
         }
@@ -441,15 +445,8 @@ export class TemplarGateway {
       this.connectionToNode.set(connectionId, nodeId);
       this.nodeToConnection.set(nodeId, connectionId);
 
-      // Update agentId → nodeId mapping for multi-agent routing
-      // Batch updates to avoid intermediate Map allocations
-      if (frame.capabilities.agentIds) {
-        let nextMap = this.agentToNode;
-        for (const agentId of frame.capabilities.agentIds) {
-          nextMap = mapSet(nextMap, agentId, nodeId);
-        }
-        this.agentToNode = nextMap;
-      }
+      // Note: agentId → nodeId mapping is maintained by NodeRegistry automatically
+      // during register() — no need to update it here.
 
       // Create session
       const session = this.sessionManager.createSession(nodeId);
@@ -579,16 +576,7 @@ export class TemplarGateway {
     this.conversationStore.removeNode(nodeId);
     this.deliveryTracker.removeNode(nodeId);
 
-    // Remove agentId → nodeId entries for this node
-    const node = this.registry.get(nodeId);
-    if (node?.capabilities.agentIds) {
-      for (const agentId of node.capabilities.agentIds) {
-        // Only remove if this node still owns the mapping
-        if (this.agentToNode.get(agentId) === nodeId) {
-          this.agentToNode = mapDelete(this.agentToNode, agentId);
-        }
-      }
-    }
+    // Note: agentId → nodeId cleanup is handled by registry.deregister() below.
 
     const session = this.sessionManager.getSession(nodeId);
     if (session) {
@@ -605,12 +593,5 @@ export class TemplarGateway {
       this.connectionToNode.delete(connectionId);
     }
     this.nodeToConnection.delete(nodeId);
-  }
-
-  /**
-   * Resolve a logical agentId to the nodeId that serves it.
-   */
-  private resolveAgentNode(agentId: string): string | undefined {
-    return this.agentToNode.get(agentId);
   }
 }

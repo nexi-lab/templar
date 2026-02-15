@@ -36,17 +36,40 @@ export interface CompiledBinding {
  * - `"foo-*"` → prefix match (starts with "foo-")
  * - `"*-bar"` → suffix match (ends with "-bar")
  * - `"exact"` → exact match
+ *
+ * Throws on unsupported patterns:
+ * - `"*foo*"` — contains (double wildcard)
+ * - `"foo-*-bar"` — interior wildcard
  */
 export function compilePattern(pattern: string): FieldMatcher {
   if (pattern === "*") {
     return { type: "any" };
   }
-  if (pattern.startsWith("*") && !pattern.endsWith("*")) {
-    return { type: "suffix", value: pattern.slice(1) };
+
+  // Count wildcards — only 0 or 1 are supported
+  const wildcardCount = pattern.split("*").length - 1;
+  if (wildcardCount > 1) {
+    throw new Error(
+      `Unsupported binding pattern "${pattern}": multiple wildcards are not supported. ` +
+        `Use "prefix-*", "*-suffix", "*" (any), or an exact string.`,
+    );
   }
-  if (pattern.endsWith("*") && !pattern.startsWith("*")) {
+
+  // Single wildcard must be at start or end, not interior
+  if (wildcardCount === 1) {
+    const starIndex = pattern.indexOf("*");
+    if (starIndex !== 0 && starIndex !== pattern.length - 1) {
+      throw new Error(
+        `Unsupported binding pattern "${pattern}": wildcard must be at start or end. ` +
+          `Use "prefix-*", "*-suffix", "*" (any), or an exact string.`,
+      );
+    }
+    if (starIndex === 0) {
+      return { type: "suffix", value: pattern.slice(1) };
+    }
     return { type: "prefix", value: pattern.slice(0, -1) };
   }
+
   return { type: "exact", value: pattern };
 }
 

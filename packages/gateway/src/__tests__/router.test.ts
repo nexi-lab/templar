@@ -1,28 +1,11 @@
 import { GatewayAgentNotFoundError, GatewayNodeNotFoundError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
 import { BindingResolver } from "../binding-resolver.js";
+import { ConversationStore } from "../conversations/conversation-store.js";
 import { LaneDispatcher } from "../lanes/lane-dispatcher.js";
-import type { LaneMessage, NodeCapabilities } from "../protocol/index.js";
 import { NodeRegistry } from "../registry/node-registry.js";
 import { AgentRouter } from "../router.js";
-
-const DEFAULT_CAPS: NodeCapabilities = {
-  agentTypes: ["high"],
-  tools: [],
-  maxConcurrency: 4,
-  channels: [],
-};
-
-function makeMessage(overrides: Partial<LaneMessage> = {}): LaneMessage {
-  return {
-    id: `msg-${Math.random().toString(36).slice(2)}`,
-    lane: "steer",
-    channelId: "ch-1",
-    payload: null,
-    timestamp: Date.now(),
-    ...overrides,
-  };
-}
+import { DEFAULT_CAPS, makeMessage } from "./helpers.js";
 
 describe("AgentRouter", () => {
   // -------------------------------------------------------------------------
@@ -287,6 +270,165 @@ describe("AgentRouter", () => {
 
       const bindings = router.getAllBindings();
       expect(bindings.size).toBe(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // route() return value (#4A)
+  // -------------------------------------------------------------------------
+
+  describe("route() returns nodeId", () => {
+    it("returns nodeId from channel binding path", () => {
+      const registry = new NodeRegistry();
+      registry.register("node-1", DEFAULT_CAPS);
+      const router = new AgentRouter(registry);
+      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.bind("ch-1", "node-1");
+
+      const nodeId = router.route(makeMessage({ channelId: "ch-1" }));
+      expect(nodeId).toBe("node-1");
+    });
+
+    it("returns nodeId from binding resolver path", () => {
+      const registry = new NodeRegistry();
+      registry.register("node-1", { ...DEFAULT_CAPS, agentIds: ["work"] });
+      const router = new AgentRouter(registry);
+      router.setDispatcher("node-1", new LaneDispatcher(256));
+
+      const resolver = new BindingResolver();
+      resolver.updateBindings([{ agentId: "work", match: { channel: "slack" } }]);
+      router.setBindingResolver(resolver);
+      router.setAgentNodeResolver((agentId) => (agentId === "work" ? "node-1" : undefined));
+
+      const nodeId = router.route(makeMessage({ channelId: "slack" }));
+      expect(nodeId).toBe("node-1");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Conversation scoping (#9A)
+  // -------------------------------------------------------------------------
+
+  describe("conversation scoping", () => {
+    function setupScopedRouter() {
+      const registry = new NodeRegistry();
+      registry.register("node-1", { ...DEFAULT_CAPS, agentIds: ["agent-a"] });
+      const router = new AgentRouter(registry);
+      router.setDispatcher("node-1", new LaneDispatcher(256));
+
+      const store = new ConversationStore({ maxConversations: 1000, conversationTtl: 86_400_000 });
+      router.setConversationStore(store);
+
+      const resolver = new BindingResolver();
+      resolver.updateBindings([{ agentId: "agent-a", match: { channel: "slack" } }]);
+      router.setBindingResolver(resolver);
+      router.setAgentNodeResolver((agentId) => (agentId === "agent-a" ? "node-1" : undefined));
+
+      return { router, store };
+    }
+
+    it("routeWithScope creates conversation binding via binding resolver", () => {
+      const { router, store } = setupScopedRouter();
+
+      const result = router.routeWithScope(
+        makeMessage({
+          channelId: "slack",
+          routingContext: { peerId: "user-42", messageType: "dm" },
+        }),
+        "agent-a",
+      );
+
+      expect(result.key).toBeDefined();
+      expect(store.get(result.key)).toBeDefined();
+      expect(store.get(result.key)?.nodeId).toBe("node-1");
+    });
+
+    it("routeWithScope uses channel binding fallback", () => {
+      const registry = new NodeRegistry();
+      registry.register("node-1", DEFAULT_CAPS);
+      const router = new AgentRouter(registry);
+      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.bind("ch-1", "node-1");
+
+      const store = new ConversationStore({ maxConversations: 1000, conversationTtl: 86_400_000 });
+      router.setConversationStore(store);
+
+      const result = router.routeWithScope(
+        makeMessage({ channelId: "ch-1", routingContext: { peerId: "peer-1", messageType: "dm" } }),
+        "some-agent",
+      );
+
+      expect(result.key).toBeDefined();
+      expect(store.get(result.key)?.nodeId).toBe("node-1");
+    });
+
+    it("resolveConversation returns key without routing", () => {
+      const { router, store } = setupScopedRouter();
+
+      const result = router.resolveConversation(
+        makeMessage({
+          channelId: "slack",
+          routingContext: { peerId: "user-1", messageType: "dm" },
+        }),
+        "agent-a",
+      );
+
+      expect(result.key).toBeDefined();
+      // No routing happened, so no conversation binding created
+      expect(store.get(result.key)).toBeUndefined();
+    });
+
+    it("per-agent scope override takes precedence over gateway default", () => {
+      const { router } = setupScopedRouter();
+      router.setConversationScope("main");
+      router.setAgentScope("agent-a", "per-peer");
+
+      expect(router.getEffectiveScope("agent-a")).toBe("per-peer");
+      expect(router.getEffectiveScope("unknown-agent")).toBe("main");
+    });
+
+    it("removeAgentScope falls back to gateway default", () => {
+      const { router } = setupScopedRouter();
+      router.setAgentScope("agent-a", "per-peer");
+      router.removeAgentScope("agent-a");
+
+      expect(router.getEffectiveScope("agent-a")).toBe("per-channel-peer");
+    });
+
+    it("routeWithScope uses per-agent scope override", () => {
+      const { router } = setupScopedRouter();
+      router.setAgentScope("agent-a", "main");
+
+      const r1 = router.routeWithScope(
+        makeMessage({
+          channelId: "slack",
+          routingContext: { peerId: "user-1", messageType: "dm" },
+        }),
+        "agent-a",
+      );
+
+      const r2 = router.routeWithScope(
+        makeMessage({
+          channelId: "slack",
+          routingContext: { peerId: "user-2", messageType: "dm" },
+        }),
+        "agent-a",
+      );
+
+      // "main" scope ignores peerId → same conversation key
+      expect(r1.key).toBe(r2.key);
+    });
+
+    it("getConversationScope returns current default", () => {
+      const { router } = setupScopedRouter();
+      expect(router.getConversationScope()).toBe("per-channel-peer");
+      router.setConversationScope("per-peer");
+      expect(router.getConversationScope()).toBe("per-peer");
+    });
+
+    it("getConversationStore returns the store", () => {
+      const { router, store } = setupScopedRouter();
+      expect(router.getConversationStore()).toBe(store);
     });
   });
 });
