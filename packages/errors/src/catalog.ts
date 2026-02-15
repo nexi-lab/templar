@@ -1077,8 +1077,7 @@ export const ERROR_CATALOG = {
     baseType: "ValidationError" as const,
     isExpected: true,
     title: "Bootstrap file too large",
-    description:
-      "A bootstrap file exceeds the character budget after truncation marker",
+    description: "A bootstrap file exceeds the character budget after truncation marker",
   },
   BOOTSTRAP_PARSE_FAILED: {
     domain: "bootstrap",
@@ -1087,8 +1086,7 @@ export const ERROR_CATALOG = {
     baseType: "ValidationError" as const,
     isExpected: true,
     title: "Bootstrap file parse failed",
-    description:
-      "A bootstrap file is binary, has invalid encoding, or could not be read",
+    description: "A bootstrap file is binary, has invalid encoding, or could not be read",
   },
 
   // ============================================================================
