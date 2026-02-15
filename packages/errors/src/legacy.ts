@@ -1844,3 +1844,96 @@ export class SkillValidationError extends ValidationError<"SKILL_VALIDATION_ERRO
     this.validationIssues = issues;
   }
 }
+
+// ============================================================================
+// LSP ERRORS
+// ============================================================================
+
+/** @deprecated Use `new NotFoundError({ code: "LSP_SERVER_NOT_FOUND", ... })` */
+export class LspServerNotFoundError extends NotFoundError<"LSP_SERVER_NOT_FOUND"> {
+  constructor(
+    public readonly languageId: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "LSP_SERVER_NOT_FOUND",
+      message: `No language server configured for '${languageId}'`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "LSP_INITIALIZATION_FAILED", ... })` */
+export class LspInitializationFailedError extends ExternalError<"LSP_INITIALIZATION_FAILED"> {
+  constructor(
+    public readonly languageId: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "LSP_INITIALIZATION_FAILED",
+      message: `LSP server '${languageId}' initialization failed: ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "LSP_REQUEST_FAILED", ... })` */
+export class LspRequestFailedError extends ExternalError<"LSP_REQUEST_FAILED"> {
+  constructor(
+    public readonly method: string,
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "LSP_REQUEST_FAILED",
+      message: `LSP request '${method}' failed: ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "LSP_SERVER_CRASHED", ... })` */
+export class LspServerCrashedError extends ExternalError<"LSP_SERVER_CRASHED"> {
+  constructor(
+    public readonly languageId: string,
+    public readonly exitCode: number | null,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "LSP_SERVER_CRASHED",
+      message: `LSP server '${languageId}' crashed with exit code ${exitCode}`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "LSP_TRANSPORT_ERROR", ... })` */
+export class LspTransportError extends ExternalError<"LSP_TRANSPORT_ERROR"> {
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "LSP_TRANSPORT_ERROR",
+      message: `LSP transport error: ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}

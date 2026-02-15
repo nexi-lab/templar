@@ -1110,6 +1110,55 @@ export const ERROR_CATALOG = {
     title: "ACP prompt cancelled",
     description: "The prompt turn was cancelled by the IDE client",
   },
+
+  // ============================================================================
+  // LSP ERRORS — Language Server Protocol client
+  // ============================================================================
+  LSP_SERVER_NOT_FOUND: {
+    domain: "lsp",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "LSP server not found",
+    description: "No language server is configured for the requested language",
+  },
+  LSP_INITIALIZATION_FAILED: {
+    domain: "lsp",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "LSP initialization failed",
+    description: "The language server process started but the LSP handshake failed",
+  },
+  LSP_REQUEST_FAILED: {
+    domain: "lsp",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "LSP request failed",
+    description: "An LSP request returned an error response",
+  },
+  LSP_SERVER_CRASHED: {
+    domain: "lsp",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "LSP server crashed",
+    description: "The language server process exited unexpectedly",
+  },
+  LSP_TRANSPORT_ERROR: {
+    domain: "lsp",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "LSP transport error",
+    description: "The stdio transport pipe is broken or a read/write failed",
+  },
 } as const;
 
 // ============================================================================
