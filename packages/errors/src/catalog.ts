@@ -1052,6 +1052,55 @@ export const ERROR_CATALOG = {
     title: "Skill validation error",
     description: "The skill metadata does not conform to the Agent Skills specification",
   },
+
+  // ============================================================================
+  // ACP ERRORS — Agent Client Protocol (IDE integration)
+  // ============================================================================
+  ACP_SESSION_NOT_FOUND: {
+    domain: "acp",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "ACP session not found",
+    description: "The specified ACP session does not exist or was deleted",
+  },
+  ACP_PERMISSION_DENIED: {
+    domain: "acp",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "ACP permission denied",
+    description: "The IDE client rejected the agent's permission request",
+  },
+  ACP_TRANSPORT_CLOSED: {
+    domain: "acp",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "ACP transport closed",
+    description: "The stdio pipe or transport connection was closed unexpectedly",
+  },
+  ACP_VERSION_MISMATCH: {
+    domain: "acp",
+    httpStatus: 400,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "ACP version mismatch",
+    description: "The ACP protocol version negotiation failed — client and agent are incompatible",
+  },
+  ACP_CANCELLED: {
+    domain: "acp",
+    httpStatus: 499,
+    grpcCode: "CANCELLED" as const,
+    baseType: "ExternalError" as const,
+    isExpected: true,
+    title: "ACP prompt cancelled",
+    description: "The prompt turn was cancelled by the IDE client",
+  },
 } as const;
 
 // ============================================================================
