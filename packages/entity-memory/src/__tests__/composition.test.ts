@@ -148,7 +148,7 @@ describe("Composition with NexusMemoryMiddleware", () => {
       },
     };
 
-    expect(updatedCtx.metadata.entities).toBeDefined();
+    expect((updatedCtx.metadata as Record<string, unknown>).entities).toBeDefined();
     expect(updatedCtx.metadata.memories).toBeDefined();
   });
 
