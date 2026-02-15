@@ -250,7 +250,7 @@ describe("normalizeUpdate", () => {
       expect(result?.blocks).toHaveLength(1);
       const block = result?.blocks[0];
       expect(block).toBeDefined();
-      expect(block!.type).toBe("image");
+      expect(block?.type).toBe("image");
       expect((block as unknown as { url: string }).url).toContain("photo_123");
 
       // Should call getFile with the largest photo's file_id
@@ -326,7 +326,7 @@ describe("normalizeUpdate", () => {
       expect(result?.blocks).toHaveLength(1);
       const block = result?.blocks[0];
       expect(block).toBeDefined();
-      expect(block!.type).toBe("file");
+      expect(block?.type).toBe("file");
       expect((block as unknown as { filename: string }).filename).toBe("report.pdf");
       expect((block as { mimeType: string }).mimeType).toBe("application/pdf");
       expect((block as { size?: number }).size).toBe(2048);
@@ -359,7 +359,7 @@ describe("normalizeUpdate", () => {
       expect(result?.blocks).toHaveLength(1);
       const block = result?.blocks[0];
       expect(block).toBeDefined();
-      expect(block!.type).toBe("file");
+      expect(block?.type).toBe("file");
       expect((block as unknown as { filename: string }).filename).toBe("voice.ogg");
       expect((block as { mimeType: string }).mimeType).toBe("audio/ogg");
     });

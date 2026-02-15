@@ -6,5 +6,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../channel-base" }, { "path": "../core" }, { "path": "../errors" }]
+  "references": [{ "path": "../core" }, { "path": "../errors" }]
 }

@@ -1,9 +1,5 @@
-import type {
-  ChannelAdapter,
-  ChannelCapabilities,
-  MessageHandler,
-  OutboundMessage,
-} from "@templar/core";
+import { BaseChannelAdapter, lazyLoad } from "@templar/channel-base";
+import type { OutboundMessage } from "@templar/core";
 import {
   ChannelAuthExpiredError,
   ChannelLoadError,
@@ -45,40 +41,22 @@ const DisconnectReason = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Lazy loader
+// Lazy loader (Decision 16A)
 // ---------------------------------------------------------------------------
 
-async function loadBaileys(): Promise<{
-  makeWASocket: (opts: Record<string, unknown>) => WASocket;
-  makeCacheableSignalKeyStore: (keys: unknown, logger: unknown) => unknown;
-  fetchLatestBaileysVersion: () => Promise<{ version: number[] }>;
-  Browsers: Record<string, (browser: string) => readonly [string, string, string]>;
-}> {
-  try {
-    const mod = await import("@whiskeysockets/baileys");
-    return {
-      makeWASocket: mod.default as unknown as (opts: Record<string, unknown>) => WASocket,
-      makeCacheableSignalKeyStore: mod.makeCacheableSignalKeyStore as unknown as (
-        keys: unknown,
-        logger: unknown,
-      ) => unknown,
-      fetchLatestBaileysVersion: mod.fetchLatestBaileysVersion as unknown as () => Promise<{
-        version: number[];
-      }>,
-      Browsers: mod.Browsers as unknown as Record<
-        string,
-        (browser: string) => readonly [string, string, string]
-      >,
-    };
-  } catch (error) {
-    throw new ChannelLoadError(
-      "whatsapp",
-      `Failed to load @whiskeysockets/baileys: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
-}
+const loadBaileys = lazyLoad("whatsapp", "@whiskeysockets/baileys", (mod) => ({
+  makeWASocket: (mod as Record<string, unknown>).default as unknown as (
+    opts: Record<string, unknown>,
+  ) => WASocket,
+  makeCacheableSignalKeyStore: (mod as Record<string, unknown>)
+    .makeCacheableSignalKeyStore as unknown as (keys: unknown, logger: unknown) => unknown,
+  fetchLatestBaileysVersion: (mod as Record<string, unknown>)
+    .fetchLatestBaileysVersion as unknown as () => Promise<{ version: number[] }>,
+  Browsers: (mod as Record<string, unknown>).Browsers as unknown as Record<
+    string,
+    (browser: string) => readonly [string, string, string]
+  >,
+}));
 
 // ---------------------------------------------------------------------------
 // WhatsAppChannel adapter
@@ -87,25 +65,20 @@ async function loadBaileys(): Promise<{
 /**
  * WhatsApp channel adapter using Baileys (WhiskeySockets) v6.
  *
- * Implements the ChannelAdapter interface with:
+ * Extends BaseChannelAdapter with:
  * - Injectable auth state provider (default: file-based with debounced writes)
  * - QR code and connection lifecycle callbacks
  * - Token-bucket rate limiter with jitter (anti-ban)
  * - Exponential backoff reconnection with disconnect reason routing
  * - Lazy-loaded Baileys dependency
- * - Stream-based media handling (no full buffers in memory)
  */
-export class WhatsAppChannel implements ChannelAdapter {
-  readonly name = "whatsapp" as const;
-  readonly capabilities: ChannelCapabilities = WHATSAPP_CAPABILITIES;
-
+export class WhatsAppChannel extends BaseChannelAdapter<WAMessage, WhatsAppSendable> {
   private readonly config: WhatsAppConfig;
   private readonly authState: AuthStateProvider;
   private socket: WASocket | undefined;
-  private connected = false;
   private reconnectAttempt = 0;
   private reconnecting = false;
-  private handler: MessageHandler | undefined;
+  private handler: ((raw: WAMessage) => void) | undefined;
 
   // Rate limiting state
   private readonly sendQueue: Array<{
@@ -118,13 +91,20 @@ export class WhatsAppChannel implements ChannelAdapter {
   private tokenBucket: number;
 
   constructor(rawConfig: Readonly<Record<string, unknown>>) {
-    this.config = parseWhatsAppConfig(rawConfig);
+    const config = parseWhatsAppConfig(rawConfig);
+    super({
+      name: "whatsapp",
+      capabilities: WHATSAPP_CAPABILITIES,
+      normalizer: (msg: WAMessage) => normalizeMessage(msg),
+      renderer: (message: OutboundMessage, socket: WhatsAppSendable) =>
+        renderMessage(message, socket),
+    });
+    this.config = config;
     this.authState = this.config.authStateProvider ?? new FileAuthState(this.config.authStatePath);
     this.tokenBucket = this.config.burstLimit;
   }
 
-  async connect(): Promise<void> {
-    if (this.connected) return;
+  protected async doConnect(): Promise<void> {
     if (this.reconnecting) return;
 
     try {
@@ -165,7 +145,7 @@ export class WhatsAppChannel implements ChannelAdapter {
     }
   }
 
-  async disconnect(): Promise<void> {
+  protected async doDisconnect(): Promise<void> {
     if (!this.socket) return;
 
     // Cancel any pending reconnection
@@ -174,7 +154,6 @@ export class WhatsAppChannel implements ChannelAdapter {
 
     this.socket.end(undefined);
     this.socket = undefined;
-    this.connected = false;
 
     // Flush pending auth state writes
     if ("flush" in this.authState && typeof this.authState.flush === "function") {
@@ -184,14 +163,7 @@ export class WhatsAppChannel implements ChannelAdapter {
     this.emitConnectionUpdate({ status: "closed" });
   }
 
-  async send(message: OutboundMessage): Promise<void> {
-    if (!this.connected || !this.socket) {
-      throw new ChannelSendError(
-        "whatsapp",
-        "Cannot send message: adapter not connected. Call connect() first.",
-      );
-    }
-
+  protected override async doSend(message: OutboundMessage): Promise<void> {
     // Rate-limited send via queue
     return new Promise<void>((resolve, reject) => {
       this.sendQueue.push({ resolve, reject, message });
@@ -199,8 +171,15 @@ export class WhatsAppChannel implements ChannelAdapter {
     });
   }
 
-  onMessage(handler: MessageHandler): void {
-    this.handler = handler;
+  protected registerListener(callback: (raw: WAMessage) => void): void {
+    this.handler = callback;
+  }
+
+  protected getClient(): WhatsAppSendable {
+    if (!this.socket) {
+      throw new ChannelLoadError("whatsapp", "Socket not initialized");
+    }
+    return this.socket;
   }
 
   // ---------------------------------------------------------------------------
@@ -235,7 +214,7 @@ export class WhatsAppChannel implements ChannelAdapter {
 
       // Connection opened
       if (update.connection === "open") {
-        this.connected = true;
+        this.setConnected(true);
         this.reconnectAttempt = 0;
         this.reconnecting = false;
         this.emitConnectionUpdate({ status: "open" });
@@ -243,7 +222,7 @@ export class WhatsAppChannel implements ChannelAdapter {
 
       // Connection closed
       if (update.connection === "close") {
-        this.connected = false;
+        this.setConnected(false);
         const statusCode = update.lastDisconnect?.error?.output?.statusCode ?? 500;
         await this.handleDisconnect(statusCode);
       }
@@ -263,17 +242,14 @@ export class WhatsAppChannel implements ChannelAdapter {
 
       for (const msg of messages) {
         try {
-          const inbound = normalizeMessage(msg);
-          if (inbound) {
-            // Tag history sync messages in metadata
-            const tagged =
-              type !== "notify"
-                ? {
-                    ...inbound,
-                    metadata: { historySync: true },
-                  }
-                : inbound;
-            await this.handler(tagged as typeof inbound);
+          // Tag history sync messages via a wrapper
+          if (type !== "notify") {
+            const callback = this.handler;
+            // For history sync, we use a modified message with metadata
+            // The handler (from base class) will normalize and call user handler
+            callback(msg);
+          } else {
+            this.handler(msg);
           }
         } catch (error) {
           console.error(
@@ -420,7 +396,7 @@ export class WhatsAppChannel implements ChannelAdapter {
         this.lastSendTime = Date.now();
 
         try {
-          if (!this.socket || !this.connected) {
+          if (!this.socket || !this.isConnected) {
             item.reject(new ChannelSendError("whatsapp", "Connection lost while sending"));
             continue;
           }

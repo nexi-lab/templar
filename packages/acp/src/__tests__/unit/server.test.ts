@@ -197,7 +197,7 @@ describe("ACPServer", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       expect(updates.length).toBeGreaterThanOrEqual(2);
-      expect(updates[0]!.update.sessionUpdate).toBe("agent_message_chunk");
+      expect(updates[0]?.update.sessionUpdate).toBe("agent_message_chunk");
     });
 
     it("returns error for non-existent session", async () => {

@@ -1,29 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InMemoryAuthState } from "../helpers/in-memory-auth.js";
-import type { MockBaileysModule } from "../helpers/mock-baileys.js";
-import { createMockBaileysModule, createMockMessage } from "../helpers/mock-baileys.js";
+import { createMockMessage, createMockSocket, type MockWASocket } from "../helpers/mock-baileys.js";
 
 // ---------------------------------------------------------------------------
-// Module mock
+// Module mock — stable references that survive lazyLoad memoization
 // ---------------------------------------------------------------------------
 
-let mockBaileys: MockBaileysModule;
+let mockSocket: MockWASocket;
+
+const mockMakeWASocket = vi.fn((..._args: unknown[]) => mockSocket);
+const mockMakeCacheableSignalKeyStore = vi.fn((keys: unknown) => keys);
+const mockFetchLatestBaileysVersion = vi.fn(async () => ({ version: [2, 2412, 1] }));
 
 vi.mock("@whiskeysockets/baileys", () => ({
-  get default() {
-    return mockBaileys?.default;
-  },
-  get makeCacheableSignalKeyStore() {
-    return mockBaileys?.makeCacheableSignalKeyStore;
-  },
-  get fetchLatestBaileysVersion() {
-    return mockBaileys?.fetchLatestBaileysVersion;
-  },
-  get downloadMediaMessage() {
-    return mockBaileys?.downloadMediaMessage;
-  },
-  get Browsers() {
-    return mockBaileys?.Browsers;
+  default: mockMakeWASocket,
+  makeCacheableSignalKeyStore: mockMakeCacheableSignalKeyStore,
+  fetchLatestBaileysVersion: mockFetchLatestBaileysVersion,
+  downloadMediaMessage: vi.fn(async () => Buffer.from("mock-media-content")),
+  Browsers: {
+    macOS: (browser: string) => ["Templar", browser, "22.0"] as const,
   },
 }));
 
@@ -35,7 +30,11 @@ const { WhatsAppChannel } = await import("../../adapter.js");
 
 describe("WhatsApp send flow (integration)", () => {
   beforeEach(() => {
-    mockBaileys = createMockBaileysModule();
+    vi.clearAllMocks();
+    mockSocket = createMockSocket();
+    mockMakeWASocket.mockImplementation((..._args: unknown[]) => mockSocket);
+    mockMakeCacheableSignalKeyStore.mockImplementation((keys: unknown) => keys);
+    mockFetchLatestBaileysVersion.mockImplementation(async () => ({ version: [2, 2412, 1] }));
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
@@ -62,11 +61,11 @@ describe("WhatsApp send flow (integration)", () => {
     const connectPromise = adapter.connect();
 
     await vi.waitFor(() => {
-      const handlers = mockBaileys.mockSocket.ev.handlers.get("connection.update") ?? [];
+      const handlers = mockSocket.ev.handlers.get("connection.update") ?? [];
       if (handlers.length === 0) throw new Error("Waiting for handlers");
     });
 
-    mockBaileys.mockSocket.ev.emit("connection.update", {
+    mockSocket.ev.emit("connection.update", {
       connection: "open",
     });
     await connectPromise;
@@ -79,7 +78,7 @@ describe("WhatsApp send flow (integration)", () => {
       remoteJid: "5511888@s.whatsapp.net",
     });
 
-    mockBaileys.mockSocket.ev.emit("messages.upsert", {
+    mockSocket.ev.emit("messages.upsert", {
       type: "notify",
       messages: [textMsg],
     });
@@ -102,7 +101,7 @@ describe("WhatsApp send flow (integration)", () => {
       id: "img-msg-1",
     });
 
-    mockBaileys.mockSocket.ev.emit("messages.upsert", {
+    mockSocket.ev.emit("messages.upsert", {
       type: "notify",
       messages: [imageMsg],
     });
@@ -130,7 +129,7 @@ describe("WhatsApp send flow (integration)", () => {
       ],
     });
 
-    expect(mockBaileys.mockSocket.sendMessage).toHaveBeenCalledWith(
+    expect(mockSocket.sendMessage).toHaveBeenCalledWith(
       "5511888@s.whatsapp.net",
       {
         image: { url: "https://example.com/response.jpg" },
@@ -142,7 +141,7 @@ describe("WhatsApp send flow (integration)", () => {
     // --- Step 6: Disconnect ---
     await adapter.disconnect();
 
-    expect(mockBaileys.mockSocket.end).toHaveBeenCalled();
+    expect(mockSocket.end).toHaveBeenCalled();
     expect(onConnectionUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "closed" }));
   });
 
@@ -162,17 +161,17 @@ describe("WhatsApp send flow (integration)", () => {
     const connectPromise = adapter.connect();
 
     await vi.waitFor(() => {
-      const handlers = mockBaileys.mockSocket.ev.handlers.get("connection.update") ?? [];
+      const handlers = mockSocket.ev.handlers.get("connection.update") ?? [];
       if (handlers.length === 0) throw new Error("Waiting for handlers");
     });
 
-    mockBaileys.mockSocket.ev.emit("connection.update", {
+    mockSocket.ev.emit("connection.update", {
       connection: "open",
     });
     await connectPromise;
 
     // Simulate connectionLost
-    mockBaileys.mockSocket.ev.emit("connection.update", {
+    mockSocket.ev.emit("connection.update", {
       connection: "close",
       lastDisconnect: {
         error: { output: { statusCode: 428 } },

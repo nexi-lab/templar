@@ -1,5 +1,5 @@
 import type { InboundMessage, OutboundMessage } from "@templar/core";
-import { ChannelLoadError } from "@templar/errors";
+import { ChannelLoadError, ChannelSendError } from "@templar/errors";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TelegramChannel } from "../../adapter.js";
 import { TELEGRAM_CAPABILITIES } from "../../capabilities.js";
@@ -106,11 +106,6 @@ describe("TelegramChannel", () => {
     it("throws ChannelLoadError for missing mode", () => {
       expect(() => new TelegramChannel({ token: "123:ABC" })).toThrow(ChannelLoadError);
     });
-
-    it("installs auto-retry plugin", () => {
-      new TelegramChannel({ mode: "polling", token: "123:ABC" });
-      expect(mockConfigUse).toHaveBeenCalled();
-    });
   });
 
   // -----------------------------------------------------------------------
@@ -127,6 +122,15 @@ describe("TelegramChannel", () => {
 
       expect(mockBotInit).toHaveBeenCalledOnce();
       expect(mockBotStart).toHaveBeenCalledOnce();
+    });
+
+    it("installs auto-retry plugin during connect", async () => {
+      const adapter = new TelegramChannel({
+        mode: "polling",
+        token: "123:ABC",
+      });
+      await adapter.connect();
+      expect(mockConfigUse).toHaveBeenCalled();
     });
 
     it("calls bot.api.setWebhook() in webhook mode", async () => {
@@ -235,7 +239,7 @@ describe("TelegramChannel", () => {
   // -----------------------------------------------------------------------
 
   describe("send()", () => {
-    it("throws if not connected", async () => {
+    it("throws ChannelSendError if not connected", async () => {
       const adapter = new TelegramChannel({
         mode: "polling",
         token: "123:ABC",
@@ -246,7 +250,7 @@ describe("TelegramChannel", () => {
         blocks: [{ type: "text", content: "hi" }],
       };
 
-      await expect(adapter.send(msg)).rejects.toThrow(ChannelLoadError);
+      await expect(adapter.send(msg)).rejects.toThrow(ChannelSendError);
       await expect(adapter.send(msg)).rejects.toThrow(/not connected/i);
     });
 
@@ -274,11 +278,12 @@ describe("TelegramChannel", () => {
   // -----------------------------------------------------------------------
 
   describe("onMessage()", () => {
-    it("registers a message handler on the bot", () => {
+    it("registers a message handler on the bot after connect", async () => {
       const adapter = new TelegramChannel({
         mode: "polling",
         token: "123:ABC",
       });
+      await adapter.connect();
 
       const handler = vi.fn();
       adapter.onMessage(handler);
@@ -287,7 +292,7 @@ describe("TelegramChannel", () => {
       expect(mockBotCatch).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it("calls handler with normalized inbound message", async () => {
+    it("queues listener and wires after connect when called before connect", async () => {
       const adapter = new TelegramChannel({
         mode: "polling",
         token: "123:ABC",
@@ -296,10 +301,28 @@ describe("TelegramChannel", () => {
       const handler = vi.fn();
       adapter.onMessage(handler);
 
+      // Not wired yet — bot doesn't exist
+      expect(mockBotOn).not.toHaveBeenCalled();
+
+      // After connect, listener should be wired
+      await adapter.connect();
+      expect(mockBotOn).toHaveBeenCalledWith("message", expect.any(Function));
+    });
+
+    it("calls handler with normalized inbound message", async () => {
+      const adapter = new TelegramChannel({
+        mode: "polling",
+        token: "123:ABC",
+      });
+      await adapter.connect();
+
+      const handler = vi.fn();
+      adapter.onMessage(handler);
+
       // Get the registered handler
-      const registeredHandler = mockBotOn.mock.calls[0]?.[1] as (
-        ctx: Record<string, unknown>,
-      ) => Promise<void>;
+      const registeredHandler = mockBotOn.mock.calls.find(
+        (c: unknown[]) => c[0] === "message",
+      )?.[1] as (ctx: Record<string, unknown>) => Promise<void>;
 
       // Simulate an incoming message
       const ctx = {
@@ -317,6 +340,9 @@ describe("TelegramChannel", () => {
 
       await registeredHandler(ctx);
 
+      // Allow async processing
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       expect(handler).toHaveBeenCalledOnce();
       const inbound = handler.mock.calls[0]?.[0] as InboundMessage;
       expect(inbound.channelType).toBe("telegram");
@@ -333,14 +359,15 @@ describe("TelegramChannel", () => {
         mode: "polling",
         token: "123:ABC",
       });
+      await adapter.connect();
 
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const handler = vi.fn().mockRejectedValue(new Error("handler error"));
       adapter.onMessage(handler);
 
-      const registeredHandler = mockBotOn.mock.calls[0]?.[1] as (
-        ctx: Record<string, unknown>,
-      ) => Promise<void>;
+      const registeredHandler = mockBotOn.mock.calls.find(
+        (c: unknown[]) => c[0] === "message",
+      )?.[1] as (ctx: Record<string, unknown>) => Promise<void>;
 
       const ctx = {
         update: {
@@ -357,6 +384,9 @@ describe("TelegramChannel", () => {
 
       // Should not throw
       await registeredHandler(ctx);
+
+      // Allow async processing
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
@@ -384,12 +414,21 @@ describe("TelegramChannel", () => {
       expect(adapter.capabilities).toBe(TELEGRAM_CAPABILITIES);
     });
 
-    it("exposes getBot() for webhook integration", () => {
+    it("getBot() returns undefined before connect", () => {
       const adapter = new TelegramChannel({
         mode: "webhook",
         token: "123:ABC",
         webhookUrl: "https://example.com/webhook",
       });
+      expect(adapter.getBot()).toBeUndefined();
+    });
+
+    it("getBot() returns Bot instance after connect", async () => {
+      const adapter = new TelegramChannel({
+        mode: "polling",
+        token: "123:ABC",
+      });
+      await adapter.connect();
       expect(adapter.getBot()).toBeDefined();
     });
   });

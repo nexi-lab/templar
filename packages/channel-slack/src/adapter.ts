@@ -1,10 +1,6 @@
-import type {
-  ChannelAdapter,
-  ChannelCapabilities,
-  MessageHandler,
-  OutboundMessage,
-} from "@templar/core";
-import { ChannelLoadError, ChannelSendError } from "@templar/errors";
+import { BaseChannelAdapter, lazyLoad } from "@templar/channel-base";
+import type { OutboundMessage } from "@templar/core";
+import { ChannelLoadError } from "@templar/errors";
 
 import { SLACK_CAPABILITIES } from "./capabilities.js";
 import { parseSlackConfig, type SlackConfig } from "./config.js";
@@ -35,45 +31,42 @@ type BoltAppConstructor = new (opts: {
   socketMode: boolean;
 }) => BoltApp;
 
-/**
- * Lazily load the Bolt App class to keep it as a runtime-only dependency.
- */
-async function loadBoltApp(): Promise<BoltAppConstructor> {
-  try {
-    const mod = await import("@slack/bolt");
-    return mod.App as unknown as BoltAppConstructor;
-  } catch (error) {
-    throw new ChannelLoadError(
-      "slack",
-      `Failed to load @slack/bolt: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
+// ---------------------------------------------------------------------------
+// Lazy loader (Decision 16A)
+// ---------------------------------------------------------------------------
+
+const loadBoltApp = lazyLoad<BoltAppConstructor>(
+  "slack",
+  "@slack/bolt",
+  (mod) => (mod as { App: BoltAppConstructor }).App,
+);
 
 /**
  * Slack channel adapter using Bolt (Socket Mode).
  *
- * Implements the ChannelAdapter interface with:
+ * Extends BaseChannelAdapter with:
  * - Config-driven Socket Mode connection
- * - Bolt SDK rate-limit handling
+ * - Lazy-loaded Bolt SDK
  * - Block Kit batch rendering
  * - Slack event normalization
  */
-export class SlackChannel implements ChannelAdapter {
-  readonly name = "slack" as const;
-  readonly capabilities: ChannelCapabilities = SLACK_CAPABILITIES;
-
+export class SlackChannel extends BaseChannelAdapter<SlackMessageEvent, SlackWebClient> {
   private readonly config: SlackConfig;
   private app: BoltApp | undefined;
-  private connected = false;
 
   constructor(rawConfig: Readonly<Record<string, unknown>>) {
-    this.config = parseSlackConfig(rawConfig);
+    const config = parseSlackConfig(rawConfig);
+    super({
+      name: "slack",
+      capabilities: SLACK_CAPABILITIES,
+      normalizer: (event: SlackMessageEvent) => normalizeSlackEvent(event),
+      renderer: (message: OutboundMessage, client: SlackWebClient) =>
+        renderMessage(message, client),
+    });
+    this.config = config;
   }
 
-  async connect(): Promise<void> {
-    if (this.connected) return;
-
+  protected async doConnect(): Promise<void> {
     try {
       const AppClass = await loadBoltApp();
       this.app = new AppClass({
@@ -82,7 +75,6 @@ export class SlackChannel implements ChannelAdapter {
         socketMode: true,
       });
       await this.app.start();
-      this.connected = true;
     } catch (error) {
       if (error instanceof ChannelLoadError) throw error;
       throw new ChannelLoadError(
@@ -92,45 +84,31 @@ export class SlackChannel implements ChannelAdapter {
     }
   }
 
-  async disconnect(): Promise<void> {
-    if (!this.connected || !this.app) return;
-
+  protected async doDisconnect(): Promise<void> {
+    if (!this.app) return;
     await this.app.stop();
-    this.connected = false;
+    this.app = undefined;
   }
 
-  async send(message: OutboundMessage): Promise<void> {
-    if (!this.connected || !this.app) {
-      throw new ChannelSendError(
-        "slack",
-        "Cannot send message: adapter not connected. Call connect() first.",
-      );
-    }
-    await renderMessage(message, this.app.client);
-  }
-
-  onMessage(handler: MessageHandler): void {
+  protected registerListener(callback: (raw: SlackMessageEvent) => void): void {
     if (!this.app) {
       throw new ChannelLoadError("slack", "Cannot register handler: call connect() first.");
     }
 
     this.app.message(async ({ message }) => {
-      try {
-        const inbound = normalizeSlackEvent(message);
-        if (inbound) {
-          await handler(inbound);
-        }
-      } catch (error) {
-        console.error(
-          "[SlackChannel] Error handling message:",
-          error instanceof Error ? error.message : String(error),
-        );
-      }
+      callback(message);
     });
 
     this.app.error(async ({ error }) => {
       console.error("[SlackChannel] Unhandled error:", error.message);
     });
+  }
+
+  protected getClient(): SlackWebClient {
+    if (!this.app) {
+      throw new ChannelLoadError("slack", "App not initialized");
+    }
+    return this.app.client;
   }
 
   /**

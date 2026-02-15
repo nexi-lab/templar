@@ -1,9 +1,5 @@
-import type {
-  ChannelAdapter,
-  ChannelCapabilities,
-  MessageHandler,
-  OutboundMessage,
-} from "@templar/core";
+import { BaseChannelAdapter, lazyLoad } from "@templar/channel-base";
+import type { OutboundMessage } from "@templar/core";
 import { ChannelLoadError, ChannelSendError } from "@templar/errors";
 
 import { DISCORD_CAPABILITIES } from "./capabilities.js";
@@ -43,23 +39,14 @@ async function resolveIntents(names: readonly IntentName[]): Promise<number[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Lazy loader (Decision 15A)
+// Lazy loader (Decision 16A)
 // ---------------------------------------------------------------------------
 
-/**
- * Lazily load the Discord Client class to keep it as a runtime-only dependency.
- */
-async function loadDiscordClient(): Promise<DiscordClientConstructor> {
-  try {
-    const mod = await import("discord.js");
-    return mod.Client as unknown as DiscordClientConstructor;
-  } catch (error) {
-    throw new ChannelLoadError(
-      "discord",
-      `Failed to load discord.js: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
+const loadDiscordClient = lazyLoad<DiscordClientConstructor>(
+  "discord",
+  "discord.js",
+  (mod) => (mod as { Client: DiscordClientConstructor }).Client,
+);
 
 // ---------------------------------------------------------------------------
 // Sweeper config builder
@@ -102,31 +89,36 @@ function buildSweeperOptions(
 // DiscordChannel adapter
 // ---------------------------------------------------------------------------
 
+// Discord message type used as raw inbound event
+type DiscordMessage = never;
+
 /**
  * Discord channel adapter using discord.js v14.
  *
- * Implements the ChannelAdapter interface with:
+ * Extends BaseChannelAdapter with:
  * - Config-driven Gateway connection with tiered defaults
  * - Lazy-loaded discord.js Client
  * - Production-safe sweeper defaults for memory management
  * - Batched message rendering (content + files + components)
  * - Explicit error handling for common Discord failures
  */
-export class DiscordChannel implements ChannelAdapter {
-  readonly name = "discord" as const;
-  readonly capabilities: ChannelCapabilities = DISCORD_CAPABILITIES;
-
+export class DiscordChannel extends BaseChannelAdapter<DiscordMessage, DiscordSendable> {
   private readonly config: DiscordConfig;
   private client: DiscordClient | undefined;
-  private connected = false;
 
   constructor(rawConfig: Readonly<Record<string, unknown>>) {
-    this.config = parseDiscordConfig(rawConfig);
+    const config = parseDiscordConfig(rawConfig);
+    super({
+      name: "discord",
+      capabilities: DISCORD_CAPABILITIES,
+      normalizer: (msg: DiscordMessage) => normalizeMessage(msg),
+      renderer: (message: OutboundMessage, sendable: DiscordSendable) =>
+        renderMessage(message, sendable),
+    });
+    this.config = config;
   }
 
-  async connect(): Promise<void> {
-    if (this.connected) return;
-
+  protected async doConnect(): Promise<void> {
     try {
       const ClientClass = await loadDiscordClient();
       const intents = await resolveIntents(this.config.intents);
@@ -139,7 +131,6 @@ export class DiscordChannel implements ChannelAdapter {
       });
 
       await this.client.login(this.config.token);
-      this.connected = true;
     } catch (error) {
       if (error instanceof ChannelLoadError) throw error;
       throw new ChannelLoadError(
@@ -149,20 +140,15 @@ export class DiscordChannel implements ChannelAdapter {
     }
   }
 
-  async disconnect(): Promise<void> {
-    if (!this.connected || !this.client) return;
-
+  protected async doDisconnect(): Promise<void> {
+    if (!this.client) return;
     this.client.destroy();
     this.client = undefined;
-    this.connected = false;
   }
 
-  async send(message: OutboundMessage): Promise<void> {
-    if (!this.connected || !this.client) {
-      throw new ChannelSendError(
-        "discord",
-        "Cannot send message: adapter not connected. Call connect() first.",
-      );
+  protected override async doSend(message: OutboundMessage): Promise<void> {
+    if (!this.client) {
+      throw new ChannelSendError("discord", "Client not initialized");
     }
 
     const channel = await this.client.channels.fetch(message.channelId);
@@ -176,23 +162,13 @@ export class DiscordChannel implements ChannelAdapter {
     await renderMessage(message, channel);
   }
 
-  onMessage(handler: MessageHandler): void {
+  protected registerListener(callback: (raw: DiscordMessage) => void): void {
     if (!this.client) {
       throw new ChannelLoadError("discord", "Cannot register handler: call connect() first.");
     }
 
     this.client.on("messageCreate", async (msg: never) => {
-      try {
-        const inbound = normalizeMessage(msg);
-        if (inbound) {
-          await handler(inbound);
-        }
-      } catch (error) {
-        console.error(
-          "[DiscordChannel] Error handling message:",
-          error instanceof Error ? error.message : String(error),
-        );
-      }
+      callback(msg);
     });
 
     this.client.on("error", (error: never) => {
@@ -203,12 +179,16 @@ export class DiscordChannel implements ChannelAdapter {
     });
   }
 
+  protected getClient(): DiscordSendable {
+    throw new ChannelLoadError("discord", "Use doSend() override — getClient() not used directly");
+  }
+
   /**
    * Get the underlying discord.js Client instance.
    * Useful for registering slash commands, interaction handlers,
    * or accessing advanced Discord features beyond the adapter interface.
    */
-  getClient(): DiscordClient | undefined {
+  getDiscordClient(): DiscordClient | undefined {
     return this.client;
   }
 }
