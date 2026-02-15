@@ -1,4 +1,5 @@
-import { GatewayNodeNotFoundError } from "@templar/errors";
+import { GatewayAgentNotFoundError, GatewayNodeNotFoundError } from "@templar/errors";
+import type { BindingResolver } from "./binding-resolver.js";
 import type { ConversationStore } from "./conversations/conversation-store.js";
 import type { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import {
@@ -47,6 +48,9 @@ function buildKeyInput(
 
 export type MessageRouter = (message: LaneMessage) => void;
 
+/** Callback to resolve an agentId to a nodeId (injected by gateway) */
+export type AgentNodeResolver = (agentId: string) => string | undefined;
+
 // ---------------------------------------------------------------------------
 // AgentRouter
 // ---------------------------------------------------------------------------
@@ -54,39 +58,43 @@ export type MessageRouter = (message: LaneMessage) => void;
 /**
  * Routes channel messages to the appropriate node's lane dispatcher.
  *
- * Uses explicit channel → node bindings.
- * Falls back to capability-based selection via NodeRegistry.
+ * Supports two routing paths (binding-based takes precedence):
+ * 1. **Binding-based**: Declarative AgentBinding rules resolve to an agentId,
+ *    then the agentId is mapped to a nodeId via the injected resolver.
+ * 2. **Channel-based**: Explicit channelId → nodeId bindings (backward compat).
  *
  * Supports conversation scoping via ConversationStore to isolate
  * conversations by peer, channel, and account.
  */
 export class AgentRouter {
-  private bindings: ReadonlyMap<string, string> = new Map();
+  private channelBindings: ReadonlyMap<string, string> = new Map();
   private dispatchers: ReadonlyMap<string, LaneDispatcher> = new Map();
   private readonly registry: NodeRegistry;
   private conversationStore: ConversationStore | undefined;
   private conversationScope: ConversationScope = "per-channel-peer";
   private agentScopes: ReadonlyMap<string, ConversationScope> = new Map();
+  private bindingResolver: BindingResolver | undefined;
+  private agentNodeResolver: AgentNodeResolver | undefined;
 
   constructor(registry: NodeRegistry) {
     this.registry = registry;
   }
 
   /**
-   * Bind a channel to a specific node.
+   * Bind a channel to a specific node (legacy API).
    */
   bind(channelId: string, nodeId: string): void {
     if (!this.registry.get(nodeId)) {
       throw new GatewayNodeNotFoundError(nodeId);
     }
-    this.bindings = mapSet(this.bindings, channelId, nodeId);
+    this.channelBindings = mapSet(this.channelBindings, channelId, nodeId);
   }
 
   /**
    * Remove a channel binding.
    */
   unbind(channelId: string): void {
-    this.bindings = mapDelete(this.bindings, channelId);
+    this.channelBindings = mapDelete(this.channelBindings, channelId);
   }
 
   /**
@@ -101,25 +109,56 @@ export class AgentRouter {
    */
   removeDispatcher(nodeId: string): void {
     this.dispatchers = mapDelete(this.dispatchers, nodeId);
-    // Also remove any bindings to this node
-    this.bindings = mapFilter(this.bindings, (_channelId, boundNodeId) => boundNodeId !== nodeId);
+    // Also remove any channel bindings to this node
+    this.channelBindings = mapFilter(
+      this.channelBindings,
+      (_channelId, boundNodeId) => boundNodeId !== nodeId,
+    );
+  }
+
+  /**
+   * Set the binding resolver for multi-agent routing.
+   */
+  setBindingResolver(resolver: BindingResolver): void {
+    this.bindingResolver = resolver;
+  }
+
+  /**
+   * Get the binding resolver (for testing/inspection).
+   */
+  getBindingResolver(): BindingResolver | undefined {
+    return this.bindingResolver;
+  }
+
+  /**
+   * Set the callback that resolves agentId → nodeId.
+   */
+  setAgentNodeResolver(resolver: AgentNodeResolver): void {
+    this.agentNodeResolver = resolver;
   }
 
   /**
    * Route a message to the appropriate node's lane dispatcher.
+   *
+   * Path 1 (binding-based): If a BindingResolver is configured, resolve
+   * the message to an agentId, then look up the nodeId. Falls through
+   * to path 2 if no binding matches.
+   *
+   * Path 2 (channel-based): Use explicit channelId → nodeId binding.
    */
   route(message: LaneMessage): void {
-    const nodeId = this.bindings.get(message.channelId);
-    if (!nodeId) {
-      throw new GatewayNodeNotFoundError(`No binding for channel '${message.channelId}'`);
+    // Path 1: Binding-based routing
+    if (this.bindingResolver) {
+      const agentId = this.bindingResolver.resolve(message);
+      if (agentId) {
+        this.dispatchToAgent(agentId, message);
+        return;
+      }
+      // No binding matched — fall through to channel binding
     }
 
-    const dispatcher = this.dispatchers.get(nodeId);
-    if (!dispatcher) {
-      throw new GatewayNodeNotFoundError(nodeId);
-    }
-
-    dispatcher.dispatch(message);
+    // Path 2: Channel → node binding (backward compat)
+    this.dispatchToChannel(message);
   }
 
   /**
@@ -127,7 +166,7 @@ export class AgentRouter {
    *
    * 1. Determine effective scope (agent override → gateway default)
    * 2. Compute conversation key from scope + routing context
-   * 3. Dispatch via existing route() — throws on missing binding/dispatcher
+   * 3. Dispatch via route paths — throws on missing binding/dispatcher
    * 4. Bind conversation to node only after successful dispatch
    */
   routeWithScope(message: LaneMessage, agentId: string): ConversationKeyResult {
@@ -140,7 +179,7 @@ export class AgentRouter {
     this.route(message);
 
     // Bind conversation to node only after successful dispatch
-    const nodeId = this.bindings.get(message.channelId);
+    const nodeId = this.resolveNodeForMessage(message);
     if (nodeId && this.conversationStore) {
       this.conversationStore.bind(result.key, nodeId);
     }
@@ -173,14 +212,14 @@ export class AgentRouter {
    * Get the node bound to a channel.
    */
   getBinding(channelId: string): string | undefined {
-    return this.bindings.get(channelId);
+    return this.channelBindings.get(channelId);
   }
 
   /**
-   * Get all current bindings.
+   * Get all current channel bindings.
    */
   getAllBindings(): ReadonlyMap<string, string> {
-    return this.bindings;
+    return this.channelBindings;
   }
 
   // -------------------------------------------------------------------------
@@ -234,5 +273,57 @@ export class AgentRouter {
    */
   getEffectiveScope(agentId: string): ConversationScope {
     return this.agentScopes.get(agentId) ?? this.conversationScope;
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Dispatch a message to a node by agentId (binding-based path).
+   */
+  private dispatchToAgent(agentId: string, message: LaneMessage): void {
+    if (!this.agentNodeResolver) {
+      throw new GatewayAgentNotFoundError(agentId);
+    }
+    const nodeId = this.agentNodeResolver(agentId);
+    if (!nodeId) {
+      throw new GatewayAgentNotFoundError(agentId);
+    }
+    const dispatcher = this.dispatchers.get(nodeId);
+    if (!dispatcher) {
+      throw new GatewayNodeNotFoundError(nodeId);
+    }
+    dispatcher.dispatch(message);
+  }
+
+  /**
+   * Dispatch a message to a node by channel binding (legacy path).
+   */
+  private dispatchToChannel(message: LaneMessage): void {
+    const nodeId = this.channelBindings.get(message.channelId);
+    if (!nodeId) {
+      throw new GatewayNodeNotFoundError(`No binding for channel '${message.channelId}'`);
+    }
+    const dispatcher = this.dispatchers.get(nodeId);
+    if (!dispatcher) {
+      throw new GatewayNodeNotFoundError(nodeId);
+    }
+    dispatcher.dispatch(message);
+  }
+
+  /**
+   * Resolve the nodeId a message was routed to (for conversation binding).
+   */
+  private resolveNodeForMessage(message: LaneMessage): string | undefined {
+    // Try binding-based resolution first
+    if (this.bindingResolver && this.agentNodeResolver) {
+      const agentId = this.bindingResolver.resolve(message);
+      if (agentId) {
+        return this.agentNodeResolver(agentId);
+      }
+    }
+    // Fall back to channel binding
+    return this.channelBindings.get(message.channelId);
   }
 }

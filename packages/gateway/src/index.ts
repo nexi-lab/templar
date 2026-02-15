@@ -6,6 +6,15 @@
 
 export const PACKAGE_NAME = "@templar/gateway" as const;
 
+// Binding resolver
+export {
+  BindingResolver,
+  type CompiledBinding,
+  compileBindings,
+  compilePattern,
+  type FieldMatcher,
+  matchField,
+} from "./binding-resolver.js";
 // Config
 export {
   type ConfigErrorHandler,
@@ -43,7 +52,7 @@ export {
 // Registry
 export { NodeRegistry, type RegisteredNode } from "./registry/node-registry.js";
 // Router
-export { AgentRouter, type MessageRouter } from "./router.js";
+export { type AgentNodeResolver, AgentRouter, type MessageRouter } from "./router.js";
 // Server
 export {
   type ConnectionHandler,

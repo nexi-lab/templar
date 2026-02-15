@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type AgentBinding, AgentBindingSchema } from "./bindings.js";
 import { type ConversationScope, ConversationScopeSchema } from "./conversations.js";
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,8 @@ import { type ConversationScope, ConversationScopeSchema } from "./conversations
 export interface NodeCapabilities {
   /** Agent types this node can execute */
   readonly agentTypes: readonly string[];
+  /** Logical agent IDs this node serves (for multi-agent routing) */
+  readonly agentIds?: readonly string[];
   /** Tool namespaces available on this node */
   readonly tools: readonly string[];
   /** Maximum concurrent sessions */
@@ -21,6 +24,7 @@ export interface NodeCapabilities {
 
 export const NodeCapabilitiesSchema = z.object({
   agentTypes: z.array(z.string().min(1)).min(1),
+  agentIds: z.array(z.string().min(1)).optional(),
   tools: z.array(z.string()),
   maxConcurrency: z.number().int().positive(),
   channels: z.array(z.string()),
@@ -59,6 +63,7 @@ export const HOT_RELOADABLE_FIELDS = [
   "defaultConversationScope",
   "maxConversations",
   "conversationTtl",
+  "bindings",
 ] as const;
 export type HotReloadableField = (typeof HOT_RELOADABLE_FIELDS)[number];
 
@@ -99,6 +104,8 @@ export interface GatewayConfig {
   readonly maxConversations: number;
   /** Conversation TTL in ms — inactive conversations are swept (default: 86_400_000 = 24h) */
   readonly conversationTtl: number;
+  /** Declarative agent bindings for multi-agent routing (optional, hot-reloadable) */
+  readonly bindings?: readonly AgentBinding[];
 }
 
 export const GatewayConfigSchema = z.object({
@@ -114,6 +121,7 @@ export const GatewayConfigSchema = z.object({
   defaultConversationScope: ConversationScopeSchema,
   maxConversations: z.number().int().positive(),
   conversationTtl: z.number().int().positive(),
+  bindings: z.array(AgentBindingSchema).optional(),
 });
 
 /**

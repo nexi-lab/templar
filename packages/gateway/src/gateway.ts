@@ -1,3 +1,4 @@
+import { BindingResolver } from "./binding-resolver.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
 import { DeliveryTracker } from "./delivery-tracker.js";
@@ -17,6 +18,7 @@ import { AgentRouter } from "./router.js";
 import { GatewayServer, type WsServerFactory } from "./server.js";
 import { SessionManager } from "./sessions/session-manager.js";
 import { createEmitter, type Emitter } from "./utils/emitter.js";
+import { mapDelete, mapSet } from "./utils/immutable-map.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +82,11 @@ export class TemplarGateway {
   private connectionToNode = new Map<string, string>();
   private nodeToConnection = new Map<string, string>();
 
+  // agentId → nodeId mapping for multi-agent routing.
+  // Updated incrementally during node register/deregister.
+  private agentToNode: ReadonlyMap<string, string> = new Map();
+  private bindingResolver: BindingResolver | undefined;
+
   constructor(config: GatewayConfig, deps: TemplarGatewayDeps = {}) {
     // 1. Node registry (injectable)
     this.registry = deps.registry ?? new NodeRegistry();
@@ -129,6 +136,14 @@ export class TemplarGateway {
     });
     this.router.setConversationStore(this.conversationStore);
     this.router.setConversationScope(config.defaultConversationScope);
+
+    // 9. Binding resolver for multi-agent routing
+    if (config.bindings && config.bindings.length > 0) {
+      this.bindingResolver = new BindingResolver();
+      this.bindingResolver.updateBindings(config.bindings);
+      this.router.setBindingResolver(this.bindingResolver);
+    }
+    this.router.setAgentNodeResolver((agentId) => this.resolveAgentNode(agentId));
 
     // Wire all event handlers
     this.wireFrameHandlers(config);
@@ -254,6 +269,20 @@ export class TemplarGateway {
     return this.conversationStore;
   }
 
+  /**
+   * Get the binding resolver (for testing/inspection).
+   */
+  getBindingResolver(): BindingResolver | undefined {
+    return this.bindingResolver;
+  }
+
+  /**
+   * Get the agentId → nodeId map (for testing/inspection).
+   */
+  getAgentToNodeMap(): ReadonlyMap<string, string> {
+    return this.agentToNode;
+  }
+
   // -------------------------------------------------------------------------
   // Event registration (returns disposers)
   // -------------------------------------------------------------------------
@@ -342,6 +371,25 @@ export class TemplarGateway {
         this.conversationStore.clear();
       }
 
+      // Handle binding changes — recompile and swap
+      if (changedFields.includes("bindings")) {
+        if (newConfig.bindings && newConfig.bindings.length > 0) {
+          if (this.bindingResolver) {
+            this.bindingResolver.updateBindings(newConfig.bindings);
+          } else {
+            // Bindings added to a config that didn't have them before
+            this.bindingResolver = new BindingResolver();
+            this.bindingResolver.updateBindings(newConfig.bindings);
+            this.router.setBindingResolver(this.bindingResolver);
+          }
+        }
+        // If bindings removed, the resolver stays but with empty compiled list
+        // which means no matches → falls through to channel bindings
+        if (this.bindingResolver && (!newConfig.bindings || newConfig.bindings.length === 0)) {
+          this.bindingResolver.updateBindings([]);
+        }
+      }
+
       // Update conversation store config on relevant field changes
       if (changedFields.includes("maxConversations") || changedFields.includes("conversationTtl")) {
         this.conversationStore.updateConfig({
@@ -392,6 +440,16 @@ export class TemplarGateway {
       // Map ephemeral connection ID ↔ node ID
       this.connectionToNode.set(connectionId, nodeId);
       this.nodeToConnection.set(nodeId, connectionId);
+
+      // Update agentId → nodeId mapping for multi-agent routing
+      // Batch updates to avoid intermediate Map allocations
+      if (frame.capabilities.agentIds) {
+        let nextMap = this.agentToNode;
+        for (const agentId of frame.capabilities.agentIds) {
+          nextMap = mapSet(nextMap, agentId, nodeId);
+        }
+        this.agentToNode = nextMap;
+      }
 
       // Create session
       const session = this.sessionManager.createSession(nodeId);
@@ -521,6 +579,17 @@ export class TemplarGateway {
     this.conversationStore.removeNode(nodeId);
     this.deliveryTracker.removeNode(nodeId);
 
+    // Remove agentId → nodeId entries for this node
+    const node = this.registry.get(nodeId);
+    if (node?.capabilities.agentIds) {
+      for (const agentId of node.capabilities.agentIds) {
+        // Only remove if this node still owns the mapping
+        if (this.agentToNode.get(agentId) === nodeId) {
+          this.agentToNode = mapDelete(this.agentToNode, agentId);
+        }
+      }
+    }
+
     const session = this.sessionManager.getSession(nodeId);
     if (session) {
       this.sessionManager.destroySession(nodeId);
@@ -536,5 +605,12 @@ export class TemplarGateway {
       this.connectionToNode.delete(connectionId);
     }
     this.nodeToConnection.delete(nodeId);
+  }
+
+  /**
+   * Resolve a logical agentId to the nodeId that serves it.
+   */
+  private resolveAgentNode(agentId: string): string | undefined {
+    return this.agentToNode.get(agentId);
   }
 }
