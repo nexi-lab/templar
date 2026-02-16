@@ -1255,6 +1255,64 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // LONG-RUNNING ERRORS — Multi-session agent harness
+  // ============================================================================
+  LONGRUNNING_GIT_UNAVAILABLE: {
+    domain: "longrunning",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Git unavailable",
+    description: "Git binary is not installed or the workspace is not a git repository",
+  },
+  LONGRUNNING_WORKSPACE_INVALID: {
+    domain: "longrunning",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid workspace",
+    description: "The workspace path does not exist or is not writable",
+  },
+  LONGRUNNING_FEATURE_LIST_CORRUPTED: {
+    domain: "longrunning",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Feature list corrupted",
+    description: "The feature list file contains invalid JSON and could not be recovered from git",
+  },
+  LONGRUNNING_FEATURE_IMMUTABILITY_VIOLATION: {
+    domain: "longrunning",
+    httpStatus: 409,
+    grpcCode: "ABORTED" as const,
+    baseType: "ConflictError" as const,
+    isExpected: true,
+    title: "Feature immutability violation",
+    description: "An attempt was made to modify a feature in a way that violates immutability constraints",
+  },
+  LONGRUNNING_SESSION_BOOTSTRAP_FAILED: {
+    domain: "longrunning",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Session bootstrap failed",
+    description: "Failed to bootstrap the session context from workspace files",
+  },
+  LONGRUNNING_INIT_SCRIPT_FAILED: {
+    domain: "longrunning",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Init script failed",
+    description: "The init.sh bootstrap script failed to execute successfully",
+  },
+
+  // ============================================================================
   // APPLICATION-SPECIFIC ERRORS — Templar SDK and Nexus client
   // ============================================================================
   TEMPLAR_CONFIG_INVALID: {
