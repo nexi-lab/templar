@@ -1197,6 +1197,64 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // SANDBOX ERRORS — OS-level agent sandboxing
+  // ============================================================================
+  SANDBOX_UNAVAILABLE: {
+    domain: "sandbox",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Sandbox unavailable",
+    description: "The sandbox runtime dependencies are not installed on this platform",
+  },
+  SANDBOX_PLATFORM_UNSUPPORTED: {
+    domain: "sandbox",
+    httpStatus: 400,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Platform unsupported",
+    description: "Sandboxing is only supported on macOS (Seatbelt) and Linux (bubblewrap)",
+  },
+  SANDBOX_CONFIG_INVALID: {
+    domain: "sandbox",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid sandbox configuration",
+    description: "The sandbox configuration failed validation",
+  },
+  SANDBOX_EXEC_FAILED: {
+    domain: "sandbox",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Sandbox execution failed",
+    description: "The sandboxed command execution failed",
+  },
+  SANDBOX_EXEC_TIMEOUT: {
+    domain: "sandbox",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Sandbox execution timeout",
+    description: "The sandboxed command exceeded the configured timeout duration",
+  },
+  SANDBOX_POLICY_VIOLATION: {
+    domain: "sandbox",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Sandbox policy violation",
+    description: "The sandboxed command attempted an operation blocked by the security policy",
+  },
+
+  // ============================================================================
   // APPLICATION-SPECIFIC ERRORS — Templar SDK and Nexus client
   // ============================================================================
   TEMPLAR_CONFIG_INVALID: {
