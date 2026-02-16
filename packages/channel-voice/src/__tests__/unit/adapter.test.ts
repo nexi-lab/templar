@@ -148,10 +148,11 @@ describe("VoiceChannel", () => {
     expect(roomRef.current?.connected).toBe(true);
     expect(roomRef.current?.url).toBe("wss://test.livekit.cloud");
 
-    // Session should have been started with room reference
+    // Session should have been started with agent + room reference
     const startCall = sessionRef.current?.calls.find((c) => c.method === "start");
     expect(startCall).toBeDefined();
-    const startOpts = startCall?.args[0] as { room: unknown };
+    const startOpts = startCall?.args[0] as { agent: unknown; room: unknown };
+    expect(startOpts.agent).toBeDefined();
     expect(startOpts.room).toBe(roomRef.current);
   });
 
@@ -187,13 +188,16 @@ describe("VoiceChannel", () => {
     expect(adapter.capabilities.realTimeVoice?.maxParticipants).toBe(50);
   });
 
-  it("should pass llm plugin to AgentSession constructor", async () => {
+  it("should pass Agent instance to session.start() (v1.x API)", async () => {
     const adapter = new VoiceChannel(VALID_CONFIG);
     await adapter.connect();
 
-    // The AgentSession constructor receives opts including llm
-    const constructorCall = sessionRef.current?.calls.find((c) => c.method === "start");
-    expect(constructorCall).toBeDefined();
+    // session.start() should receive { agent, room }
+    const startCall = sessionRef.current?.calls.find((c) => c.method === "start");
+    expect(startCall).toBeDefined();
+    const startOpts = startCall?.args[0] as { agent: unknown; room: unknown };
+    expect(startOpts.agent).toBeDefined();
+    expect(startOpts.room).toBe(roomRef.current);
   });
 });
 
@@ -394,5 +398,74 @@ describe("VoiceChannel block handling", () => {
     // Clean up
     bridge.provideResponse("cleanup");
     await processPromise;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// wireErrorEvents tests (Issue 3: untested error/close handlers)
+// ---------------------------------------------------------------------------
+
+describe("VoiceChannel wireErrorEvents", () => {
+  it("should not reject bridge on recoverable session error", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+    await adapter.connect();
+
+    // Emit a recoverable error (second arg = true)
+    sessionRef.current?.emit("error", new Error("STT timeout"), true);
+
+    // Bridge should NOT be rejected for recoverable errors
+    const bridge = adapter.getLlmBridge();
+    bridge.setMessageHandler(() => {});
+    const processPromise = bridge.processTranscription("test", "user1", "room1");
+
+    // Bridge should still be pending (not rejected by recoverable error)
+    expect(bridge.hasPending).toBe(true);
+
+    // Clean up
+    bridge.provideResponse("cleanup");
+    await processPromise;
+  });
+
+  it("should reject pending bridge on non-recoverable session error", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+    await adapter.connect();
+
+    const bridge = adapter.getLlmBridge();
+    bridge.setMessageHandler(() => {});
+
+    // Start a pending transcription
+    const processPromise = bridge.processTranscription("test", "user1", "room1");
+
+    // Emit non-recoverable error (recoverable=false is the default)
+    sessionRef.current?.emit("error", new Error("Fatal WebRTC failure"));
+
+    // Bridge should be rejected
+    await expect(processPromise).rejects.toThrow(VoiceConnectionFailedError);
+  });
+
+  it("should set isConnected=false on session close event", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+    await adapter.connect();
+    expect(adapter.isConnected).toBe(true);
+
+    // Simulate session closing unexpectedly
+    sessionRef.current?.emit("close");
+
+    expect(adapter.isConnected).toBe(false);
+  });
+
+  it("should handle close event after manual disconnect (no-op)", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+    await adapter.connect();
+
+    // Capture the session ref before disconnect clears it
+    const session = sessionRef.current;
+
+    await adapter.disconnect();
+    expect(adapter.isConnected).toBe(false);
+
+    // Emitting close after disconnect should not throw
+    session?.emit("close");
+    expect(adapter.isConnected).toBe(false);
   });
 });

@@ -94,14 +94,21 @@ describe("E2E Lifecycle", () => {
     expect(roomRef.current?.connected).toBe(true);
     expect(roomServiceRef.current?.calls.some((c) => c.method === "createRoom")).toBe(true);
 
-    // 3. Verify agent token was generated
+    // 3. Verify agent was passed to session.start()
+    const startCall = sessionRef.current?.calls.find((c) => c.method === "start");
+    expect(startCall).toBeDefined();
+    const startOpts = startCall?.args[0] as { agent: unknown; room: unknown };
+    expect(startOpts.agent).toBeDefined();
+    expect(startOpts.room).toBe(roomRef.current);
+
+    // 4. Verify agent token was generated
     expect(accessTokens.length).toBeGreaterThan(0);
 
-    // 4. Generate join token for a client
+    // 5. Generate join token for a client
     const clientToken = await adapter.getJoinToken("browser-user");
     expect(clientToken).toMatch(/^mock-jwt-/);
 
-    // 5. Simulate user speech via the LLM bridge
+    // 6. Simulate user speech via the LLM bridge
     const bridge = adapter.getLlmBridge();
     bridge.setMessageHandler(async (msg) => {
       receivedMessages.push(msg);
@@ -116,13 +123,13 @@ describe("E2E Lifecycle", () => {
     expect(receivedMessages[0]?.senderId).toBe("user-1");
     expect(receivedMessages[0]?.channelType).toBe("voice");
 
-    // 6. Disconnect
+    // 7. Disconnect
     await adapter.disconnect();
     expect(adapter.isConnected).toBe(false);
     expect(sessionRef.current?.closed).toBe(true);
     expect(roomRef.current?.connected).toBe(false);
 
-    // 7. Room should be deleted (autoCreate=true)
+    // 8. Room should be deleted (autoCreate=true)
     expect(roomServiceRef.current?.calls.some((c) => c.method === "deleteRoom")).toBe(true);
   });
 

@@ -2,8 +2,9 @@
  * Mock LiveKit SDK classes for testing.
  *
  * Matches LiveKit Agents v1.x API surface:
+ * - Agent: base class for voice agents with llmNode() override
  * - Room: connect/disconnect for WebRTC transport
- * - AgentSession: start({room}), close(), event listeners
+ * - AgentSession: start({agent, room}), close(), event listeners
  * - RoomServiceClient: server-side room CRUD
  * - AccessToken: JWT generation
  */
@@ -16,6 +17,23 @@ import { vi } from "vitest";
 export interface CapturedCall {
   readonly method: string;
   readonly args: readonly unknown[];
+}
+
+// ---------------------------------------------------------------------------
+// MockAgent (v1.x: base class for Agent subclasses with llmNode override)
+// ---------------------------------------------------------------------------
+
+export class MockAgent {
+  readonly options: Record<string, unknown>;
+
+  constructor(opts?: Record<string, unknown>) {
+    this.options = opts ?? {};
+  }
+
+  /** Default llmNode — overridden by TemplarVoiceAgent at runtime */
+  async llmNode(_chatCtx: unknown, _toolCtx: unknown, _modelSettings: unknown): Promise<unknown> {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +134,7 @@ export class MockAccessToken {
 }
 
 // ---------------------------------------------------------------------------
-// MockAgentSession (v1.x API: start({room}))
+// MockAgentSession (v1.x API: start({agent, room}))
 // ---------------------------------------------------------------------------
 
 type EventCallback = (...args: unknown[]) => void;
@@ -127,16 +145,18 @@ export class MockAgentSession {
   started = false;
   closed = false;
   room: unknown;
+  agent: unknown;
 
   /** If set, start() will reject */
   shouldFailStart: string | undefined;
 
-  /** v1.x start: takes { room, agent? } */
-  async start(opts: { room: unknown; agent?: unknown }): Promise<void> {
+  /** v1.x start: takes { agent, room } */
+  async start(opts: { agent: unknown; room: unknown }): Promise<void> {
     this.calls.push({ method: "start", args: [opts] });
     if (this.shouldFailStart) {
       throw new Error(this.shouldFailStart);
     }
+    this.agent = opts.agent;
     this.room = opts.room;
     this.started = true;
   }
@@ -208,6 +228,7 @@ export function createMockAgentsModule(
   const startError = refs && "startError" in refs ? refs.startError : undefined;
 
   return {
+    Agent: MockAgent,
     Room: class {
       constructor() {
         const room = new MockRoom();
