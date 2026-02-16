@@ -14,9 +14,10 @@
 import { execFile as execFileCb } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { SessionContext } from "@templar/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LongRunningMiddleware } from "../middleware.js";
-import type { Feature, FeatureListDocument, ProgressDocument, SessionContext } from "../types.js";
+import type { Feature, FeatureListDocument, ProgressDocument } from "../types.js";
 
 // ============================================================================
 // HELPERS
