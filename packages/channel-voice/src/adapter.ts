@@ -4,7 +4,7 @@ import { ChannelSendError, VoiceConnectionFailedError } from "@templar/errors";
 
 import { createVoiceCapabilities } from "./capabilities.js";
 import { parseVoiceConfig, type VoiceConfig } from "./config.js";
-import { TemplarLLMBridge } from "./llm-bridge.js";
+import { splitSentences, TemplarLLMBridge } from "./llm-bridge.js";
 import { RoomManager } from "./room-manager.js";
 
 // ---------------------------------------------------------------------------
@@ -23,11 +23,11 @@ interface LiveKitRoom {
 /**
  * Minimal AgentSession interface matching LiveKit Agents v1.x API.
  *
- * Constructor: new AgentSession({ vad, stt, llm, tts, turnDetection })
- * Start: session.start({ room, agent? })
+ * Constructor: new AgentSession({ vad, stt, tts, turnDetection })
+ * Start: session.start({ agent, room })
  */
 interface AgentSession {
-  start(opts: { room: LiveKitRoom; agent?: unknown }): Promise<void>;
+  start(opts: { agent: unknown; room: LiveKitRoom }): Promise<void>;
   close(): Promise<void>;
   on(event: string, callback: (...args: unknown[]) => void): void;
   off(event: string, callback: (...args: unknown[]) => void): void;
@@ -76,6 +76,55 @@ function extractTextFromBlocks(blocks: readonly ContentBlock[]): string {
     .filter((b): b is ContentBlock & { type: "text" } => b.type === "text")
     .map((b) => b.content)
     .join("\n");
+}
+
+/**
+ * Create a LiveKit Agent subclass that bridges llmNode() to Templar's handler.
+ *
+ * In v1.x, the pipeline calls Agent.llmNode() with chat context from STT.
+ * This override extracts the user message, routes it through the bridge
+ * (which invokes the Templar handler), and returns a ReadableStream of
+ * sentences for progressive TTS synthesis.
+ */
+function createTemplarAgentClass(
+  // biome-ignore lint/suspicious/noExplicitAny: Dynamic base from lazy-loaded @livekit/agents
+  AgentBase: any,
+  bridge: TemplarLLMBridge,
+  roomName: string,
+) {
+  // biome-ignore lint/suspicious/noExplicitAny: Dynamic subclass of lazy-loaded Agent
+  return class TemplarVoiceAgent extends (AgentBase as any) {
+    constructor() {
+      super({ instructions: "Templar voice agent" });
+    }
+
+    async llmNode(
+      // biome-ignore lint/suspicious/noExplicitAny: LiveKit ChatContext type not available at compile time
+      chatCtx: any,
+      _toolCtx: unknown,
+      _modelSettings: unknown,
+    ): Promise<ReadableStream<string> | null> {
+      const messages: Array<{ role: string; content: string; name?: string }> =
+        chatCtx?.messages ?? chatCtx?.items ?? [];
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+      const text = typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
+
+      if (!text.trim()) return null;
+
+      const identity = lastUserMsg?.name ?? "unknown";
+      const response = await bridge.processTranscription(text, identity, roomName);
+      const sentences = splitSentences(response);
+
+      return new ReadableStream<string>({
+        start(controller) {
+          for (const sentence of sentences) {
+            controller.enqueue(sentence);
+          }
+          controller.close();
+        },
+      });
+    }
+  };
 }
 
 /**
@@ -186,28 +235,43 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       this.room = new RoomClass();
       await this.room.connect(this.config.livekitUrl, token);
 
-      // 6. Create AgentSession with v1.x constructor params
+      // 6. Create Agent subclass with llmNode bridged to Templar
+      const TemplarAgent = createTemplarAgentClass(
+        agentsMod.Agent,
+        this.llmBridge,
+        this.config.room.name,
+      );
+      const agent = new TemplarAgent();
+
+      // 7. Create AgentSession with STT/TTS config (LLM handled by Agent.llmNode)
       const AgentSessionClass = agentsMod.AgentSession as new (
         opts: Record<string, unknown>,
       ) => AgentSession;
 
       this.agentSession = new AgentSessionClass({
         stt: this.config.sttModel,
-        llm: this.llmBridge.asLlmPlugin(),
         tts: this.config.ttsModel,
         turnDetection: this.config.turnDetection,
       });
 
-      // 7. Wire event listeners before starting session
+      // 8. Wire event listeners before starting session
       this.wireTranscriptionEvents();
       this.wireErrorEvents();
 
-      // 8. Start session with room reference (v1.x API)
-      await this.agentSession.start({ room: this.room });
+      // 9. Start session with agent + room (v1.x API)
+      await this.agentSession.start({ agent, room: this.room });
 
-      // 9. Record connect latency
+      // 10. Record connect latency
       this.connectLatencyMs = Date.now() - this.connectStartTime;
     } catch (error) {
+      // Disconnect room if it was connected (prevents WebRTC connection leak)
+      if (this.room) {
+        try {
+          await this.room.disconnect();
+        } catch {
+          // Best-effort cleanup during error handling
+        }
+      }
       // Clean up all partial state on failure
       this.room = undefined;
       this.agentSession = undefined;
@@ -225,10 +289,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       try {
         await this.agentSession.close();
       } catch (error) {
-        console.warn(
-          "[VoiceChannel] Error closing agent session:",
-          error instanceof Error ? error.message : String(error),
-        );
+        this.log("warn", "Error closing agent session", error);
       }
       this.agentSession = undefined;
     }
@@ -238,10 +299,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       try {
         await this.room.disconnect();
       } catch (error) {
-        console.warn(
-          "[VoiceChannel] Error disconnecting room:",
-          error instanceof Error ? error.message : String(error),
-        );
+        this.log("warn", "Error disconnecting room", error);
       }
       this.room = undefined;
     }
@@ -251,10 +309,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       try {
         await this.roomManager.deleteRoom(this.config.room.name);
       } catch (error) {
-        console.warn(
-          "[VoiceChannel] Error deleting room:",
-          error instanceof Error ? error.message : String(error),
-        );
+        this.log("warn", "Error deleting room", error);
       }
     }
 
@@ -322,18 +377,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       for (const listener of this.eventListeners) {
         listener(event);
       }
-
-      // Route through LLM bridge for pipeline flow
-      if (text.trim()) {
-        void this.llmBridge
-          .processTranscription(text, identity, this.config.room.name)
-          .catch((error: unknown) => {
-            console.error(
-              "[VoiceChannel] Pipeline error:",
-              error instanceof Error ? error.message : String(error),
-            );
-          });
-      }
+      // Note: STT → LLM flow is handled by the pipeline via Agent.llmNode()
     });
 
     this.agentSession.on("agent_speech_committed", (...args: unknown[]) => {
@@ -352,6 +396,13 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
     });
   }
 
+  /** Structured log helper — standardizes format and avoids DRY violation. */
+  private log(level: "warn" | "error", context: string, error?: unknown): void {
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    const fn = level === "error" ? console.error : console.warn;
+    fn(`[VoiceChannel] ${context}${message ? `: ${message}` : ""}`);
+  }
+
   /**
    * Wire error and close event listeners on the agent session.
    * Maps LiveKit errors to VOICE_* error codes and emits through listeners.
@@ -365,7 +416,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
         errorArg instanceof Error ? errorArg : new Error(String(errorArg ?? "Unknown voice error"));
       const recoverable = typeof args[1] === "boolean" ? args[1] : false;
 
-      console.error(`[VoiceChannel] Session error (recoverable=${recoverable}):`, error.message);
+      this.log("error", `Session error (recoverable=${recoverable})`, error);
 
       const event: VoiceEvent = {
         type: "error",
@@ -389,7 +440,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
     });
 
     this.agentSession.on("close", () => {
-      console.warn("[VoiceChannel] Session closed unexpectedly");
+      this.log("warn", "Session closed unexpectedly");
       // Mark adapter as disconnected if session closes on its own
       if (this.isConnected) {
         this.setConnected(false);
