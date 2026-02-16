@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../core" }, { "path": "../engine" }]
+  "references": [{ "path": "../core" }, { "path": "../errors" }, { "path": "../nexus-sdk" }]
 }

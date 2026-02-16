@@ -1,7 +1,7 @@
+import type { ChannelCapabilities } from "@templar/core";
 import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
 import { describe, expect, it, vi } from "vitest";
 import { ChannelRegistry } from "../../channel-registry.js";
-import type { ChannelCapabilities } from "../../types.js";
 import { MockChannelAdapter } from "../helpers/mock-channel.js";
 
 /** Minimal text-only capabilities for tests that don't care about specific caps */

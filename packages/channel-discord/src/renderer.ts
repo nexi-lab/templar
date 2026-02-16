@@ -1,4 +1,5 @@
-import { coalesceBlocks, type OutboundMessage, splitText } from "@templar/core";
+import { coalesceBlocks, splitText } from "@templar/channel-base";
+import type { OutboundMessage } from "@templar/core";
 import { ChannelSendError } from "@templar/errors";
 
 // ---------------------------------------------------------------------------

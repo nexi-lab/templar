@@ -1,3 +1,4 @@
+import type { ChannelCapabilities, OutboundMessage } from "@templar/core";
 import {
   CapabilityNotSupportedError,
   ChannelLoadError,
@@ -7,7 +8,6 @@ import { describe, expect, it, vi } from "vitest";
 import { CapabilityGuard } from "../../capability-guard.js";
 import { ChannelRegistry } from "../../channel-registry.js";
 import { isChannelAdapter } from "../../type-guards.js";
-import type { ChannelCapabilities, OutboundMessage } from "../../types.js";
 import { MockChannelAdapter } from "../helpers/mock-channel.js";
 
 /** Minimal text-only capabilities */

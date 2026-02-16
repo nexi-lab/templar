@@ -5,7 +5,7 @@
  * This ensures zero overhead when telemetry is disabled.
  */
 
-import { registerMiddlewareWrapper, unregisterMiddlewareWrapper } from "@templar/core";
+import { registerMiddlewareWrapper, unregisterMiddlewareWrapper } from "@templar/engine";
 import { withTracing } from "./traced-middleware.js";
 import type { TelemetryConfig } from "./types.js";
 

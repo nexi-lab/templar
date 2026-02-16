@@ -1,7 +1,7 @@
+import type { AgentManifest, NexusClient, TemplarConfig } from "@templar/core";
 import { TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { type AgentManifest, createTemplar } from "../index.js";
-import type { NexusClient, TemplarConfig } from "../types.js";
+import { createTemplar } from "../index.js";
 
 function createMockNexusClient(): NexusClient {
   return {
@@ -14,7 +14,7 @@ function createMockNexusClient(): NexusClient {
   } as unknown as NexusClient;
 }
 
-describe("Edge cases", () => {
+describe("Engine edge cases", () => {
   describe("empty and minimal configs", () => {
     it("should handle completely empty config", () => {
       const config: TemplarConfig = {};
@@ -57,7 +57,6 @@ describe("Edge cases", () => {
 
       const agent = createTemplar(config);
       expect(agent).toBeDefined();
-      // Properties should be passed through to createDeepAgent
     });
 
     it("should handle config with null values for optional fields", () => {
@@ -78,36 +77,32 @@ describe("Edge cases", () => {
       const originalMiddleware = config.middleware;
       createTemplar(config);
 
-      // Original config should be unchanged
       expect(config.middleware).toBe(originalMiddleware);
     });
   });
 
   describe("validation order", () => {
     it("should validate agentType before nexus", () => {
-      // Invalid agentType should throw before nexus is checked
       const config = {
         model: "gpt-4",
         agentType: "invalid",
-        nexus: {} as NexusClient, // This is also invalid
+        nexus: {} as NexusClient,
       } as unknown as TemplarConfig;
 
       expect(() => createTemplar(config)).toThrow("Invalid agentType");
     });
 
     it("should validate nexus before manifest", () => {
-      // Invalid nexus should throw before manifest is checked
       const config: TemplarConfig = {
         model: "gpt-4",
-        nexus: {} as NexusClient, // Invalid - missing methods
-        manifest: {} as AgentManifest, // Also invalid - missing required fields
+        nexus: {} as NexusClient,
+        manifest: {} as AgentManifest,
       };
 
       expect(() => createTemplar(config)).toThrow(/'agents' resource/);
     });
 
     it("should validate all fields even with multiple errors", () => {
-      // Even though multiple fields are invalid, should throw on first validation
       const config = {
         agentType: "invalid",
         nexus: null,
@@ -214,7 +209,7 @@ describe("Edge cases", () => {
         manifest: {
           name: "test",
           version: "1.0.0",
-          description: "a".repeat(1000), // Very long description
+          description: "a".repeat(1000),
         },
       };
 
@@ -297,8 +292,6 @@ describe("Edge cases", () => {
     });
 
     it("should include cause in wrapped errors", () => {
-      // This will be more relevant once we integrate with real createDeepAgent
-      // For now, just verify error structure
       const config = {
         model: "gpt-4",
         agentType: "invalid",

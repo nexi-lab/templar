@@ -1,7 +1,7 @@
+import type { OutboundMessage } from "@templar/core";
 import { CapabilityNotSupportedError } from "@templar/errors";
 import { describe, expect, it, vi } from "vitest";
 import { CapabilityGuard } from "../../capability-guard.js";
-import type { OutboundMessage } from "../../types.js";
 import { createMockAdapter } from "../helpers/mock-channel.js";
 
 describe("CapabilityGuard", () => {

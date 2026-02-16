@@ -1,4 +1,4 @@
-import type { ContentBlock } from "./types.js";
+import type { ContentBlock } from "@templar/core";
 
 /**
  * Coalesce adjacent text blocks into a single text block.

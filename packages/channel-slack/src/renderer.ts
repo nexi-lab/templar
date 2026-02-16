@@ -1,6 +1,6 @@
 import type { Readable } from "node:stream";
+import { coalesceBlocks } from "@templar/channel-base";
 import type { OutboundMessage } from "@templar/core";
-import { coalesceBlocks } from "@templar/core";
 import { ChannelSendError } from "@templar/errors";
 import { downloadFile } from "./download.js";
 import { toMrkdwn } from "./mrkdwn.js";

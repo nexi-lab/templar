@@ -1,4 +1,5 @@
-import { type ButtonBlock, coalesceBlocks, type OutboundMessage, splitText } from "@templar/core";
+import { coalesceBlocks, splitText } from "@templar/channel-base";
+import type { ButtonBlock, OutboundMessage } from "@templar/core";
 import type { Api } from "grammy";
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from "grammy/types";
 
