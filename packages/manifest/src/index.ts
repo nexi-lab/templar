@@ -43,7 +43,6 @@ export {
   IdentityConfigSchema,
   PromptSchema,
   ScheduleSchema,
-  SESSION_SCOPING_VALUES,
   SessionScopingSchema,
   SkillRefSchema,
 } from "./schema.js";

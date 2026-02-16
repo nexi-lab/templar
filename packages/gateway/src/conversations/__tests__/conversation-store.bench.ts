@@ -21,6 +21,19 @@ describe("ConversationStore performance", () => {
     store.bind("agent:a1:whatsapp:dm:p1" as ConversationKey, "node-1");
   });
 
+  // Benchmark bind() at 100K entries to measure immutable Map copy cost (#13)
+  const bindScaleStore = new ConversationStore({
+    maxConversations: 200_000,
+    conversationTtl: 86_400_000,
+  });
+  for (let i = 0; i < 100_000; i++) {
+    bindScaleStore.bind(`agent:a1:ch:dm:peer-${i}` as ConversationKey, "node-1");
+  }
+  let bindCounter = 100_000;
+  bench("store.bind() at 100K entries (new key)", () => {
+    bindScaleStore.bind(`agent:a1:ch:dm:peer-${bindCounter++}` as ConversationKey, "node-1");
+  });
+
   const lookupStore = new ConversationStore({
     maxConversations: 200_000,
     conversationTtl: 86_400_000,
@@ -32,18 +45,34 @@ describe("ConversationStore performance", () => {
     lookupStore.get("agent:a1:ch:dm:peer-50000" as ConversationKey);
   });
 
-  const sweepStore = new ConversationStore({
-    maxConversations: 200_000,
-    conversationTtl: 60_000,
-  });
-  const now = 100_000;
-  for (let i = 0; i < 90_000; i++) {
-    sweepStore.bind(`agent:a1:ch:dm:fresh-${i}` as ConversationKey, "node-1", now);
-  }
-  for (let i = 0; i < 10_000; i++) {
-    sweepStore.bind(`agent:a1:ch:dm:old-${i}` as ConversationKey, "node-1", 1000);
-  }
-  bench("store.sweep() at 100K entries (10% expired)", () => {
-    sweepStore.sweep(now + 60_001);
-  });
+  // Fixed sweep benchmark: recreate expired data for each iteration (#12)
+  bench(
+    "store.sweep() at 100K entries (10% expired)",
+    () => {
+      sweepStore.sweep(sweepNow + 60_001);
+    },
+    {
+      setup: () => {
+        // Repopulate store before each measurement to avoid benchmarking a no-op
+        sweepStore = new ConversationStore({
+          maxConversations: 200_000,
+          conversationTtl: 60_000,
+        });
+        sweepNow = 100_000;
+        for (let i = 0; i < 90_000; i++) {
+          sweepStore.bind(`agent:a1:ch:dm:fresh-${i}` as ConversationKey, "node-1", sweepNow);
+        }
+        for (let i = 0; i < 10_000; i++) {
+          sweepStore.bind(`agent:a1:ch:dm:old-${i}` as ConversationKey, "node-1", 1000);
+        }
+      },
+    },
+  );
 });
+
+// Module-level vars for sweep bench (setup callback reassigns them)
+let sweepStore = new ConversationStore({
+  maxConversations: 200_000,
+  conversationTtl: 60_000,
+});
+let sweepNow = 100_000;

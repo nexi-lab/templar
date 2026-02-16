@@ -23,6 +23,7 @@ export type {
   VoiceMessageCapability,
 } from "./channel-types.js";
 // Config types
+export { CONVERSATION_SCOPES } from "./config-types.js";
 export type {
   AgentManifest,
   BootstrapBudget,
@@ -31,6 +32,7 @@ export type {
   BootstrapFileKind,
   BootstrapPathConfig,
   ChannelConfig,
+  ConversationScope,
   DeepAgentConfig,
   MiddlewareConfig,
   ModelConfig,

@@ -69,18 +69,24 @@ describe("resolveConversationKey()", () => {
         desc: "main scope",
         input: { ...base, scope: "main" as const },
         expected: "agent:a1:main",
+        requestedScope: "main",
+        effectiveScope: "main",
         degraded: false,
       },
       {
         desc: "per-peer scope",
         input: { ...base, scope: "per-peer" as const, peerId: "p1" },
         expected: "agent:a1:dm:p1",
+        requestedScope: "per-peer",
+        effectiveScope: "per-peer",
         degraded: false,
       },
       {
         desc: "per-channel-peer scope",
         input: { ...base, scope: "per-channel-peer" as const, peerId: "p1" },
         expected: "agent:a1:whatsapp:dm:p1",
+        requestedScope: "per-channel-peer",
+        effectiveScope: "per-channel-peer",
         degraded: false,
       },
       {
@@ -92,11 +98,15 @@ describe("resolveConversationKey()", () => {
           accountId: "acc1",
         },
         expected: "agent:a1:whatsapp:acc1:dm:p1",
+        requestedScope: "per-account-channel-peer",
+        effectiveScope: "per-account-channel-peer",
         degraded: false,
       },
-    ])("$desc → $expected", ({ input, expected, degraded }) => {
+    ])("$desc → $expected", ({ input, expected, requestedScope, effectiveScope, degraded }) => {
       const result = resolveConversationKey(input);
       expect(result.key).toBe(expected);
+      expect(result.requestedScope).toBe(requestedScope);
+      expect(result.effectiveScope).toBe(effectiveScope);
       expect(result.degraded).toBe(degraded);
       expect(result.warnings).toHaveLength(0);
     });
@@ -111,68 +121,68 @@ describe("resolveConversationKey()", () => {
         groupId: "grp-42",
       });
       expect(result.key).toBe("agent:a1:whatsapp:group:grp-42");
+      expect(result.requestedScope).toBe("per-channel-peer");
+      expect(result.effectiveScope).toBe("group");
       expect(result.degraded).toBe(false);
     });
 
-    it("falls back to main when groupId missing", () => {
-      const result = resolveConversationKey({
-        ...base,
-        messageType: "group",
-      });
-      expect(result.key).toBe("agent:a1:main");
-      expect(result.degraded).toBe(true);
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain("groupId");
+    it("throws when groupId is missing", () => {
+      expect(() =>
+        resolveConversationKey({
+          ...base,
+          messageType: "group",
+        }),
+      ).toThrow("groupId");
     });
   });
 
-  describe("fallback chain", () => {
+  describe("strict peerId enforcement", () => {
     it.each([
       {
-        desc: "per-peer missing peerId → main",
+        desc: "per-peer missing peerId → throws",
         input: { ...base, scope: "per-peer" as const },
-        expected: "agent:a1:main",
-        warningSubstring: "peerId",
       },
       {
-        desc: "per-channel-peer missing peerId → main",
+        desc: "per-channel-peer missing peerId → throws",
         input: { ...base, scope: "per-channel-peer" as const },
-        expected: "agent:a1:main",
-        warningSubstring: "peerId",
       },
       {
-        desc: "per-account-channel-peer missing peerId → main",
+        desc: "per-account-channel-peer missing peerId → throws",
         input: { ...base, scope: "per-account-channel-peer" as const, accountId: "acc1" },
-        expected: "agent:a1:main",
-        warningSubstring: "peerId",
       },
-      {
-        desc: "per-account-channel-peer missing accountId → per-channel-peer",
-        input: { ...base, scope: "per-account-channel-peer" as const, peerId: "p1" },
-        expected: "agent:a1:whatsapp:dm:p1",
-        warningSubstring: "accountId",
-      },
-    ])("$desc", ({ input, expected, warningSubstring }) => {
-      const result = resolveConversationKey(input);
-      expect(result.key).toBe(expected);
+    ])("$desc", ({ input }) => {
+      expect(() => resolveConversationKey(input)).toThrow("peerId");
+    });
+  });
+
+  describe("graceful degradation (accountId only)", () => {
+    it("per-account-channel-peer missing accountId → degrades to per-channel-peer", () => {
+      const result = resolveConversationKey({
+        ...base,
+        scope: "per-account-channel-peer",
+        peerId: "p1",
+      });
+      expect(result.key).toBe("agent:a1:whatsapp:dm:p1");
+      expect(result.requestedScope).toBe("per-account-channel-peer");
+      expect(result.effectiveScope).toBe("per-channel-peer");
       expect(result.degraded).toBe(true);
       expect(result.warnings.length).toBeGreaterThanOrEqual(1);
-      expect(result.warnings[0]).toContain(warningSubstring);
+      expect(result.warnings[0]).toContain("accountId");
     });
   });
 
   describe("edge cases", () => {
-    it("treats empty string peerId as missing", () => {
-      const result = resolveConversationKey({
-        ...base,
-        scope: "per-peer",
-        peerId: "",
-      });
-      expect(result.key).toBe("agent:a1:main");
-      expect(result.degraded).toBe(true);
+    it("treats empty string peerId as missing (throws)", () => {
+      expect(() =>
+        resolveConversationKey({
+          ...base,
+          scope: "per-peer",
+          peerId: "",
+        }),
+      ).toThrow("peerId");
     });
 
-    it("treats empty string accountId as missing", () => {
+    it("treats empty string accountId as missing (degrades)", () => {
       const result = resolveConversationKey({
         ...base,
         scope: "per-account-channel-peer",
@@ -209,6 +219,27 @@ describe("resolveConversationKey()", () => {
       expect(() => resolveConversationKey({ ...base, channelId: "ch:1" })).toThrow(
         "channelId must not contain ':'",
       );
+    });
+
+    it("rejects colon in accountId", () => {
+      expect(() =>
+        resolveConversationKey({
+          ...base,
+          scope: "per-account-channel-peer",
+          peerId: "p1",
+          accountId: "acc:1",
+        }),
+      ).toThrow("accountId must not contain ':'");
+    });
+
+    it("rejects colon in groupId", () => {
+      expect(() =>
+        resolveConversationKey({
+          ...base,
+          messageType: "group",
+          groupId: "grp:1",
+        }),
+      ).toThrow("groupId must not contain ':'");
     });
   });
 });
@@ -283,5 +314,15 @@ describe("parseConversationKey()", () => {
 
   it("returns undefined for too-short key", () => {
     expect(parseConversationKey("agent:a1" as ConversationKey)).toBeUndefined();
+  });
+
+  // Malformed intermediate formats (#10)
+  it.each([
+    { desc: "5 parts with unknown segment type", key: "agent:a1:whatsapp:unknown:extra" },
+    { desc: "4 parts — dm missing peerId", key: "agent:a1:whatsapp:dm" },
+    { desc: "4 parts — group missing groupId", key: "agent:a1:whatsapp:group" },
+    { desc: "7 parts — too many segments", key: "agent:a1:ch:acc:dm:p1:extra" },
+  ])("returns undefined for malformed key: $desc", ({ key }) => {
+    expect(parseConversationKey(key as ConversationKey)).toBeUndefined();
   });
 });
