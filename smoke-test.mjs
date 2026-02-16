@@ -222,6 +222,39 @@ assert.ok(telegram.capabilities.text, "Telegram has text capability");
 assert.strictEqual(telegram.capabilities.text.maxLength, 4096);
 console.log("✓ TelegramChannel: capabilities object correct");
 
+// ---- 12. Bootstrap resolution exports ----
+const manifest = await import(join(root, "packages/manifest/dist/index.js"));
+assert.ok(manifest.resolveBootstrapFiles, "resolveBootstrapFiles exported");
+assert.strictEqual(typeof manifest.resolveBootstrapFiles, "function");
+console.log("✓ @templar/manifest: resolveBootstrapFiles exported");
+
+assert.ok(manifest.DEFAULT_BUDGET, "DEFAULT_BUDGET exported");
+assert.strictEqual(manifest.DEFAULT_BUDGET.instructions, 10_000);
+assert.strictEqual(manifest.DEFAULT_BUDGET.tools, 6_000);
+assert.strictEqual(manifest.DEFAULT_BUDGET.context, 4_000);
+console.log("✓ @templar/manifest: DEFAULT_BUDGET correct");
+
+assert.ok(manifest.BOOTSTRAP_FILENAMES, "BOOTSTRAP_FILENAMES exported");
+assert.deepStrictEqual(Object.keys(manifest.BOOTSTRAP_FILENAMES), [
+  "instructions",
+  "tools",
+  "context",
+]);
+console.log("✓ @templar/manifest: BOOTSTRAP_FILENAMES correct");
+
+assert.ok(manifest.truncateContent, "truncateContent exported");
+assert.ok(manifest.readTextFile, "readTextFile exported");
+assert.ok(manifest.fileExists, "fileExists exported");
+console.log("✓ @templar/manifest: bootstrap utility functions exported");
+
+assert.ok(manifest.BootstrapPathConfigSchema, "BootstrapPathConfigSchema exported");
+const bsResult = manifest.BootstrapPathConfigSchema.safeParse({
+  instructions: "CUSTOM.md",
+  budget: { instructions: 5000 },
+});
+assert.ok(bsResult.success, "BootstrapPathConfigSchema validates correctly");
+console.log("✓ @templar/manifest: BootstrapPathConfigSchema validates");
+
 console.log("\n========================================");
-console.log("  ALL 28 SMOKE TESTS PASSED ✓");
+console.log("  ALL 35 SMOKE TESTS PASSED ✓");
 console.log("========================================");

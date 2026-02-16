@@ -39,6 +39,11 @@ export { isChannelAdapter, isChannelCapabilities } from "./type-guards.js";
 // Export types
 export type {
   AgentManifest,
+  BootstrapBudget,
+  BootstrapContext,
+  BootstrapFile,
+  BootstrapFileKind,
+  BootstrapPathConfig,
   Button,
   ButtonBlock,
   ButtonCapability,

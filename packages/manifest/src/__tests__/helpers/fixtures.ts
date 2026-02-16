@@ -76,6 +76,24 @@ version: not-semver
 `;
 
 // ---------------------------------------------------------------------------
+// Bootstrap file fixtures
+// ---------------------------------------------------------------------------
+
+export const BOOTSTRAP_TEMPLAR_MD =
+  "# Agent Instructions\n\nYou are a helpful assistant that follows the Templar protocol.";
+
+export const BOOTSTRAP_TOOLS_MD =
+  "# Tools\n\n## web_search\nSearch the web for information.\n\n## file_read\nRead a file from disk.";
+
+export const BOOTSTRAP_CONTEXT_MD = "# Context\n\nProject: Templar\nWorkspace: /home/user/project";
+
+export const OVERSIZED_CONTENT = "x".repeat(15_000);
+
+export const BINARY_CONTENT = "Hello\0World";
+
+export const BOM_CONTENT = "\uFEFF# Agent Instructions\n\nWith BOM prefix.";
+
+// ---------------------------------------------------------------------------
 // Sugar syntax fixtures
 // ---------------------------------------------------------------------------
 

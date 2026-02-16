@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   AgentManifestSchema,
+  BootstrapBudgetSchema,
+  BootstrapPathConfigSchema,
   ChannelConfigSchema,
   ChannelIdentityConfigSchema,
   IdentityConfigSchema,
@@ -424,5 +426,129 @@ describe("AgentManifestSchema — schedule and prompt", () => {
     if (result.success) {
       expect(result.data.prompt).toBeUndefined();
     }
+  });
+});
+
+describe("BootstrapBudgetSchema", () => {
+  it("accepts valid budget with all fields", () => {
+    const result = BootstrapBudgetSchema.safeParse({
+      instructions: 10_000,
+      tools: 6_000,
+      context: 4_000,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts partial budget", () => {
+    const result = BootstrapBudgetSchema.safeParse({ instructions: 5_000 });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty object", () => {
+    const result = BootstrapBudgetSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects budget below minimum (100)", () => {
+    const result = BootstrapBudgetSchema.safeParse({ instructions: 50 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects budget above maximum (50_000)", () => {
+    const result = BootstrapBudgetSchema.safeParse({ instructions: 100_000 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer budget", () => {
+    const result = BootstrapBudgetSchema.safeParse({ instructions: 1000.5 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative budget", () => {
+    const result = BootstrapBudgetSchema.safeParse({ instructions: -100 });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("BootstrapPathConfigSchema", () => {
+  it("accepts valid config with all fields", () => {
+    const result = BootstrapPathConfigSchema.safeParse({
+      instructions: "CUSTOM.md",
+      tools: "MY_TOOLS.md",
+      context: "MY_CONTEXT.md",
+      budget: { instructions: 5_000 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty object (all defaults)", () => {
+    const result = BootstrapPathConfigSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty string path", () => {
+    const result = BootstrapPathConfigSchema.safeParse({ instructions: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects path traversal with ../", () => {
+    const result = BootstrapPathConfigSchema.safeParse({
+      instructions: "../../../etc/passwd",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects absolute path", () => {
+    const result = BootstrapPathConfigSchema.safeParse({
+      instructions: "/etc/shadow",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts nested relative path", () => {
+    const result = BootstrapPathConfigSchema.safeParse({
+      instructions: "bootstrap/TEMPLAR.md",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("AgentManifestSchema — bootstrap", () => {
+  const minimal = {
+    name: "test-agent",
+    version: "1.0.0",
+    description: "A test agent",
+  };
+
+  it("accepts manifest with bootstrap config", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      bootstrap: { instructions: "TEMPLAR.md" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts manifest with empty bootstrap (all defaults)", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      bootstrap: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts manifest without bootstrap (optional)", () => {
+    const result = AgentManifestSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.bootstrap).toBeUndefined();
+    }
+  });
+
+  it("rejects manifest with traversal path in bootstrap", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      bootstrap: { instructions: "../../secret.md" },
+    });
+    expect(result.success).toBe(false);
   });
 });

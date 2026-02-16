@@ -25,3 +25,6 @@ identity:
   default:
     name: Code Builder
     bio: Nightly builds and test reports at 2 AM
+
+bootstrap:
+  instructions: TEMPLAR.md

@@ -1869,6 +1869,63 @@ export class ManifestInterpolationError extends ValidationError<"MANIFEST_INTERP
 }
 
 // ============================================================================
+// BOOTSTRAP ERRORS (legacy wrappers)
+// ============================================================================
+
+/** @deprecated Use `new NotFoundError({ code: "BOOTSTRAP_FILE_NOT_FOUND", ... })` */
+export class BootstrapFileNotFoundError extends NotFoundError<"BOOTSTRAP_FILE_NOT_FOUND"> {
+  constructor(
+    public readonly filePath: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "BOOTSTRAP_FILE_NOT_FOUND",
+      message: `Bootstrap file not found: ${filePath}`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ValidationError({ code: "BOOTSTRAP_FILE_TOO_LARGE", ... })` */
+export class BootstrapFileTooLargeError extends ValidationError<"BOOTSTRAP_FILE_TOO_LARGE"> {
+  constructor(
+    public readonly filePath: string,
+    public readonly size: number,
+    public readonly budget: number,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "BOOTSTRAP_FILE_TOO_LARGE",
+      message: `Bootstrap file too large: ${filePath} (${size} chars, budget ${budget})`,
+      metadata,
+      traceId,
+    });
+  }
+}
+
+/** @deprecated Use `new ValidationError({ code: "BOOTSTRAP_PARSE_FAILED", ... })` */
+export class BootstrapParseFailedError extends ValidationError<"BOOTSTRAP_PARSE_FAILED"> {
+  constructor(
+    public readonly filePath: string,
+    message: string,
+    public override readonly cause?: Error | undefined,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "BOOTSTRAP_PARSE_FAILED",
+      message: `Bootstrap parse failed (${filePath}): ${message}`,
+      metadata,
+      traceId,
+      ...(cause ? { cause } : {}),
+    });
+  }
+}
+
+// ============================================================================
 // SKILL ERRORS (legacy wrappers)
 // ============================================================================
 
