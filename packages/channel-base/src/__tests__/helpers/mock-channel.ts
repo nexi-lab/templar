@@ -1,4 +1,3 @@
-import { vi } from "vitest";
 import type {
   ButtonCapability,
   ChannelAdapter,
@@ -14,7 +13,8 @@ import type {
   TextCapability,
   ThreadCapability,
   VoiceMessageCapability,
-} from "../../types.js";
+} from "@templar/core";
+import { vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Sensible Defaults for Capability Groups
@@ -60,10 +60,6 @@ export interface MockAdapterOptions {
 
 /**
  * Build a ChannelCapabilities object from shorthand options.
- *
- * - `true` expands to the full default group
- * - An object merges with the default group
- * - Absent keys remain undefined (unsupported)
  */
 function buildCapabilities(options: MockAdapterOptions): ChannelCapabilities {
   const caps: ChannelCapabilities = {};
@@ -119,21 +115,9 @@ function buildCapabilities(options: MockAdapterOptions): ChannelCapabilities {
 }
 
 // ---------------------------------------------------------------------------
-// MockChannelAdapter (class — updated for grouped capabilities)
+// MockChannelAdapter
 // ---------------------------------------------------------------------------
 
-/**
- * Mock ChannelAdapter for testing
- *
- * All methods are vitest mock functions that can be asserted against.
- *
- * @example
- * ```typescript
- * const mock = new MockChannelAdapter('test-channel', { text: true, images: true });
- * await mock.connect();
- * expect(mock.connect).toHaveBeenCalled();
- * ```
- */
 export class MockChannelAdapter implements ChannelAdapter {
   readonly name: string;
   readonly capabilities: ChannelCapabilities;
@@ -152,7 +136,6 @@ export class MockChannelAdapter implements ChannelAdapter {
 
   constructor(name = "mock-channel", options: MockAdapterOptions = {}) {
     this.name = name;
-    // Default to text-only if no options given
     const hasAnyCap = Object.keys(options).some(
       (k) => k !== "name" && options[k as keyof MockAdapterOptions] !== undefined,
     );
@@ -172,31 +155,13 @@ export class MockChannelAdapter implements ChannelAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// Factory Function (preferred API)
+// Factory Functions
 // ---------------------------------------------------------------------------
 
-/**
- * Create a mock adapter with smart defaults.
- *
- * @example
- * ```typescript
- * // Text-only adapter (default)
- * const basic = createMockAdapter();
- *
- * // Slack-like adapter
- * const slack = createMockAdapter({ name: 'slack', text: true, images: true, threads: true, reactions: true });
- *
- * // Custom image constraints
- * const strict = createMockAdapter({ images: { maxSize: 1_000_000, formats: ['png'] } });
- * ```
- */
 export function createMockAdapter(options: MockAdapterOptions = {}): MockChannelAdapter {
   return new MockChannelAdapter(options.name, options);
 }
 
-/**
- * Create a helper InboundMessage for testing handlers
- */
 export function createMockInboundMessage(overrides: Partial<InboundMessage> = {}): InboundMessage {
   return {
     channelType: "mock",

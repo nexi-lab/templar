@@ -8,7 +8,7 @@ export default defineConfig({
       composite: false,
     },
   },
-  external: ["@templar/core", "@templar/engine"],
+  external: ["@templar/core", "@templar/errors", "@nexus/sdk"],
   clean: true,
   treeshake: true,
   target: "node22",

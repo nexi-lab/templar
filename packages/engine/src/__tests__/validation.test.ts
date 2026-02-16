@@ -1,6 +1,6 @@
+import type { AgentManifest, NexusClient } from "@templar/core";
 import { ManifestValidationError, NexusClientError, TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import type { AgentManifest, NexusClient } from "../types.js";
 import { validateAgentType, validateManifest, validateNexusClient } from "../validation.js";
 
 describe("validation", () => {

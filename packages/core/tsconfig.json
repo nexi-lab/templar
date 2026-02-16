@@ -6,5 +6,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../nexus-sdk" }, { "path": "../errors" }]
+  "references": [{ "path": "../nexus-sdk" }]
 }

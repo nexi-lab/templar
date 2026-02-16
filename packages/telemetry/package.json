@@ -26,7 +26,8 @@
     "@opentelemetry/semantic-conventions": "^1.28.0"
   },
   "peerDependencies": {
-    "@templar/core": "workspace:*"
+    "@templar/core": "workspace:*",
+    "@templar/engine": "workspace:*"
   },
   "devDependencies": {
     "@templar/test-utils": "workspace:*",

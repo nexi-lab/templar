@@ -1,8 +1,8 @@
+import type { CapabilityKey, ChannelAdapter, ChannelCapabilities } from "@templar/core";
 import { ChannelLoadError, ChannelNotFoundError } from "@templar/errors";
 import { CapabilityGuard } from "./capability-guard.js";
 import { hashConfig } from "./config-hash.js";
 import { isChannelAdapter } from "./type-guards.js";
-import type { CapabilityKey, ChannelAdapter, ChannelCapabilities } from "./types.js";
 
 /**
  * Options for loading a channel adapter

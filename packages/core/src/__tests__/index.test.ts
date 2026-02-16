@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { PACKAGE_NAME } from "../index.js";
+import type { TemplarConfig, TemplarMiddleware } from "../index.js";
 
-describe("@templar/core", () => {
-  it("should export package name", () => {
-    expect(PACKAGE_NAME).toBe("@templar/core");
+describe("@templar/core (types-only kernel)", () => {
+  it("should export TemplarConfig type", () => {
+    const config: TemplarConfig = { model: "gpt-4" };
+    expect(config).toBeDefined();
+  });
+
+  it("should export TemplarMiddleware type", () => {
+    const mw: TemplarMiddleware = { name: "test" };
+    expect(mw).toBeDefined();
   });
 });

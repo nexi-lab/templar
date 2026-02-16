@@ -1,4 +1,3 @@
-import { CapabilityNotSupportedError } from "@templar/errors";
 import type {
   ButtonBlock,
   ChannelAdapter,
@@ -9,8 +8,9 @@ import type {
   MessageHandler,
   OutboundMessage,
   TextBlock,
-} from "./types.js";
-import { BLOCK_TYPE_TO_CAPABILITY } from "./types.js";
+} from "@templar/core";
+import { CapabilityNotSupportedError } from "@templar/errors";
+import { BLOCK_TYPE_TO_CAPABILITY } from "./block-type-map.js";
 
 /**
  * CapabilityGuard wraps a ChannelAdapter and enforces capability constraints
@@ -164,7 +164,7 @@ function buildSupportedBlockTypes(capabilities: ChannelCapabilities): ReadonlySe
 }
 
 /**
- * Extract format shorthand from MIME type (e.g., "image/png" → "png")
+ * Extract format shorthand from MIME type (e.g., "image/png" -> "png")
  */
 function mimeTypeToFormat(mimeType: string): string | undefined {
   const parts = mimeType.split("/");

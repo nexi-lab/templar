@@ -15,21 +15,8 @@
     "lint": "biome check .",
     "test": "vitest run"
   },
-  "peerDependencies": {
-    "@langchain/langgraph": "^0.1.0",
-    "deepagents": "^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@langchain/langgraph-supervisor": {
-      "optional": true
-    },
-    "@langchain/langgraph-swarm": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@nexus/sdk": "workspace:*",
-    "@templar/errors": "workspace:*",
     "@types/node": "^25.2.2"
   }
 }

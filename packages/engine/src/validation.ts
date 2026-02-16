@@ -1,5 +1,5 @@
+import type { AgentManifest, NexusClient } from "@templar/core";
 import { ManifestValidationError, NexusClientError, TemplarConfigError } from "@templar/errors";
-import type { AgentManifest, NexusClient } from "./types.js";
 
 /**
  * Valid agent type values

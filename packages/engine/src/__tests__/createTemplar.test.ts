@@ -1,7 +1,7 @@
+import type { AgentManifest, NexusClient, TemplarConfig } from "@templar/core";
 import { TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { type AgentManifest, createTemplar } from "../index.js";
-import type { NexusClient, TemplarConfig } from "../types.js";
+import { createTemplar } from "../index.js";
 
 /**
  * Create a mock NexusClient that satisfies the real SDK shape.

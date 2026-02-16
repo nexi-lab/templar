@@ -210,10 +210,25 @@ importers:
         version: 22.19.11
 
   packages/core:
+    devDependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
+  packages/engine:
     dependencies:
       '@langchain/langgraph':
         specifier: ^0.1.0
         version: 0.1.9(openai@6.22.0(ws@8.19.0)(zod@4.3.6))
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
       deepagents:
         specifier: ^1.0.0
         version: 1.7.2(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.57.2(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.22.0(ws@8.19.0)(zod@4.3.6))(zod-to-json-schema@3.25.1(zod@4.3.6))
@@ -221,9 +236,6 @@ importers:
       '@nexus/sdk':
         specifier: workspace:*
         version: link:../nexus-sdk
-      '@templar/errors':
-        specifier: workspace:*
-        version: link:../errors
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
@@ -522,6 +534,9 @@ importers:
       '@templar/core':
         specifier: workspace:*
         version: link:../core
+      '@templar/engine':
+        specifier: workspace:*
+        version: link:../engine
     devDependencies:
       '@templar/test-utils':
         specifier: workspace:*

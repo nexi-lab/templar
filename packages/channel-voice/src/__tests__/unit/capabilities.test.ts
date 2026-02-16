@@ -1,4 +1,4 @@
-import { isChannelCapabilities } from "@templar/core";
+import { isChannelCapabilities } from "@templar/channel-base";
 import { describe, expect, it } from "vitest";
 import { VOICE_CAPABILITIES } from "../../capabilities.js";
 

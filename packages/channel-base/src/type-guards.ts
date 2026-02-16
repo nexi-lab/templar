@@ -1,4 +1,4 @@
-import type { ChannelAdapter, ChannelCapabilities } from "./types.js";
+import type { ChannelAdapter, ChannelCapabilities } from "@templar/core";
 
 // Capability keys that require only `supported: true` (no extra constraints)
 const SIMPLE_CAPABILITY_KEYS = ["reactions", "typingIndicator", "readReceipts"] as const;
