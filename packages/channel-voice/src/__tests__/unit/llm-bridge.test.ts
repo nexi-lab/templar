@@ -1,7 +1,7 @@
 import type { InboundMessage } from "@templar/core";
 import { VoicePipelineError } from "@templar/errors";
 import { describe, expect, it, vi } from "vitest";
-import { TemplarLLMBridge } from "../../llm-bridge.js";
+import { splitSentences, TemplarLLMBridge } from "../../llm-bridge.js";
 
 describe("TemplarLLMBridge", () => {
   it("should start with no handler and no pending response", () => {
@@ -110,5 +110,76 @@ describe("TemplarLLMBridge", () => {
     const bridge = new TemplarLLMBridge();
     // Should not throw
     bridge.provideResponse("no one listening");
+  });
+
+  it("should track response latency", async () => {
+    const bridge = new TemplarLLMBridge();
+    expect(bridge.getLastResponseLatencyMs()).toBe(0);
+
+    bridge.setMessageHandler(() => {
+      // Small delay to ensure measurable latency
+      bridge.provideResponse("fast response");
+    });
+
+    await bridge.processTranscription("test", "user1", "room1");
+    expect(bridge.getLastResponseLatencyMs()).toBeGreaterThanOrEqual(0);
+  });
+
+  it("should yield sentence chunks via asLlmPlugin", async () => {
+    const bridge = new TemplarLLMBridge();
+
+    bridge.setMessageHandler(() => {
+      bridge.provideResponse("Hello there! How are you? I am fine.");
+    });
+
+    const plugin = bridge.asLlmPlugin();
+    const chunks: string[] = [];
+
+    for await (const chunk of plugin.chat("hi", "user1", "room1")) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Hello there!", "How are you?", "I am fine."]);
+  });
+
+  it("should yield single chunk for single sentence via asLlmPlugin", async () => {
+    const bridge = new TemplarLLMBridge();
+
+    bridge.setMessageHandler(() => {
+      bridge.provideResponse("Just one sentence");
+    });
+
+    const plugin = bridge.asLlmPlugin();
+    const chunks: string[] = [];
+
+    for await (const chunk of plugin.chat("hi", "user1", "room1")) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Just one sentence"]);
+  });
+});
+
+describe("splitSentences", () => {
+  it("should split text at sentence boundaries", () => {
+    expect(splitSentences("Hello. World.")).toEqual(["Hello.", "World."]);
+    expect(splitSentences("First! Second? Third.")).toEqual(["First!", "Second?", "Third."]);
+  });
+
+  it("should return single-element array for one sentence", () => {
+    expect(splitSentences("Just one sentence")).toEqual(["Just one sentence"]);
+    expect(splitSentences("With period.")).toEqual(["With period."]);
+  });
+
+  it("should return empty array for empty/whitespace input", () => {
+    expect(splitSentences("")).toEqual([]);
+    expect(splitSentences("   ")).toEqual([]);
+  });
+
+  it("should handle sentences with no trailing punctuation", () => {
+    expect(splitSentences("First sentence. No trailing punct")).toEqual([
+      "First sentence.",
+      "No trailing punct",
+    ]);
   });
 });

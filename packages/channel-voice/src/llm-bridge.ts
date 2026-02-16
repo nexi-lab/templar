@@ -5,6 +5,20 @@ import { VoicePipelineError } from "@templar/errors";
 const DEFAULT_RESPONSE_TIMEOUT_MS = 30_000;
 
 /**
+ * Split text into sentences at punctuation boundaries.
+ * Used for progressive TTS — each sentence can be synthesized
+ * as soon as it's available instead of waiting for the full response.
+ */
+export function splitSentences(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  // Split on whitespace following sentence-ending punctuation (.!?)
+  // Lookbehind keeps the punctuation attached to the preceding sentence
+  const parts = trimmed.split(/(?<=[.!?])\s+/);
+  return parts.filter((s) => s.trim().length > 0);
+}
+
+/**
  * Bridge between LiveKit Agents' LLM slot and Templar's ChannelAdapter.
  *
  * When LiveKit's pipeline calls processTranscription() with STT output:
@@ -24,6 +38,10 @@ export class TemplarLLMBridge {
       }
     | undefined;
   private readonly responseTimeoutMs: number;
+
+  /** Timing: tracks last processTranscription → provideResponse round-trip */
+  private responseStartTime = 0;
+  private lastResponseLatencyMs = 0;
 
   constructor(options?: { responseTimeoutMs?: number }) {
     this.responseTimeoutMs = options?.responseTimeoutMs ?? DEFAULT_RESPONSE_TIMEOUT_MS;
@@ -68,6 +86,9 @@ export class TemplarLLMBridge {
       raw: { transcription: text, participantIdentity, roomName },
     };
 
+    // Track response latency from this point
+    this.responseStartTime = Date.now();
+
     // Create the pending promise before calling the handler
     const responsePromise = new Promise<string>((resolve, reject) => {
       this.pendingResponse = { resolve, reject };
@@ -84,8 +105,8 @@ export class TemplarLLMBridge {
     }, this.responseTimeoutMs);
 
     try {
-      // Invoke the handler (fire-and-forget style — the handler will
-      // eventually call adapter.send(), which calls provideResponse())
+      // Invoke the handler — it may call adapter.send() synchronously
+      // (which calls provideResponse()) or return a promise we await
       await this.messageHandler(inbound);
     } catch (error) {
       clearTimeout(timeoutId);
@@ -112,6 +133,10 @@ export class TemplarLLMBridge {
       // No pending transcription — silently ignore (send() called without prior STT)
       return;
     }
+    if (this.responseStartTime > 0) {
+      this.lastResponseLatencyMs = Date.now() - this.responseStartTime;
+      this.responseStartTime = 0;
+    }
     const { resolve } = this.pendingResponse;
     this.pendingResponse = undefined;
     resolve(text);
@@ -135,5 +160,30 @@ export class TemplarLLMBridge {
   /** Check if a message handler is registered */
   get hasHandler(): boolean {
     return this.messageHandler !== undefined;
+  }
+
+  /** Get the latency of the last completed response round-trip (ms). 0 if none. */
+  getLastResponseLatencyMs(): number {
+    return this.lastResponseLatencyMs;
+  }
+
+  /**
+   * Returns a plain object matching LiveKit Agents' LLM plugin interface.
+   * When passed to AgentSession as `llm`, LiveKit will call `chat()` with
+   * STT output. The response is split into sentences for progressive TTS.
+   */
+  asLlmPlugin(): {
+    chat: (text: string, identity: string, room: string) => AsyncGenerator<string>;
+  } {
+    const bridge = this;
+    return {
+      async *chat(text: string, identity: string, room: string): AsyncGenerator<string> {
+        const response = await bridge.processTranscription(text, identity, room);
+        const sentences = splitSentences(response);
+        for (const sentence of sentences) {
+          yield sentence;
+        }
+      },
+    };
   }
 }
