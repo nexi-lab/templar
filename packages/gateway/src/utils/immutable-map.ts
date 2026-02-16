@@ -8,7 +8,9 @@
  * Return a new Map with the entry added or updated.
  */
 export function mapSet<K, V>(map: ReadonlyMap<K, V>, key: K, value: V): ReadonlyMap<K, V> {
-  return new Map([...map, [key, value]]);
+  const next = new Map(map);
+  next.set(key, value);
+  return next;
 }
 
 /**

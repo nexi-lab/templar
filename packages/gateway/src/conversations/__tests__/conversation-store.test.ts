@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationKey } from "../../protocol/index.js";
 import { ConversationStore } from "../conversation-store.js";
 
@@ -246,6 +246,103 @@ describe("ConversationStore", () => {
       expect(b1).not.toBe(b2);
       expect(b1.lastActiveAt).toBe(1000);
       expect(b2.lastActiveAt).toBe(2000);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Capacity warning callback (#5A, #12A)
+  // -------------------------------------------------------------------------
+
+  describe("capacity warning", () => {
+    it("fires onCapacityWarning at 80% threshold", () => {
+      const smallStore = new ConversationStore({
+        maxConversations: 10,
+        conversationTtl: 60_000,
+      });
+      const handler = vi.fn();
+      smallStore.onCapacityWarning(handler);
+
+      // Fill to 79% — no warning
+      for (let i = 0; i < 7; i++) {
+        smallStore.bind(key(`conv-${i}`), "node-a");
+      }
+      expect(handler).not.toHaveBeenCalled();
+
+      // 80% threshold — warning fires
+      smallStore.bind(key("conv-7"), "node-a");
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(8, 10, 80);
+    });
+
+    it("does not re-fire until hysteresis reset at 70%", () => {
+      const smallStore = new ConversationStore({
+        maxConversations: 10,
+        conversationTtl: 60_000,
+      });
+      const handler = vi.fn();
+      smallStore.onCapacityWarning(handler);
+
+      // Fill to 80% — fires once
+      for (let i = 0; i < 8; i++) {
+        smallStore.bind(key(`conv-${i}`), "node-a");
+      }
+      expect(handler).toHaveBeenCalledOnce();
+
+      // Add more — should NOT fire again
+      smallStore.bind(key("conv-8"), "node-a");
+      smallStore.bind(key("conv-9"), "node-a");
+      expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it("re-fires after dropping below 70% and rising above 80%", () => {
+      const smallStore = new ConversationStore({
+        maxConversations: 10,
+        conversationTtl: 60_000,
+      });
+      const handler = vi.fn();
+      smallStore.onCapacityWarning(handler);
+
+      // Fill to 80% — fires once
+      for (let i = 0; i < 8; i++) {
+        smallStore.bind(key(`conv-${i}`), "node-a");
+      }
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      // Remove bindings to drop below 70% (remove node-a's bindings)
+      smallStore.removeNode("node-a");
+      expect(smallStore.size).toBe(0);
+
+      // Refill to 80% — should fire again
+      for (let i = 0; i < 8; i++) {
+        smallStore.bind(key(`conv-new-${i}`), "node-b");
+      }
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // TTL sweep integration (#11A)
+  // -------------------------------------------------------------------------
+
+  describe("sweep integration", () => {
+    it("sweep cleans up reverse index for expired bindings", () => {
+      store.bind(key("old-1"), "node-a", 1000);
+      store.bind(key("old-2"), "node-a", 1000);
+      store.bind(key("fresh"), "node-a", 100_000);
+
+      const swept = store.sweep(100_000);
+      expect(swept).toBe(2);
+
+      // Fresh binding should still be accessible
+      expect(store.get(key("fresh"))).toBeDefined();
+
+      // Removing node should only find 1 remaining binding (fresh)
+      const removed = store.removeNode("node-a");
+      expect(removed).toBe(1);
+    });
+
+    it("sweep returns 0 on empty store", () => {
+      expect(store.sweep()).toBe(0);
     });
   });
 });

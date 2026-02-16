@@ -46,10 +46,11 @@ function buildKeyInput(
 // Types
 // ---------------------------------------------------------------------------
 
-export type MessageRouter = (message: LaneMessage) => void;
-
 /** Callback to resolve an agentId to a nodeId (injected by gateway) */
 export type AgentNodeResolver = (agentId: string) => string | undefined;
+
+/** Callback invoked when conversation key resolution degrades due to missing fields. */
+export type DegradationHandler = (agentId: string, warnings: readonly string[]) => void;
 
 // ---------------------------------------------------------------------------
 // AgentRouter
@@ -86,6 +87,7 @@ export class AgentRouter {
   private agentScopes: ReadonlyMap<string, ConversationScope> = new Map();
   private bindingResolver: BindingResolver | undefined;
   private agentNodeResolver: AgentNodeResolver | undefined;
+  private degradationHandler: DegradationHandler | undefined;
 
   constructor(registry: NodeRegistry) {
     this.registry = registry;
@@ -181,6 +183,11 @@ export class AgentRouter {
 
     const input = buildKeyInput(scope, agentId, message.channelId, message.routingContext);
     const result = resolveConversationKey(input);
+
+    // Notify on degraded key resolution (missing peerId, accountId, etc.)
+    if (result.degraded && this.degradationHandler) {
+      this.degradationHandler(agentId, result.warnings);
+    }
 
     // Dispatch first — if route() throws, no stale conversation binding is created.
     // route() returns the nodeId it dispatched to, eliminating double resolution.
@@ -280,6 +287,14 @@ export class AgentRouter {
    */
   getEffectiveScope(agentId: string): ConversationScope {
     return this.agentScopes.get(agentId) ?? this.conversationScope;
+  }
+
+  /**
+   * Set a handler invoked when conversation key resolution degrades
+   * due to missing routing context fields (peerId, accountId, etc.).
+   */
+  onDegradation(handler: DegradationHandler): void {
+    this.degradationHandler = handler;
   }
 
   // -------------------------------------------------------------------------

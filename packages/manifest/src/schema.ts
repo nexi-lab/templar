@@ -109,6 +109,18 @@ export const BootstrapPathConfigSchema = z.object({
   budget: BootstrapBudgetSchema.optional(),
 });
 
+/**
+ * Conversation isolation modes — must stay in sync with
+ * CONVERSATION_SCOPES in @templar/gateway/protocol.
+ */
+export const SESSION_SCOPING_VALUES = [
+  "main",
+  "per-peer",
+  "per-channel-peer",
+  "per-account-channel-peer",
+] as const;
+export const SessionScopingSchema = z.enum(SESSION_SCOPING_VALUES);
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -123,6 +135,7 @@ export const AgentManifestSchema = z.object({
   prompt: PromptSchema.optional(),
   skills: z.array(SkillRefSchema).optional(),
   bootstrap: BootstrapPathConfigSchema.optional(),
+  sessionScoping: SessionScopingSchema.optional(),
 });
 
 /**

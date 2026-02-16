@@ -10,6 +10,7 @@ import {
   PermissionConfigSchema,
   PromptSchema,
   ScheduleSchema,
+  SessionScopingSchema,
   ToolConfigSchema,
 } from "../../schema.js";
 
@@ -550,5 +551,73 @@ describe("AgentManifestSchema — bootstrap", () => {
       bootstrap: { instructions: "../../secret.md" },
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("SessionScopingSchema", () => {
+  it("accepts 'main'", () => {
+    expect(SessionScopingSchema.safeParse("main").success).toBe(true);
+  });
+
+  it("accepts 'per-peer'", () => {
+    expect(SessionScopingSchema.safeParse("per-peer").success).toBe(true);
+  });
+
+  it("accepts 'per-channel-peer'", () => {
+    expect(SessionScopingSchema.safeParse("per-channel-peer").success).toBe(true);
+  });
+
+  it("accepts 'per-account-channel-peer'", () => {
+    expect(SessionScopingSchema.safeParse("per-account-channel-peer").success).toBe(true);
+  });
+
+  it("rejects unknown scope", () => {
+    expect(SessionScopingSchema.safeParse("custom-scope").success).toBe(false);
+  });
+
+  it("rejects empty string", () => {
+    expect(SessionScopingSchema.safeParse("").success).toBe(false);
+  });
+});
+
+describe("AgentManifestSchema — sessionScoping", () => {
+  const minimal = {
+    name: "test-agent",
+    version: "1.0.0",
+    description: "A test agent",
+  };
+
+  it("accepts manifest with valid sessionScoping", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      sessionScoping: "per-channel-peer",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.sessionScoping).toBe("per-channel-peer");
+    }
+  });
+
+  it("accepts manifest without sessionScoping (optional, backward compat)", () => {
+    const result = AgentManifestSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.sessionScoping).toBeUndefined();
+    }
+  });
+
+  it("rejects manifest with invalid sessionScoping", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      sessionScoping: "invalid-scope",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts all 4 scope modes", () => {
+    for (const scope of ["main", "per-peer", "per-channel-peer", "per-account-channel-peer"]) {
+      const result = AgentManifestSchema.safeParse({ ...minimal, sessionScoping: scope });
+      expect(result.success).toBe(true);
+    }
   });
 });
