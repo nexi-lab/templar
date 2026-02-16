@@ -115,6 +115,8 @@ export interface AgentManifest {
   prompt?: string;
   skills?: string[];
   bootstrap?: BootstrapPathConfig;
+  /** Conversation isolation mode (maps to gateway ConversationScope) */
+  sessionScoping?: "main" | "per-peer" | "per-channel-peer" | "per-account-channel-peer";
 }
 
 /**

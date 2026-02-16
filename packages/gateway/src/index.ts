@@ -25,6 +25,7 @@ export {
 } from "./config-watcher.js";
 // Conversations
 export {
+  type CapacityWarningHandler,
   type ConversationBinding,
   ConversationStore,
   type ConversationStoreConfig,
@@ -52,7 +53,7 @@ export {
 // Registry
 export { NodeRegistry, type RegisteredNode } from "./registry/node-registry.js";
 // Router
-export { type AgentNodeResolver, AgentRouter, type MessageRouter } from "./router.js";
+export { type AgentNodeResolver, AgentRouter, type DegradationHandler } from "./router.js";
 // Server
 export {
   type ConnectionHandler,

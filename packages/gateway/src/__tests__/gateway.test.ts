@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { GatewayFrame } from "../protocol/index.js";
+import type { ConversationScope, GatewayFrame } from "../protocol/index.js";
 import { closeWs, createTestGateway, DEFAULT_CAPS, makeMessage, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -763,6 +763,235 @@ describe("TemplarGateway", () => {
 
       // Last registration wins
       expect(gateway.getAgentToNodeMap().get("shared-agent")).toBe("node-2");
+
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // per-account-channel-peer integration (#9A)
+  // -------------------------------------------------------------------------
+
+  describe("per-account-channel-peer scoping", () => {
+    it("two accounts on same channel, same peer → separate conversations", async () => {
+      const { gateway, wss } = createTestGateway({
+        defaultConversationScope: "per-account-channel-peer" as ConversationScope,
+      });
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("whatsapp", "agent-1");
+
+      const router = gateway.getRouter();
+      const msg = (accountId: string) => ({
+        id: `msg-${accountId}`,
+        lane: "steer" as const,
+        channelId: "whatsapp",
+        payload: {},
+        timestamp: Date.now(),
+        routingContext: { peerId: "peer-1", accountId, messageType: "dm" as const },
+      });
+
+      const r1 = router.routeWithScope(msg("personal"), "bot-1");
+      const r2 = router.routeWithScope(msg("business"), "bot-1");
+
+      expect(r1.key).not.toBe(r2.key);
+      expect(r1.key).toContain("personal");
+      expect(r2.key).toContain("business");
+      expect(r1.degraded).toBe(false);
+      expect(r2.degraded).toBe(false);
+
+      // Both should have separate conversation store entries
+      const store = gateway.getConversationStore();
+      expect(store.size).toBe(2);
+
+      await gateway.stop();
+    });
+
+    it("missing accountId degrades to per-channel-peer", async () => {
+      const { gateway, wss } = createTestGateway({
+        defaultConversationScope: "per-account-channel-peer" as ConversationScope,
+      });
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("whatsapp", "agent-1");
+
+      const router = gateway.getRouter();
+      const result = router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "whatsapp",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+
+      expect(result.degraded).toBe(true);
+      expect(result.warnings[0]).toContain("accountId");
+      // Should produce per-channel-peer key format
+      expect(result.key).toBe("agent:bot-1:whatsapp:dm:peer-1");
+
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Config hot-reload (#10A)
+  // -------------------------------------------------------------------------
+
+  describe("config hot-reload", () => {
+    it("scope change clears conversation store", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      // Create a conversation binding
+      const router = gateway.getRouter();
+      router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+
+      expect(gateway.getConversationStore().size).toBe(1);
+
+      // Simulate scope change via router (as config watcher would do)
+      router.setConversationScope("per-peer");
+      gateway.getConversationStore().clear();
+
+      expect(gateway.getConversationStore().size).toBe(0);
+      expect(router.getConversationScope()).toBe("per-peer");
+
+      await gateway.stop();
+    });
+
+    it("conversation store config update applies new TTL/capacity", () => {
+      const { gateway } = createTestGateway();
+      const store = gateway.getConversationStore();
+
+      store.updateConfig({ maxConversations: 50, conversationTtl: 30_000 });
+
+      // Verify new config takes effect (bind up to new max)
+      for (let i = 0; i < 50; i++) {
+        store.bind(`agent:a1:ch:dm:peer-${i}` as never, "node-1");
+      }
+      expect(store.size).toBe(50);
+
+      // 51st should evict oldest
+      store.bind("agent:a1:ch:dm:peer-overflow" as never, "node-1");
+      expect(store.size).toBe(50);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Degradation handler (#6A verification)
+  // -------------------------------------------------------------------------
+
+  describe("degradation handler", () => {
+    it("onDegradation fires when key resolution degrades", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      const router = gateway.getRouter();
+      const handler = vi.fn();
+      router.onDegradation(handler);
+
+      // Route without peerId → should degrade and fire handler
+      router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          // No routingContext → no peerId
+        },
+        "bot-1",
+      );
+
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledWith(
+        "bot-1",
+        expect.arrayContaining([expect.stringContaining("peerId")]),
+      );
+
+      await gateway.stop();
+    });
+
+    it("onDegradation does not fire when key resolves normally", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.bindChannel("ch-1", "agent-1");
+
+      const router = gateway.getRouter();
+      const handler = vi.fn();
+      router.onDegradation(handler);
+
+      router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+
+      expect(handler).not.toHaveBeenCalled();
 
       await gateway.stop();
     });

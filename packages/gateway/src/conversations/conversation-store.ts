@@ -17,6 +17,9 @@ export interface ConversationStoreConfig {
   readonly conversationTtl: number;
 }
 
+/** Callback invoked when the conversation store crosses the capacity warning threshold. */
+export type CapacityWarningHandler = (current: number, max: number, percent: number) => void;
+
 // ---------------------------------------------------------------------------
 // ConversationStore
 // ---------------------------------------------------------------------------
@@ -43,9 +46,18 @@ export class ConversationStore {
   private nodeIndex: ReadonlyMap<string, ReadonlySet<string>> = new Map();
   private config: ConversationStoreConfig;
   private capacityWarningEmitted = false;
+  private capacityWarningHandlers: CapacityWarningHandler[] = [];
 
   constructor(config: ConversationStoreConfig) {
     this.config = config;
+  }
+
+  /**
+   * Register a handler for capacity warning events.
+   * Fires when usage crosses the 80% threshold (with 70% hysteresis reset).
+   */
+  onCapacityWarning(handler: CapacityWarningHandler): void {
+    this.capacityWarningHandlers = [...this.capacityWarningHandlers, handler];
   }
 
   /**
@@ -100,11 +112,8 @@ export class ConversationStore {
       return 0;
     }
 
-    let nextBindings = this.bindings;
-    for (const key of keys) {
-      nextBindings = mapDelete(nextBindings, key);
-    }
-    this.bindings = nextBindings;
+    // Single mapFilter pass instead of k × mapDelete — consistent with sweep()
+    this.bindings = mapFilter(this.bindings, (key) => !keys.has(key));
 
     const count = keys.size;
     this.nodeIndex = mapDelete(this.nodeIndex, nodeId);
@@ -172,8 +181,9 @@ export class ConversationStore {
   // -------------------------------------------------------------------------
 
   private addToNodeIndex(nodeId: string, key: string): void {
-    const existing = this.nodeIndex.get(nodeId) ?? new Set<string>();
-    const next = new Set(existing);
+    const existing = this.nodeIndex.get(nodeId);
+    if (existing?.has(key)) return; // Already tracked — skip O(k) copy
+    const next = new Set(existing ?? new Set<string>());
     next.add(key);
     this.nodeIndex = mapSet(this.nodeIndex, nodeId, next);
   }
@@ -194,9 +204,10 @@ export class ConversationStore {
     const ratio = this.bindings.size / this.config.maxConversations;
     if (ratio >= CAPACITY_WARNING_THRESHOLD && !this.capacityWarningEmitted) {
       this.capacityWarningEmitted = true;
-      console.warn(
-        `[ConversationStore] Capacity warning: ${this.bindings.size}/${this.config.maxConversations} conversations (${Math.round(ratio * 100)}%)`,
-      );
+      const percent = Math.round(ratio * 100);
+      for (const handler of this.capacityWarningHandlers) {
+        handler(this.bindings.size, this.config.maxConversations, percent);
+      }
     } else if (ratio < CAPACITY_WARNING_RESET && this.capacityWarningEmitted) {
       this.capacityWarningEmitted = false;
     }
