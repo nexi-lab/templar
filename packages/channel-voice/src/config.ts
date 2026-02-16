@@ -18,6 +18,8 @@ export interface VoiceConfig {
   readonly ttsVoice: string;
   readonly turnDetection: "vad" | "stt" | "manual";
   readonly agentIdentity: string;
+  /** Timeout for awaiting agent response before TTS (ms). Default 10000. */
+  readonly responseTimeoutMs: number;
 }
 
 const RoomConfigSchema = z.object({
@@ -37,6 +39,7 @@ const VoiceConfigSchema = z.object({
   ttsVoice: z.string().default("alloy"),
   turnDetection: z.enum(["vad", "stt", "manual"]).default("vad"),
   agentIdentity: z.string().default("templar-agent"),
+  responseTimeoutMs: z.number().int().positive().default(10_000),
 });
 
 /**
