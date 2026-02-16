@@ -1291,7 +1291,8 @@ export const ERROR_CATALOG = {
     baseType: "ConflictError" as const,
     isExpected: true,
     title: "Feature immutability violation",
-    description: "An attempt was made to modify a feature in a way that violates immutability constraints",
+    description:
+      "An attempt was made to modify a feature in a way that violates immutability constraints",
   },
   LONGRUNNING_SESSION_BOOTSTRAP_FAILED: {
     domain: "longrunning",
