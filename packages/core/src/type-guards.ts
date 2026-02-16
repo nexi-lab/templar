@@ -21,6 +21,14 @@ const CONSTRAINED_CAPABILITY_VALIDATORS: Record<string, (cap: Record<string, unk
       cap.maxDuration > 0 &&
       Array.isArray(cap.formats) &&
       cap.formats.length > 0,
+    realTimeVoice: (cap) =>
+      Array.isArray(cap.codecs) &&
+      cap.codecs.length > 0 &&
+      Array.isArray(cap.sampleRates) &&
+      cap.sampleRates.length > 0 &&
+      typeof cap.duplex === "boolean" &&
+      typeof cap.maxParticipants === "number" &&
+      cap.maxParticipants > 0,
     groups: (cap) => typeof cap.maxMembers === "number" && cap.maxMembers > 0,
   };
 

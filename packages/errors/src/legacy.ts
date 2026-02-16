@@ -1055,6 +1055,43 @@ export class ChannelSessionReplacedError extends ConflictError<"CHANNEL_SESSION_
 }
 
 // ============================================================================
+// VOICE ERRORS
+// ============================================================================
+
+/** @deprecated Use `new ExternalError({ code: "VOICE_CONNECTION_FAILED", ... })` */
+export class VoiceConnectionFailedError extends ExternalError<"VOICE_CONNECTION_FAILED"> {
+  constructor(reason: string, options?: ErrorOptions) {
+    super({
+      code: "VOICE_CONNECTION_FAILED",
+      message: `Voice connection failed: ${reason}`,
+      ...(options?.cause instanceof Error ? { cause: options.cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "VOICE_PIPELINE_ERROR", ... })` */
+export class VoicePipelineError extends ExternalError<"VOICE_PIPELINE_ERROR"> {
+  constructor(reason: string, options?: ErrorOptions) {
+    super({
+      code: "VOICE_PIPELINE_ERROR",
+      message: `Voice pipeline error: ${reason}`,
+      ...(options?.cause instanceof Error ? { cause: options.cause } : {}),
+    });
+  }
+}
+
+/** @deprecated Use `new ExternalError({ code: "VOICE_ROOM_ERROR", ... })` */
+export class VoiceRoomError extends ExternalError<"VOICE_ROOM_ERROR"> {
+  constructor(reason: string, options?: ErrorOptions) {
+    super({
+      code: "VOICE_ROOM_ERROR",
+      message: `Voice room error: ${reason}`,
+      ...(options?.cause instanceof Error ? { cause: options.cause } : {}),
+    });
+  }
+}
+
+// ============================================================================
 // GATEWAY ERRORS
 // ============================================================================
 
