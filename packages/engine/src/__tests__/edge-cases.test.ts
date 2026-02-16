@@ -1,7 +1,12 @@
-import type { AgentManifest, NexusClient, TemplarConfig } from "@templar/core";
+import type { AgentManifest, NexusClient, TemplarConfig, TemplarMiddleware } from "@templar/core";
 import { TemplarConfigError } from "@templar/errors";
-import { describe, expect, it } from "vitest";
-import { createTemplar } from "../index.js";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { _setDeepAgentsIntegrated } from "../create-templar.js";
+import { createTemplar, registerMiddlewareWrapper, unregisterMiddlewareWrapper } from "../index.js";
+
+// Suppress stub warning noise — overridden in "DeepAgents stub guard" block below
+beforeAll(() => _setDeepAgentsIntegrated(true));
+afterAll(() => _setDeepAgentsIntegrated(false));
 
 function createMockNexusClient(): NexusClient {
   return {
@@ -324,5 +329,111 @@ describe("Engine edge cases", () => {
         }
       }
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Middleware wrapper tests (Issue: untested registerMiddlewareWrapper path)
+// ---------------------------------------------------------------------------
+
+describe("Middleware wrapper integration", () => {
+  afterEach(() => {
+    unregisterMiddlewareWrapper();
+  });
+
+  it("should apply registered wrapper to named middleware items", () => {
+    const wrapperSpy = vi.fn((mw: TemplarMiddleware) => ({
+      ...mw,
+      name: `wrapped-${mw.name}`,
+    }));
+
+    registerMiddlewareWrapper(wrapperSpy);
+
+    const config: TemplarConfig = {
+      model: "gpt-4",
+      middleware: [{ name: "logger" }, { name: "metrics" }],
+    };
+
+    const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
+    expect(wrapperSpy).toHaveBeenCalledTimes(2);
+    expect(result.middleware[0].name).toBe("wrapped-logger");
+    expect(result.middleware[1].name).toBe("wrapped-metrics");
+  });
+
+  it("should not wrap non-object middleware items", () => {
+    const wrapperSpy = vi.fn((mw: TemplarMiddleware) => mw);
+
+    registerMiddlewareWrapper(wrapperSpy);
+
+    const config: TemplarConfig = {
+      model: "gpt-4",
+      middleware: ["string-mw" as unknown as TemplarMiddleware, { name: "real" }],
+    };
+
+    const result = createTemplar(config) as { middleware: unknown[] };
+    // Only the object with `name` should be wrapped
+    expect(wrapperSpy).toHaveBeenCalledTimes(1);
+    expect(result.middleware[0]).toBe("string-mw");
+  });
+
+  it("should skip wrapping when no wrapper is registered", () => {
+    const config: TemplarConfig = {
+      model: "gpt-4",
+      middleware: [{ name: "logger" }],
+    };
+
+    const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
+    expect(result.middleware[0].name).toBe("logger");
+  });
+
+  it("should unregister wrapper correctly", () => {
+    const wrapperSpy = vi.fn((mw: TemplarMiddleware) => ({
+      ...mw,
+      name: `wrapped-${mw.name}`,
+    }));
+
+    registerMiddlewareWrapper(wrapperSpy);
+    unregisterMiddlewareWrapper();
+
+    const config: TemplarConfig = {
+      model: "gpt-4",
+      middleware: [{ name: "logger" }],
+    };
+
+    const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
+    expect(wrapperSpy).not.toHaveBeenCalled();
+    expect(result.middleware[0].name).toBe("logger");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stub guard tests (Issue: createDeepAgent placeholder warning)
+// ---------------------------------------------------------------------------
+
+describe("DeepAgents stub guard", () => {
+  afterEach(() => {
+    _setDeepAgentsIntegrated(false);
+  });
+
+  it("should emit console.warn when deepagents is not integrated", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    _setDeepAgentsIntegrated(false);
+    createTemplar({ model: "gpt-4" });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("deepagents package is not yet integrated"),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it("should suppress warning when deepagents is marked as integrated", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    _setDeepAgentsIntegrated(true);
+    createTemplar({ model: "gpt-4" });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

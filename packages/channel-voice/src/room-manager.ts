@@ -1,4 +1,9 @@
-import { VoiceConnectionFailedError, VoiceRoomError } from "@templar/errors";
+import {
+  getErrorCause,
+  getErrorMessage,
+  VoiceConnectionFailedError,
+  VoiceRoomError,
+} from "@templar/errors";
 
 /** Room configuration subset needed by the manager */
 export interface RoomConfig {
@@ -77,8 +82,8 @@ export class RoomManager {
         });
       } catch (error) {
         throw new VoiceRoomError(
-          `Failed to create room '${config.name}': ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error instanceof Error ? error : undefined },
+          `Failed to create room '${config.name}': ${getErrorMessage(error)}`,
+          { cause: getErrorCause(error) },
         );
       }
     } else {
@@ -90,8 +95,8 @@ export class RoomManager {
       } catch (error) {
         if (error instanceof VoiceRoomError) throw error;
         throw new VoiceRoomError(
-          `Failed to verify room '${config.name}': ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error instanceof Error ? error : undefined },
+          `Failed to verify room '${config.name}': ${getErrorMessage(error)}`,
+          { cause: getErrorCause(error) },
         );
       }
     }
@@ -114,8 +119,8 @@ export class RoomManager {
       return await token.toJwt();
     } catch (error) {
       throw new VoiceConnectionFailedError(
-        `Failed to generate token for '${identity}': ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error instanceof Error ? error : undefined },
+        `Failed to generate token for '${identity}': ${getErrorMessage(error)}`,
+        { cause: getErrorCause(error) },
       );
     }
   }
@@ -126,10 +131,9 @@ export class RoomManager {
     try {
       await svc.deleteRoom(roomName);
     } catch (error) {
-      throw new VoiceRoomError(
-        `Failed to delete room '${roomName}': ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error instanceof Error ? error : undefined },
-      );
+      throw new VoiceRoomError(`Failed to delete room '${roomName}': ${getErrorMessage(error)}`, {
+        cause: getErrorCause(error),
+      });
     }
   }
 

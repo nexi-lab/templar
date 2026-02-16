@@ -1,7 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { BaseChannelAdapter, lazyLoad } from "@templar/channel-base";
 import type { ContentBlock, InboundMessage, OutboundMessage } from "@templar/core";
-import { ChannelSendError, VoiceConnectionFailedError } from "@templar/errors";
-
+import {
+  ChannelSendError,
+  getErrorCause,
+  getErrorMessage,
+  VoiceConnectionFailedError,
+} from "@templar/errors";
 import { createVoiceCapabilities } from "./capabilities.js";
 import { parseVoiceConfig, type VoiceConfig } from "./config.js";
 import { splitSentences, TemplarLLMBridge } from "./llm-bridge.js";
@@ -173,7 +178,7 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
           senderId: event.participantIdentity,
           blocks: [{ type: "text", content: event.text }],
           timestamp,
-          messageId: `voice-${timestamp}-${Math.random().toString(36).slice(2, 9)}`,
+          messageId: `voice-${randomUUID()}`,
           raw: event,
         };
       },
@@ -201,6 +206,9 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
   }
 
   protected async doConnect(): Promise<void> {
+    // Note: We intentionally bypass LiveKit's Worker/defineAgent pattern.
+    // Templar channels manage their own lifecycle — the Gateway owns routing
+    // and session scoping. VoiceChannel acts as a custom client, not a Worker.
     this.connectStartTime = Date.now();
 
     // 1. Load SDKs (uses warmup cache if available)
@@ -220,14 +228,11 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       AccessToken: serverMod.AccessToken as any,
     });
 
-    // 3. Ensure room exists
-    await this.roomManager.ensureRoom(this.config.room);
-
-    // 4. Generate agent token
-    const token = await this.roomManager.generateToken(
-      this.config.agentIdentity,
-      this.config.room.name,
-    );
+    // 3. Ensure room exists + generate token (independent, run in parallel)
+    const [, token] = await Promise.all([
+      this.roomManager.ensureRoom(this.config.room),
+      this.roomManager.generateToken(this.config.agentIdentity, this.config.room.name),
+    ]);
 
     try {
       // 5. Create and connect Room (v1.x: Room is separate from Session)
@@ -277,8 +282,8 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
       this.agentSession = undefined;
       this.roomManager = undefined;
       throw new VoiceConnectionFailedError(
-        `Failed to start voice session: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error instanceof Error ? error : undefined },
+        `Failed to start voice session: ${getErrorMessage(error)}`,
+        { cause: getErrorCause(error) },
       );
     }
   }
@@ -363,8 +368,21 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
     if (!this.agentSession) return;
 
     this.agentSession.on("user_speech_committed", (...args: unknown[]) => {
-      const text = typeof args[0] === "string" ? args[0] : "";
-      const identity = typeof args[1] === "string" ? args[1] : "unknown";
+      // Support both positional args (text, identity) and event object ({ transcript, speakerId })
+      const firstArg = args[0];
+      let text: string;
+      let identity: string;
+      if (typeof firstArg === "object" && firstArg !== null && "transcript" in firstArg) {
+        const evt = firstArg as { transcript?: string; speakerId?: string };
+        text = typeof evt.transcript === "string" ? evt.transcript : "";
+        identity = typeof evt.speakerId === "string" ? evt.speakerId : "unknown";
+      } else {
+        text = typeof firstArg === "string" ? firstArg : "";
+        identity = typeof args[1] === "string" ? args[1] : "unknown";
+        if (text === "" && typeof firstArg !== "string") {
+          this.log("warn", "Unexpected user_speech_committed event shape", String(firstArg));
+        }
+      }
 
       const event: VoiceEvent = {
         type: "user_speech",
@@ -381,7 +399,13 @@ export class VoiceChannel extends BaseChannelAdapter<VoiceEvent, VoiceClient> {
     });
 
     this.agentSession.on("agent_speech_committed", (...args: unknown[]) => {
-      const text = typeof args[0] === "string" ? args[0] : "";
+      const firstArg = args[0];
+      const text =
+        typeof firstArg === "object" && firstArg !== null && "transcript" in firstArg
+          ? String((firstArg as { transcript?: string }).transcript ?? "")
+          : typeof firstArg === "string"
+            ? firstArg
+            : "";
       const event: VoiceEvent = {
         type: "agent_speech",
         text,

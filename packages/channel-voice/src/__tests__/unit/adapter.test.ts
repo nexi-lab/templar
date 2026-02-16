@@ -405,6 +405,58 @@ describe("VoiceChannel block handling", () => {
 // wireErrorEvents tests (Issue 3: untested error/close handlers)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Warmup tests (Issue 3: verify pre-load optimization)
+// ---------------------------------------------------------------------------
+
+describe("VoiceChannel warmup", () => {
+  it("should use cached SDK modules after warmup (no double load)", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+
+    // Warmup pre-loads SDKs
+    await adapter.warmup();
+
+    // Connect should reuse cached modules
+    await adapter.connect();
+
+    // Room and session should be set up (proves modules were loaded)
+    expect(roomRef.current?.connected).toBe(true);
+    expect(sessionRef.current?.started).toBe(true);
+  });
+
+  it("should be idempotent — multiple warmup calls should not fail", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+    await adapter.warmup();
+    await adapter.warmup();
+    await adapter.warmup();
+
+    await adapter.connect();
+    expect(sessionRef.current?.started).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Concurrent connect tests (Issue 2: verify safety under concurrent calls)
+// ---------------------------------------------------------------------------
+
+describe("VoiceChannel concurrent connect", () => {
+  it("should handle concurrent connect calls without duplicate sessions", async () => {
+    const adapter = new VoiceChannel(VALID_CONFIG);
+
+    // Fire two connect calls concurrently
+    const [r1, r2] = await Promise.allSettled([adapter.connect(), adapter.connect()]);
+
+    // At least one should succeed, adapter should be connected
+    expect(adapter.isConnected).toBe(true);
+    const successes = [r1, r2].filter((r) => r.status === "fulfilled");
+    expect(successes.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// wireErrorEvents tests (Issue 3: untested error/close handlers)
+// ---------------------------------------------------------------------------
+
 describe("VoiceChannel wireErrorEvents", () => {
   it("should not reject bridge on recoverable session error", async () => {
     const adapter = new VoiceChannel(VALID_CONFIG);

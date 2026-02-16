@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { ContentBlock, InboundMessage, MessageHandler } from "@templar/core";
-import { VoicePipelineError } from "@templar/errors";
+import { getErrorCause, getErrorMessage, VoicePipelineError } from "@templar/errors";
 
 /** Default timeout for awaiting a response from the Templar handler (ms) */
 const DEFAULT_RESPONSE_TIMEOUT_MS = 30_000;
@@ -74,7 +75,7 @@ export class TemplarLLMBridge {
 
     const blocks: readonly ContentBlock[] = [{ type: "text", content: text }];
     const timestamp = Date.now();
-    const messageId = `voice-${timestamp}-${Math.random().toString(36).slice(2, 9)}`;
+    const messageId = `voice-${randomUUID()}`;
 
     const inbound: InboundMessage = {
       channelType: "voice",
@@ -94,15 +95,21 @@ export class TemplarLLMBridge {
       this.pendingResponse = { resolve, reject };
     });
 
-    // Set up timeout
-    const timeoutId = setTimeout(() => {
-      if (this.pendingResponse) {
-        this.pendingResponse.reject(
-          new VoicePipelineError(`Response timeout after ${this.responseTimeoutMs}ms`),
-        );
-        this.pendingResponse = undefined;
-      }
-    }, this.responseTimeoutMs);
+    // Use AbortController for clean timeout cancellation
+    const abort = new AbortController();
+    const timeoutId = setTimeout(() => abort.abort(), this.responseTimeoutMs);
+    abort.signal.addEventListener(
+      "abort",
+      () => {
+        if (this.pendingResponse) {
+          this.pendingResponse.reject(
+            new VoicePipelineError(`Response timeout after ${this.responseTimeoutMs}ms`),
+          );
+          this.pendingResponse = undefined;
+        }
+      },
+      { once: true },
+    );
 
     try {
       // Invoke the handler — it may call adapter.send() synchronously
@@ -110,11 +117,14 @@ export class TemplarLLMBridge {
       await this.messageHandler(inbound);
     } catch (error) {
       clearTimeout(timeoutId);
+      // If provideResponse() was already called, return the response instead of throwing
+      if (!this.pendingResponse) {
+        return await responsePromise;
+      }
       this.pendingResponse = undefined;
-      throw new VoicePipelineError(
-        `Handler error: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error instanceof Error ? error : undefined },
-      );
+      throw new VoicePipelineError(`Handler error: ${getErrorMessage(error)}`, {
+        cause: getErrorCause(error),
+      });
     }
 
     try {

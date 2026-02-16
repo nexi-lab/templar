@@ -1,6 +1,11 @@
 import type { NexusClient, TemplarConfig } from "@templar/core";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { _setDeepAgentsIntegrated } from "../create-templar.js";
 import { createTemplar } from "../index.js";
+
+// Suppress stub warning noise in performance benchmarks
+beforeAll(() => _setDeepAgentsIntegrated(true));
+afterAll(() => _setDeepAgentsIntegrated(false));
 
 function createMockNexusClient(): NexusClient {
   return {

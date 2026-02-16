@@ -32,6 +32,7 @@ export {
 export {
   getAllErrorCodes,
   getCatalogEntry,
+  getErrorCause,
   getErrorCodesByDomain,
   getErrorMessage,
   isClientError,

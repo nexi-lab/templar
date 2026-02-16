@@ -64,6 +64,14 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * Extract the cause from an unknown error (for `{ cause }` option in Error constructors).
+ * Returns the Error instance if it is one, undefined otherwise.
+ */
+export function getErrorCause(error: unknown): Error | undefined {
+  return error instanceof Error ? error : undefined;
+}
+
+/**
  * Check if an HTTP status code indicates an error
  */
 export function isErrorStatus(status: number): boolean {

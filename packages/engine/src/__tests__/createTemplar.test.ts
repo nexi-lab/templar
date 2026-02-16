@@ -1,7 +1,12 @@
 import type { AgentManifest, NexusClient, TemplarConfig } from "@templar/core";
 import { TemplarConfigError } from "@templar/errors";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { _setDeepAgentsIntegrated } from "../create-templar.js";
 import { createTemplar } from "../index.js";
+
+// Suppress stub warning noise in tests that don't test the stub guard itself
+beforeAll(() => _setDeepAgentsIntegrated(true));
+afterAll(() => _setDeepAgentsIntegrated(false));
 
 /**
  * Create a mock NexusClient that satisfies the real SDK shape.

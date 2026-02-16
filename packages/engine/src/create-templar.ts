@@ -1,15 +1,30 @@
 import type { TemplarConfig, TemplarMiddleware } from "@templar/core";
-import { TemplarConfigError } from "@templar/errors";
+import { getErrorCause, getErrorMessage, TemplarConfigError } from "@templar/errors";
 import { getMiddlewareWrapper } from "./middleware-wrapper.js";
 import { validateAgentType, validateManifest, validateNexusClient } from "./validation.js";
 
 /**
- * Placeholder for createDeepAgent from 'deepagents' package
- * Will be replaced with actual import when peerDependency is available
+ * Placeholder for createDeepAgent from 'deepagents' package.
+ * Will be replaced with actual import when peerDependency is available.
+ *
+ * When the stub is active, createTemplar() logs a warning and returns the
+ * validated/wrapped config. This ensures callers notice the stub without
+ * breaking validation and middleware wrapping flows.
  */
+let _deepAgentsIntegrated = false;
 function createDeepAgent(config: unknown): unknown {
-  // TODO: Replace with actual import from 'deepagents'
+  if (!_deepAgentsIntegrated) {
+    console.warn(
+      "[@templar/engine] deepagents package is not yet integrated. " +
+        "createTemplar() returns validated config only (no agent created).",
+    );
+  }
   return config;
+}
+
+/** @internal Test-only: pretend deepagents is integrated (suppresses stub warning). */
+export function _setDeepAgentsIntegrated(value: boolean): void {
+  _deepAgentsIntegrated = value;
 }
 
 /**
@@ -83,9 +98,8 @@ export function createTemplar(config: TemplarConfig): unknown {
       middleware,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new TemplarConfigError(`Failed to create Templar agent: ${errorMessage}`, {
-      cause: error instanceof Error ? error : undefined,
+    throw new TemplarConfigError(`Failed to create Templar agent: ${getErrorMessage(error)}`, {
+      cause: getErrorCause(error),
     });
   }
 }

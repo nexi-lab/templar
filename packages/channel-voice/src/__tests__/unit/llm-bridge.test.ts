@@ -160,6 +160,23 @@ describe("TemplarLLMBridge", () => {
   });
 });
 
+describe("TemplarLLMBridge edge cases", () => {
+  it("should return response even if handler throws after provideResponse", async () => {
+    const bridge = new TemplarLLMBridge();
+
+    bridge.setMessageHandler(() => {
+      // Provide a valid response first
+      bridge.provideResponse("valid response");
+      // Then throw (e.g., cleanup error)
+      throw new Error("post-response cleanup failed");
+    });
+
+    // The resolved response should be returned, not lost
+    const result = await bridge.processTranscription("test", "user1", "room1");
+    expect(result).toBe("valid response");
+  });
+});
+
 describe("splitSentences", () => {
   it("should split text at sentence boundaries", () => {
     expect(splitSentences("Hello. World.")).toEqual(["Hello.", "World."]);
