@@ -48,6 +48,18 @@ export {
 } from "./schema.js";
 
 // ============================================================================
+// GOVERNANCE
+// ============================================================================
+
+export {
+  type GovernanceViolation,
+  scanRawGovernanceViolations,
+  VALID_ENV_VAR_NAME,
+  validateManifestGovernance,
+  walkParsedGovernanceViolations,
+} from "./governance.js";
+
+// ============================================================================
 // UTILITIES
 // ============================================================================
 

@@ -1905,6 +1905,31 @@ export class ManifestInterpolationError extends ValidationError<"MANIFEST_INTERP
   }
 }
 
+/** @deprecated Use `new ValidationError({ code: "MANIFEST_GOVERNANCE_VIOLATION", ... })` */
+export class ManifestGovernanceError extends ValidationError<"MANIFEST_GOVERNANCE_VIOLATION"> {
+  constructor(
+    public readonly violations: ReadonlyArray<{
+      readonly rule: string;
+      readonly line?: number;
+      readonly snippet: string;
+    }>,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "MANIFEST_GOVERNANCE_VIOLATION",
+      message: `Manifest governance violation${violations.length > 1 ? "s" : ""}:\n${violations.map((v) => `  - [${v.rule}]${v.line ? ` line ${v.line}` : ""}: ${v.snippet}`).join("\n")}`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+      issues: violations.map((v) => ({
+        field: v.rule,
+        message: v.snippet,
+        code: "GOVERNANCE_VIOLATION",
+      })),
+    });
+  }
+}
+
 // ============================================================================
 // BOOTSTRAP ERRORS (legacy wrappers)
 // ============================================================================

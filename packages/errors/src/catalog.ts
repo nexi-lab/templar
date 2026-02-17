@@ -1088,6 +1088,16 @@ export const ERROR_CATALOG = {
     title: "Manifest interpolation failed",
     description: "Environment variable interpolation failed due to missing variables",
   },
+  MANIFEST_GOVERNANCE_VIOLATION: {
+    domain: "manifest",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Manifest governance violation",
+    description:
+      "The manifest contains non-declarative constructs (conditionals, loops, template expressions, or inline code)",
+  },
 
   // ============================================================================
   // BOOTSTRAP ERRORS — Bootstrap file hierarchy
