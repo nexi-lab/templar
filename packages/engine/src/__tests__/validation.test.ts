@@ -1,7 +1,12 @@
-import type { AgentManifest, NexusClient } from "@templar/core";
+import type { AgentManifest, ExecutionLimitsConfig, NexusClient } from "@templar/core";
 import { ManifestValidationError, NexusClientError, TemplarConfigError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { validateAgentType, validateManifest, validateNexusClient } from "../validation.js";
+import {
+  validateAgentType,
+  validateExecutionLimits,
+  validateManifest,
+  validateNexusClient,
+} from "../validation.js";
 
 describe("validation", () => {
   describe("validateAgentType", () => {
@@ -88,6 +93,113 @@ describe("validation", () => {
       } as unknown as NexusClient;
 
       expect(() => validateNexusClient(invalidClient)).toThrow(NexusClientError);
+    });
+  });
+
+  describe("validateExecutionLimits", () => {
+    it("should accept undefined", () => {
+      expect(() => validateExecutionLimits(undefined)).not.toThrow();
+    });
+
+    it("should accept empty object", () => {
+      expect(() => validateExecutionLimits({})).not.toThrow();
+    });
+
+    it("should accept valid full config", () => {
+      const limits: ExecutionLimitsConfig = {
+        maxIterations: 50,
+        maxExecutionTimeMs: 60_000,
+        loopDetection: {
+          windowSize: 10,
+          repeatThreshold: 5,
+          maxCycleLength: 3,
+          onDetected: "warn",
+        },
+      };
+      expect(() => validateExecutionLimits(limits)).not.toThrow();
+    });
+
+    it("should reject non-object", () => {
+      expect(() => validateExecutionLimits("bad" as unknown as ExecutionLimitsConfig)).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject maxIterations < 1", () => {
+      expect(() => validateExecutionLimits({ maxIterations: 0 })).toThrow(TemplarConfigError);
+      expect(() => validateExecutionLimits({ maxIterations: -1 })).toThrow(TemplarConfigError);
+    });
+
+    it("should reject non-number maxIterations", () => {
+      expect(() =>
+        validateExecutionLimits({ maxIterations: "10" } as unknown as ExecutionLimitsConfig),
+      ).toThrow(TemplarConfigError);
+    });
+
+    it("should reject NaN maxIterations", () => {
+      expect(() => validateExecutionLimits({ maxIterations: NaN })).toThrow(TemplarConfigError);
+    });
+
+    it("should reject Infinity maxIterations", () => {
+      expect(() => validateExecutionLimits({ maxIterations: Infinity })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject fractional maxIterations", () => {
+      expect(() => validateExecutionLimits({ maxIterations: 2.5 })).toThrow(TemplarConfigError);
+    });
+
+    it("should reject NaN maxExecutionTimeMs", () => {
+      expect(() => validateExecutionLimits({ maxExecutionTimeMs: NaN })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject Infinity maxExecutionTimeMs", () => {
+      expect(() => validateExecutionLimits({ maxExecutionTimeMs: Infinity })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject maxExecutionTimeMs < 0", () => {
+      expect(() => validateExecutionLimits({ maxExecutionTimeMs: -1 })).toThrow(TemplarConfigError);
+    });
+
+    it("should accept maxExecutionTimeMs of 0", () => {
+      expect(() => validateExecutionLimits({ maxExecutionTimeMs: 0 })).not.toThrow();
+    });
+
+    it("should reject loopDetection windowSize < 1", () => {
+      expect(() => validateExecutionLimits({ loopDetection: { windowSize: 0 } })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject loopDetection repeatThreshold < 2", () => {
+      expect(() => validateExecutionLimits({ loopDetection: { repeatThreshold: 1 } })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject loopDetection maxCycleLength < 1", () => {
+      expect(() => validateExecutionLimits({ loopDetection: { maxCycleLength: 0 } })).toThrow(
+        TemplarConfigError,
+      );
+    });
+
+    it("should reject invalid loopDetection onDetected", () => {
+      expect(() =>
+        validateExecutionLimits({
+          loopDetection: { onDetected: "panic" as "warn" },
+        }),
+      ).toThrow(TemplarConfigError);
+    });
+
+    it("should accept valid loopDetection onDetected values", () => {
+      for (const val of ["warn", "stop", "error"] as const) {
+        expect(() => validateExecutionLimits({ loopDetection: { onDetected: val } })).not.toThrow();
+      }
     });
   });
 

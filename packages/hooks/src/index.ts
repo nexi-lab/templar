@@ -28,6 +28,8 @@ export type {
   InterceptorEvent,
   InterceptorEventMap,
   InterceptorHandler,
+  IterationWarningData,
+  LoopDetectedData,
   NodeConnectedData,
   NodeDisconnectedData,
   ObserverEvent,

@@ -135,6 +135,34 @@ export interface SubagentEndData {
 }
 
 // ---------------------------------------------------------------------------
+// Execution Guard Events (#151 — Loop detection + max-iteration guards)
+// ---------------------------------------------------------------------------
+
+/** Interceptor: fired when loop detection triggers (can be overridden) */
+export interface LoopDetectedData {
+  readonly sessionId: string;
+  /** Loop detection result details */
+  readonly detection: {
+    readonly type: "tool_cycle" | "output_repeat";
+    readonly cyclePattern?: readonly string[];
+    readonly repetitions: number;
+    readonly windowSize: number;
+  };
+  readonly iterationCount: number;
+  /** Configured action for this detection */
+  readonly onDetected: "warn" | "stop" | "error";
+}
+
+/** Observer: fired when approaching the iteration limit */
+export interface IterationWarningData {
+  readonly sessionId: string;
+  readonly iterationCount: number;
+  readonly maxIterations: number;
+  /** How close to the limit (0-100) */
+  readonly percentage: number;
+}
+
+// ---------------------------------------------------------------------------
 // Event Maps
 // ---------------------------------------------------------------------------
 
@@ -146,6 +174,7 @@ export interface InterceptorEventMap {
   readonly PreMessage: PreMessageData;
   readonly BudgetExhausted: BudgetExhaustedData;
   readonly PreCompact: PreCompactData;
+  readonly LoopDetected: LoopDetectedData;
 }
 
 /** Events that are observe-only (no blocking or modification) */
@@ -162,9 +191,10 @@ export interface ObserverEventMap {
   readonly NodeDisconnected: NodeDisconnectedData;
   readonly SubagentStart: SubagentStartData;
   readonly SubagentEnd: SubagentEndData;
+  readonly IterationWarning: IterationWarningData;
 }
 
-/** Combined event map — all 18 hook events */
+/** Combined event map — all 20 hook events */
 export type HookEventMap = InterceptorEventMap & ObserverEventMap;
 
 /** All hook event names */

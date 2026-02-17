@@ -1,4 +1,4 @@
-import type { AgentManifest, NexusClient } from "@templar/core";
+import type { AgentManifest, ExecutionLimitsConfig, NexusClient } from "@templar/core";
 import { ManifestValidationError, NexusClientError, TemplarConfigError } from "@templar/errors";
 
 /**
@@ -98,5 +98,88 @@ export function validateManifest(
 
   if (manifest.middleware !== undefined && !Array.isArray(manifest.middleware)) {
     throw new ManifestValidationError("Manifest field 'middleware' must be an array");
+  }
+}
+
+const VALID_ON_DETECTED = ["warn", "stop", "error"] as const;
+
+/**
+ * Validates execution limits configuration
+ * @throws {TemplarConfigError} if limits are invalid
+ */
+export function validateExecutionLimits(
+  limits: ExecutionLimitsConfig | undefined,
+): asserts limits is ExecutionLimitsConfig | undefined {
+  if (limits === undefined) return;
+
+  if (typeof limits !== "object" || limits === null) {
+    throw new TemplarConfigError("executionLimits must be an object");
+  }
+
+  if (limits.maxIterations !== undefined) {
+    if (
+      !Number.isFinite(limits.maxIterations) ||
+      !Number.isInteger(limits.maxIterations) ||
+      limits.maxIterations < 1
+    ) {
+      throw new TemplarConfigError(
+        `executionLimits.maxIterations must be a positive integer, got ${limits.maxIterations}`,
+      );
+    }
+  }
+
+  if (limits.maxExecutionTimeMs !== undefined) {
+    if (!Number.isFinite(limits.maxExecutionTimeMs) || limits.maxExecutionTimeMs < 0) {
+      throw new TemplarConfigError(
+        `executionLimits.maxExecutionTimeMs must be a finite number >= 0, got ${limits.maxExecutionTimeMs}`,
+      );
+    }
+  }
+
+  const ld = limits.loopDetection;
+  if (ld !== undefined) {
+    if (typeof ld !== "object" || ld === null) {
+      throw new TemplarConfigError("executionLimits.loopDetection must be an object");
+    }
+
+    if (
+      ld.windowSize !== undefined &&
+      (!Number.isFinite(ld.windowSize) || !Number.isInteger(ld.windowSize) || ld.windowSize < 1)
+    ) {
+      throw new TemplarConfigError(
+        `executionLimits.loopDetection.windowSize must be a positive integer, got ${ld.windowSize}`,
+      );
+    }
+
+    if (
+      ld.repeatThreshold !== undefined &&
+      (!Number.isFinite(ld.repeatThreshold) ||
+        !Number.isInteger(ld.repeatThreshold) ||
+        ld.repeatThreshold < 2)
+    ) {
+      throw new TemplarConfigError(
+        `executionLimits.loopDetection.repeatThreshold must be an integer >= 2, got ${ld.repeatThreshold}`,
+      );
+    }
+
+    if (
+      ld.maxCycleLength !== undefined &&
+      (!Number.isFinite(ld.maxCycleLength) ||
+        !Number.isInteger(ld.maxCycleLength) ||
+        ld.maxCycleLength < 1)
+    ) {
+      throw new TemplarConfigError(
+        `executionLimits.loopDetection.maxCycleLength must be a positive integer, got ${ld.maxCycleLength}`,
+      );
+    }
+
+    if (
+      ld.onDetected !== undefined &&
+      !VALID_ON_DETECTED.includes(ld.onDetected as (typeof VALID_ON_DETECTED)[number])
+    ) {
+      throw new TemplarConfigError(
+        `executionLimits.loopDetection.onDetected must be one of: ${VALID_ON_DETECTED.join(", ")}. Got: "${ld.onDetected}"`,
+      );
+    }
   }
 }

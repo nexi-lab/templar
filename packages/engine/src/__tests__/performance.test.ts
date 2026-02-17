@@ -156,6 +156,75 @@ describe("Performance benchmarks", () => {
     });
   });
 
+  describe("execution guard overhead", () => {
+    it("should create IterationGuard quickly", async () => {
+      const { IterationGuard } = await import("../iteration-guard.js");
+
+      const iterations = 10000;
+      const start = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        new IterationGuard({ maxIterations: 25, maxExecutionTimeMs: 120_000 });
+      }
+
+      const duration = performance.now() - start;
+      const avgTime = duration / iterations;
+      expect(avgTime).toBeLessThan(0.1); // < 0.1ms per creation
+    });
+
+    it("should run IterationGuard.check() quickly", async () => {
+      const { IterationGuard } = await import("../iteration-guard.js");
+      const guard = new IterationGuard({ maxIterations: 100_000 });
+
+      const iterations = 50_000;
+      const start = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        guard.check();
+      }
+
+      const duration = performance.now() - start;
+      const avgTime = duration / iterations;
+      expect(avgTime).toBeLessThan(0.01); // < 0.01ms per check
+    });
+
+    it("should run LoopDetector.recordAndCheck quickly", async () => {
+      const { LoopDetector } = await import("../loop-detector.js");
+      const detector = new LoopDetector({
+        windowSize: 10,
+        repeatThreshold: 5,
+        maxCycleLength: 4,
+      });
+
+      const iterations = 10_000;
+      const start = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        detector.recordAndCheck(`output ${i}`, [`tool_${i % 3}`]);
+      }
+
+      const duration = performance.now() - start;
+      const avgTime = duration / iterations;
+      expect(avgTime).toBeLessThan(0.1); // < 0.1ms per check
+    });
+
+    it("should hash strings quickly with fnv1a32", async () => {
+      const { fnv1a32 } = await import("../fnv-hash.js");
+      const input = "This is a typical agent output string that might be repeated.";
+
+      const iterations = 100_000;
+      const start = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        fnv1a32(input);
+      }
+
+      const duration = performance.now() - start;
+      const avgTime = duration / iterations;
+      expect(avgTime).toBeLessThan(0.01); // < 0.01ms per hash
+    });
+  });
+
   describe("regression prevention", () => {
     it("should maintain baseline performance", () => {
       const config: TemplarConfig = {

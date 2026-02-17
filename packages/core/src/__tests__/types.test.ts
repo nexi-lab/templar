@@ -5,12 +5,16 @@ import type {
   ChannelCapabilities,
   ChannelConfig,
   DeepAgentConfig,
+  ExecutionLimitsConfig,
+  LoopDetection,
+  LoopDetectionConfig,
   MessageHandler,
   MiddlewareConfig,
   ModelConfig,
   NexusClient,
   OutboundMessage,
   PermissionConfig,
+  StopReason,
   TemplarConfig,
   TemplarMiddleware,
   ToolConfig,
@@ -329,6 +333,142 @@ describe("Type exports", () => {
         model: "gpt-4",
         temperature: 0.7,
         customField: "value",
+      };
+      expect(config).toBeDefined();
+    });
+  });
+
+  describe("ExecutionLimitsConfig", () => {
+    it("should accept empty config (all defaults)", () => {
+      const config: ExecutionLimitsConfig = {};
+      expect(config).toBeDefined();
+    });
+
+    it("should accept config with hard limits only", () => {
+      const config: ExecutionLimitsConfig = {
+        maxIterations: 50,
+        maxExecutionTimeMs: 60_000,
+      };
+      expect(config).toBeDefined();
+    });
+
+    it("should accept config with loop detection", () => {
+      const config: ExecutionLimitsConfig = {
+        maxIterations: 25,
+        loopDetection: {
+          enabled: true,
+          windowSize: 5,
+          repeatThreshold: 3,
+          maxCycleLength: 4,
+          onDetected: "stop",
+        },
+      };
+      expect(config).toBeDefined();
+    });
+
+    it("should accept config with minimal loop detection", () => {
+      const config: ExecutionLimitsConfig = {
+        loopDetection: { enabled: false },
+      };
+      expect(config).toBeDefined();
+    });
+  });
+
+  describe("LoopDetectionConfig", () => {
+    it("should accept empty config", () => {
+      const config: LoopDetectionConfig = {};
+      expect(config).toBeDefined();
+    });
+
+    it("should accept all onDetected values", () => {
+      const warn: LoopDetectionConfig = { onDetected: "warn" };
+      const stop: LoopDetectionConfig = { onDetected: "stop" };
+      const error: LoopDetectionConfig = { onDetected: "error" };
+      expect(warn).toBeDefined();
+      expect(stop).toBeDefined();
+      expect(error).toBeDefined();
+    });
+  });
+
+  describe("LoopDetection", () => {
+    it("should accept tool_cycle detection", () => {
+      const detection: LoopDetection = {
+        type: "tool_cycle",
+        cyclePattern: ["search", "analyze"],
+        repetitions: 3,
+        windowSize: 5,
+      };
+      expect(detection).toBeDefined();
+      expect(detection.type).toBe("tool_cycle");
+    });
+
+    it("should accept output_repeat detection", () => {
+      const detection: LoopDetection = {
+        type: "output_repeat",
+        repetitions: 3,
+        windowSize: 5,
+      };
+      expect(detection).toBeDefined();
+      expect(detection.type).toBe("output_repeat");
+    });
+  });
+
+  describe("StopReason", () => {
+    it("should narrow on kind field", () => {
+      const reasons: StopReason[] = [
+        { kind: "completed" },
+        { kind: "iteration_limit", count: 25, max: 25 },
+        { kind: "timeout", elapsedMs: 120_000, maxMs: 120_000 },
+        {
+          kind: "loop_detected",
+          detection: {
+            type: "tool_cycle",
+            cyclePattern: ["search"],
+            repetitions: 3,
+            windowSize: 5,
+          },
+        },
+        { kind: "budget_exhausted" },
+        { kind: "user_cancelled" },
+      ];
+      expect(reasons).toHaveLength(6);
+
+      // Verify type narrowing works
+      for (const reason of reasons) {
+        switch (reason.kind) {
+          case "completed":
+          case "budget_exhausted":
+          case "user_cancelled":
+            break;
+          case "iteration_limit":
+            expect(reason.count).toBeDefined();
+            expect(reason.max).toBeDefined();
+            break;
+          case "timeout":
+            expect(reason.elapsedMs).toBeDefined();
+            expect(reason.maxMs).toBeDefined();
+            break;
+          case "loop_detected":
+            expect(reason.detection).toBeDefined();
+            break;
+        }
+      }
+    });
+  });
+
+  describe("TemplarConfig with executionLimits", () => {
+    it("should accept config with executionLimits", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        agentType: "high",
+        executionLimits: {
+          maxIterations: 50,
+          maxExecutionTimeMs: 60_000,
+          loopDetection: {
+            enabled: true,
+            windowSize: 5,
+          },
+        },
       };
       expect(config).toBeDefined();
     });

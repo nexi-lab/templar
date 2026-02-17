@@ -1473,6 +1473,37 @@ export const ERROR_CATALOG = {
     title: "LSP transport error",
     description: "The stdio transport pipe is broken or a read/write failed",
   },
+
+  // ============================================================================
+  // ENGINE EXECUTION GUARD ERRORS — Loop detection and iteration limits
+  // ============================================================================
+  ENGINE_ITERATION_LIMIT: {
+    domain: "engine",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "InternalError" as const,
+    isExpected: true,
+    title: "Iteration limit exceeded",
+    description: "Agent exceeded the maximum allowed iterations per run",
+  },
+  ENGINE_LOOP_DETECTED: {
+    domain: "engine",
+    httpStatus: 409,
+    grpcCode: "ABORTED" as const,
+    baseType: "InternalError" as const,
+    isExpected: true,
+    title: "Agent loop detected",
+    description: "Agent execution loop detected — repeating tool call pattern or identical outputs",
+  },
+  ENGINE_EXECUTION_TIMEOUT: {
+    domain: "engine",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Execution timeout",
+    description: "Agent execution exceeded the configured wall-clock time limit",
+  },
 } as const;
 
 // ============================================================================
