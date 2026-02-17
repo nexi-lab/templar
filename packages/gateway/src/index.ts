@@ -34,15 +34,15 @@ export {
 export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
 // Orchestrator
 export { type GatewayEventHandler, TemplarGateway, type TemplarGatewayDeps } from "./gateway.js";
-// Lanes
-export {
-  type InterruptHandler,
-  LaneDispatcher,
-  type OverflowHandler,
-} from "./lanes/lane-dispatcher.js";
-export { BoundedFifoQueue } from "./lanes/queue.js";
 // Protocol (shared with @templar/node via @templar/gateway/protocol subpath)
 export * from "./protocol/index.js";
+export { BoundedFifoQueue } from "./queue/bounded-fifo.js";
+// Queue (priority message buffer)
+export {
+  type InterruptHandler,
+  MessageBuffer,
+  type OverflowHandler,
+} from "./queue/message-buffer.js";
 export {
   HealthMonitor,
   type HealthMonitorConfig,

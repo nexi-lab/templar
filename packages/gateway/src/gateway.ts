@@ -2,7 +2,6 @@ import { BindingResolver } from "./binding-resolver.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
 import { DeliveryTracker } from "./delivery-tracker.js";
-import { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import type {
   GatewayConfig,
   GatewayFrame,
@@ -12,6 +11,7 @@ import type {
   NodeDeregisterFrame,
   NodeRegisterFrame,
 } from "./protocol/index.js";
+import { MessageBuffer } from "./queue/message-buffer.js";
 import { HealthMonitor } from "./registry/health-monitor.js";
 import { NodeRegistry } from "./registry/node-registry.js";
 import { AgentRouter } from "./router.js";
@@ -61,7 +61,7 @@ type GatewayEvents = {
  * - HealthMonitor (heartbeat sweep)
  * - SessionManager (per-node session FSM)
  * - AgentRouter (channel → node routing)
- * - LaneDispatcher (per-node priority queues)
+ * - MessageBuffer (per-node priority queues)
  * - ConfigWatcher (hot-reload)
  * - ConversationStore (conversation-to-node bindings with TTL)
  */
@@ -451,8 +451,8 @@ export class TemplarGateway {
       // Create session
       const session = this.sessionManager.createSession(nodeId);
 
-      // Create lane dispatcher for this node
-      const dispatcher = new LaneDispatcher(config.laneCapacity);
+      // Create message buffer for this node
+      const dispatcher = new MessageBuffer(config.laneCapacity);
       this.router.setDispatcher(nodeId, dispatcher);
 
       // Send ack via the connection

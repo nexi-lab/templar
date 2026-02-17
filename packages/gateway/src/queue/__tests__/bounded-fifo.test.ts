@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BoundedFifoQueue } from "../queue.js";
+import { BoundedFifoQueue } from "../bounded-fifo.js";
 
 describe("BoundedFifoQueue", () => {
   // -------------------------------------------------------------------------

@@ -18,22 +18,32 @@ export type Lane = (typeof LANES)[number];
 
 export const LaneSchema = z.enum(LANES);
 
-/**
- * Lanes that participate in the priority queue (interrupt bypasses).
- */
-export const QUEUED_LANES = ["steer", "collect", "followup"] as const;
-export type QueuedLane = (typeof QUEUED_LANES)[number];
-
-export const QueuedLaneSchema = z.enum(QUEUED_LANES);
+// ---------------------------------------------------------------------------
+// Priority (source of truth for queued lane ordering)
+// ---------------------------------------------------------------------------
 
 /**
  * Priority ordering for queued lanes (lower = higher priority).
+ * This is the **single source of truth** — `QUEUED_LANES` is derived from it.
  */
-export const LANE_PRIORITY: Readonly<Record<QueuedLane, number>> = {
+export const LANE_PRIORITY = {
   steer: 0,
   collect: 1,
   followup: 2,
 } as const;
+
+/** Lanes that participate in the priority queue (interrupt bypasses). */
+export type QueuedLane = keyof typeof LANE_PRIORITY;
+
+/**
+ * Queued lane names sorted by priority (ascending — highest priority first).
+ * Derived from `LANE_PRIORITY` to avoid DRY violation.
+ */
+export const QUEUED_LANES: readonly QueuedLane[] = (
+  Object.keys(LANE_PRIORITY) as QueuedLane[]
+).sort((a, b) => LANE_PRIORITY[a] - LANE_PRIORITY[b]);
+
+export const QueuedLaneSchema = z.enum(Object.keys(LANE_PRIORITY) as [QueuedLane, ...QueuedLane[]]);
 
 // ---------------------------------------------------------------------------
 // Lane Message
