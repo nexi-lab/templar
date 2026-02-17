@@ -356,8 +356,8 @@ describe("Middleware wrapper integration", () => {
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
     expect(wrapperSpy).toHaveBeenCalledTimes(2);
-    expect(result.middleware[0].name).toBe("wrapped-logger");
-    expect(result.middleware[1].name).toBe("wrapped-metrics");
+    expect(result.middleware[0]!.name).toBe("wrapped-logger");
+    expect(result.middleware[1]!.name).toBe("wrapped-metrics");
   });
 
   it("should not wrap non-object middleware items", () => {
@@ -383,7 +383,7 @@ describe("Middleware wrapper integration", () => {
     };
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
-    expect(result.middleware[0].name).toBe("logger");
+    expect(result.middleware[0]!.name).toBe("logger");
   });
 
   it("should unregister wrapper correctly", () => {
@@ -402,7 +402,7 @@ describe("Middleware wrapper integration", () => {
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
     expect(wrapperSpy).not.toHaveBeenCalled();
-    expect(result.middleware[0].name).toBe("logger");
+    expect(result.middleware[0]!.name).toBe("logger");
   });
 });
 
