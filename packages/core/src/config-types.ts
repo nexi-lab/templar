@@ -98,6 +98,26 @@ export interface BootstrapPathConfig {
   readonly budget?: Partial<BootstrapBudget>;
 }
 
+// ---------------------------------------------------------------------------
+// Conversation Scoping
+// ---------------------------------------------------------------------------
+
+/**
+ * The 4 DM scoping modes for conversation isolation.
+ *
+ * - main:                     Single conversation per agent (no isolation)
+ * - per-peer:                 One conversation per peer across all channels
+ * - per-channel-peer:         One conversation per (channel, peer) pair
+ * - per-account-channel-peer: One conversation per (account, channel, peer) triple
+ */
+export const CONVERSATION_SCOPES = [
+  "main",
+  "per-peer",
+  "per-channel-peer",
+  "per-account-channel-peer",
+] as const;
+export type ConversationScope = (typeof CONVERSATION_SCOPES)[number];
+
 /**
  * Agent manifest (parsed from templar.yaml)
  */
@@ -115,8 +135,8 @@ export interface AgentManifest {
   prompt?: string;
   skills?: string[];
   bootstrap?: BootstrapPathConfig;
-  /** Conversation isolation mode (maps to gateway ConversationScope) */
-  sessionScoping?: "main" | "per-peer" | "per-channel-peer" | "per-account-channel-peer";
+  /** Conversation isolation mode */
+  sessionScoping?: ConversationScope;
 }
 
 /**

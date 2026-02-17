@@ -3,11 +3,9 @@ import type { BindingResolver } from "./binding-resolver.js";
 import type { ConversationStore } from "./conversations/conversation-store.js";
 import type { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import {
-  type ConversationKeyInput,
   type ConversationKeyResult,
   type ConversationScope,
   type LaneMessage,
-  type MessageRoutingContext,
   resolveConversationKey,
 } from "./protocol/index.js";
 import type { NodeRegistry } from "./registry/node-registry.js";
@@ -16,31 +14,6 @@ import { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Build a ConversationKeyInput from routing context, omitting undefined
- * properties to satisfy exactOptionalPropertyTypes.
- */
-function buildKeyInput(
-  scope: ConversationScope,
-  agentId: string,
-  channelId: string,
-  ctx?: MessageRoutingContext,
-): ConversationKeyInput {
-  if (!ctx) {
-    return { scope, agentId, channelId };
-  }
-
-  return {
-    scope,
-    agentId,
-    channelId,
-    ...(ctx.peerId ? { peerId: ctx.peerId } : {}),
-    ...(ctx.accountId ? { accountId: ctx.accountId } : {}),
-    ...(ctx.groupId ? { groupId: ctx.groupId } : {}),
-    ...(ctx.messageType ? { messageType: ctx.messageType } : {}),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,10 +154,17 @@ export class AgentRouter {
   routeWithScope(message: LaneMessage, agentId: string): ConversationKeyResult {
     const scope = this.agentScopes.get(agentId) ?? this.conversationScope;
 
-    const input = buildKeyInput(scope, agentId, message.channelId, message.routingContext);
-    const result = resolveConversationKey(input);
+    const result = resolveConversationKey({
+      scope,
+      agentId,
+      channelId: message.channelId,
+      peerId: message.routingContext?.peerId,
+      accountId: message.routingContext?.accountId,
+      groupId: message.routingContext?.groupId,
+      messageType: message.routingContext?.messageType,
+    });
 
-    // Notify on degraded key resolution (missing peerId, accountId, etc.)
+    // Notify on degraded key resolution (e.g., missing accountId)
     if (result.degraded && this.degradationHandler) {
       this.degradationHandler(agentId, result.warnings);
     }
@@ -206,8 +186,15 @@ export class AgentRouter {
    */
   resolveConversation(message: LaneMessage, agentId: string): ConversationKeyResult {
     const scope = this.agentScopes.get(agentId) ?? this.conversationScope;
-    const input = buildKeyInput(scope, agentId, message.channelId, message.routingContext);
-    return resolveConversationKey(input);
+    return resolveConversationKey({
+      scope,
+      agentId,
+      channelId: message.channelId,
+      peerId: message.routingContext?.peerId,
+      accountId: message.routingContext?.accountId,
+      groupId: message.routingContext?.groupId,
+      messageType: message.routingContext?.messageType,
+    });
   }
 
   /**

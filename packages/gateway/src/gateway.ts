@@ -504,6 +504,14 @@ export class TemplarGateway {
     this.events.emit("node.deregistered", nodeId);
   }
 
+  /**
+   * Handle lane.message frames from the WebSocket transport.
+   *
+   * Note: This uses route() (scope-free) intentionally. Conversation scoping
+   * is applied by channel adapters at a higher layer via router.routeWithScope().
+   * The raw frame handler is the low-level transport path — it routes messages
+   * to the correct node but does not create conversation bindings.
+   */
   private handleLaneMessage(connectionId: string, frame: LaneMessageFrame): void {
     const nodeId = this.connectionToNode.get(connectionId);
     if (!nodeId) {

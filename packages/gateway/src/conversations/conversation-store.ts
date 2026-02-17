@@ -117,6 +117,10 @@ export class ConversationStore {
 
     const count = keys.size;
     this.nodeIndex = mapDelete(this.nodeIndex, nodeId);
+
+    // Reset hysteresis if ratio dropped below the reset threshold
+    this.checkCapacityWarning();
+
     return count;
   }
 
@@ -144,6 +148,9 @@ export class ConversationStore {
       this.removeFromNodeIndex(binding.nodeId, binding.conversationKey);
       swept++;
     }
+
+    // Reset hysteresis if ratio dropped below the reset threshold
+    this.checkCapacityWarning();
 
     return swept;
   }
@@ -184,7 +191,7 @@ export class ConversationStore {
 
   private removeFromNodeIndex(nodeId: string, key: string): void {
     const existing = this.nodeIndex.get(nodeId);
-    if (!existing) return;
+    if (!existing?.has(key)) return; // Not tracked — skip O(k) copy
     const next = new Set(existing);
     next.delete(key);
     if (next.size === 0) {
@@ -200,7 +207,11 @@ export class ConversationStore {
       this.capacityWarningEmitted = true;
       const percent = Math.round(ratio * 100);
       for (const handler of this.capacityWarningHandlers) {
-        handler(this.bindings.size, this.config.maxConversations, percent);
+        try {
+          handler(this.bindings.size, this.config.maxConversations, percent);
+        } catch {
+          // Prevent one handler from blocking others
+        }
       }
     } else if (ratio < CAPACITY_WARNING_RESET && this.capacityWarningEmitted) {
       this.capacityWarningEmitted = false;

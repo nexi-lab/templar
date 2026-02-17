@@ -3,7 +3,7 @@
  * AgentManifest type from @templar/core.
  */
 
-import type { AgentManifest } from "@templar/core";
+import { type AgentManifest, CONVERSATION_SCOPES } from "@templar/core";
 import { parseExpression } from "cron-parser";
 import { z } from "zod";
 
@@ -110,16 +110,9 @@ export const BootstrapPathConfigSchema = z.object({
 });
 
 /**
- * Conversation isolation modes — must stay in sync with
- * CONVERSATION_SCOPES in @templar/gateway/protocol.
+ * Conversation isolation modes — canonical source: @templar/core.
  */
-export const SESSION_SCOPING_VALUES = [
-  "main",
-  "per-peer",
-  "per-channel-peer",
-  "per-account-channel-peer",
-] as const;
-export const SessionScopingSchema = z.enum(SESSION_SCOPING_VALUES);
+export const SessionScopingSchema = z.enum(CONVERSATION_SCOPES);
 
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
