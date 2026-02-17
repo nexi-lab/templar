@@ -1,24 +1,12 @@
+import { CONVERSATION_SCOPES, type ConversationScope } from "@templar/core";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
-// Conversation Scope
+// Conversation Scope (canonical definition in @templar/core)
 // ---------------------------------------------------------------------------
 
-/**
- * The 4 DM scoping modes for conversation isolation.
- *
- * - main:                     Single conversation per agent (no isolation)
- * - per-peer:                 One conversation per peer across all channels
- * - per-channel-peer:         One conversation per (channel, peer) pair
- * - per-account-channel-peer: One conversation per (account, channel, peer) triple
- */
-export const CONVERSATION_SCOPES = [
-  "main",
-  "per-peer",
-  "per-channel-peer",
-  "per-account-channel-peer",
-] as const;
-export type ConversationScope = (typeof CONVERSATION_SCOPES)[number];
+// Re-export for consumers that import from @templar/gateway/protocol
+export { CONVERSATION_SCOPES, type ConversationScope } from "@templar/core";
 export const ConversationScopeSchema = z.enum(CONVERSATION_SCOPES);
 
 // ---------------------------------------------------------------------------
@@ -48,6 +36,8 @@ export interface MessageRoutingContext {
   readonly groupId?: string;
   /** Whether this is a DM or group message */
   readonly messageType?: MessageType;
+  // TODO(#4): Add threadId for Slack threads / Telegram Topics isolation.
+  // Key format: agent:<agentId>:<channelId>:group:<groupId>:thread:<threadId>
 }
 
 export const MessageRoutingContextSchema = z.object({
@@ -73,15 +63,17 @@ export interface ConversationKeyInput {
   readonly scope: ConversationScope;
   readonly agentId: string;
   readonly channelId: string;
-  readonly peerId?: string;
-  readonly accountId?: string;
-  readonly groupId?: string;
-  readonly messageType?: MessageType;
+  readonly peerId?: string | undefined;
+  readonly accountId?: string | undefined;
+  readonly groupId?: string | undefined;
+  readonly messageType?: MessageType | undefined;
 }
 
 /** Result of conversation key resolution. */
 export interface ConversationKeyResult {
   readonly key: ConversationKey;
+  readonly requestedScope: ConversationScope;
+  readonly effectiveScope: ConversationScope | "group";
   readonly degraded: boolean;
   readonly warnings: readonly string[];
 }
@@ -96,11 +88,12 @@ export interface ConversationKeyResult {
  * - per-channel-peer:            `agent:<agentId>:<channelId>:dm:<peerId>`
  * - per-account-channel-peer:    `agent:<agentId>:<channelId>:<accountId>:dm:<peerId>`
  *
- * Fallback chain (when required fields are missing):
- * - group missing groupId        -> degrade to `main` + warning
- * - per-account-channel-peer missing accountId -> degrade to `per-channel-peer` + warning
- * - per-channel-peer or above missing peerId   -> degrade to `main` + warning
- * - per-peer missing peerId      -> degrade to `main` + warning
+ * Error behavior (strict — prevents silent conversation merging):
+ * - Any scope except `main` missing peerId → throws (channel adapter bug)
+ * - group missing groupId                  → throws (channel adapter bug)
+ *
+ * Degradation (graceful — missing optional context):
+ * - per-account-channel-peer missing accountId → degrade to per-channel-peer + warning
  */
 export function resolveConversationKey(input: ConversationKeyInput): ConversationKeyResult {
   const { scope, agentId, channelId, messageType } = input;
@@ -125,11 +118,14 @@ export function resolveConversationKey(input: ConversationKeyInput): Conversatio
   // Group messages always use group scoping, ignoring DM scope
   if (messageType === "group") {
     if (!groupId) {
-      warnings.push("group message missing groupId, falling back to main scope");
-      return { key: `agent:${agentId}:main` as ConversationKey, degraded: true, warnings };
+      throw new Error(
+        "group message missing groupId — channel adapter must provide groupId for group messages",
+      );
     }
     return {
       key: `agent:${agentId}:${channelId}:group:${groupId}` as ConversationKey,
+      requestedScope: scope,
+      effectiveScope: "group",
       degraded: false,
       warnings,
     };
@@ -138,30 +134,47 @@ export function resolveConversationKey(input: ConversationKeyInput): Conversatio
   // DM scoping
   switch (scope) {
     case "main":
-      return { key: `agent:${agentId}:main` as ConversationKey, degraded: false, warnings };
+      return {
+        key: `agent:${agentId}:main` as ConversationKey,
+        requestedScope: "main",
+        effectiveScope: "main",
+        degraded: false,
+        warnings,
+      };
 
     case "per-peer":
       if (!peerId) {
-        warnings.push("per-peer scope missing peerId, falling back to main scope");
-        return { key: `agent:${agentId}:main` as ConversationKey, degraded: true, warnings };
+        throw new Error(
+          "per-peer scope requires peerId — channel adapter must provide peerId for DM messages",
+        );
       }
-      return { key: `agent:${agentId}:dm:${peerId}` as ConversationKey, degraded: false, warnings };
+      return {
+        key: `agent:${agentId}:dm:${peerId}` as ConversationKey,
+        requestedScope: "per-peer",
+        effectiveScope: "per-peer",
+        degraded: false,
+        warnings,
+      };
 
     case "per-channel-peer":
       if (!peerId) {
-        warnings.push("per-channel-peer scope missing peerId, falling back to main scope");
-        return { key: `agent:${agentId}:main` as ConversationKey, degraded: true, warnings };
+        throw new Error(
+          "per-channel-peer scope requires peerId — channel adapter must provide peerId for DM messages",
+        );
       }
       return {
         key: `agent:${agentId}:${channelId}:dm:${peerId}` as ConversationKey,
+        requestedScope: "per-channel-peer",
+        effectiveScope: "per-channel-peer",
         degraded: false,
         warnings,
       };
 
     case "per-account-channel-peer": {
       if (!peerId) {
-        warnings.push("per-account-channel-peer scope missing peerId, falling back to main scope");
-        return { key: `agent:${agentId}:main` as ConversationKey, degraded: true, warnings };
+        throw new Error(
+          "per-account-channel-peer scope requires peerId — channel adapter must provide peerId for DM messages",
+        );
       }
       if (!accountId) {
         warnings.push(
@@ -169,12 +182,16 @@ export function resolveConversationKey(input: ConversationKeyInput): Conversatio
         );
         return {
           key: `agent:${agentId}:${channelId}:dm:${peerId}` as ConversationKey,
+          requestedScope: "per-account-channel-peer",
+          effectiveScope: "per-channel-peer",
           degraded: true,
           warnings,
         };
       }
       return {
         key: `agent:${agentId}:${channelId}:${accountId}:dm:${peerId}` as ConversationKey,
+        requestedScope: "per-account-channel-peer",
+        effectiveScope: "per-account-channel-peer",
         degraded: false,
         warnings,
       };

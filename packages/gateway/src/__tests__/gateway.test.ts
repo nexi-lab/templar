@@ -478,7 +478,7 @@ describe("TemplarGateway", () => {
       await gateway.stop();
     });
 
-    it("missing routingContext falls back to main", async () => {
+    it("missing peerId throws instead of silently degrading", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
       const ws = wss.connect("ws-1");
@@ -493,22 +493,21 @@ describe("TemplarGateway", () => {
       gateway.bindChannel("ch-1", "agent-1");
 
       const router = gateway.getRouter();
-      const result = router.routeWithScope(
-        {
-          id: "msg-1",
-          lane: "steer",
-          channelId: "ch-1",
-          payload: {},
-          timestamp: Date.now(),
-          // No routingContext — peerId will be undefined
-        },
-        "bot-1",
-      );
 
-      // per-channel-peer with no peerId degrades to main
-      expect(result.key).toBe("agent:bot-1:main");
-      expect(result.degraded).toBe(true);
-      expect(result.warnings.length).toBeGreaterThan(0);
+      // per-channel-peer with no peerId now throws to prevent conversation merging
+      expect(() =>
+        router.routeWithScope(
+          {
+            id: "msg-1",
+            lane: "steer",
+            channelId: "ch-1",
+            payload: {},
+            timestamp: Date.now(),
+            // No routingContext — peerId will be undefined
+          },
+          "bot-1",
+        ),
+      ).toThrow("peerId");
 
       await gateway.stop();
     });
@@ -921,8 +920,10 @@ describe("TemplarGateway", () => {
   // -------------------------------------------------------------------------
 
   describe("degradation handler", () => {
-    it("onDegradation fires when key resolution degrades", async () => {
-      const { gateway, wss } = createTestGateway();
+    it("onDegradation fires when key resolution degrades (missing accountId)", async () => {
+      const { gateway, wss } = createTestGateway({
+        defaultConversationScope: "per-account-channel-peer",
+      });
       await gateway.start();
       const ws = wss.connect("ws-1");
 
@@ -939,7 +940,7 @@ describe("TemplarGateway", () => {
       const handler = vi.fn();
       router.onDegradation(handler);
 
-      // Route without peerId → should degrade and fire handler
+      // Route with peerId but missing accountId → degrades and fires handler
       router.routeWithScope(
         {
           id: "msg-1",
@@ -947,7 +948,7 @@ describe("TemplarGateway", () => {
           channelId: "ch-1",
           payload: {},
           timestamp: Date.now(),
-          // No routingContext → no peerId
+          routingContext: { peerId: "peer-1", messageType: "dm" },
         },
         "bot-1",
       );
@@ -955,7 +956,7 @@ describe("TemplarGateway", () => {
       expect(handler).toHaveBeenCalledOnce();
       expect(handler).toHaveBeenCalledWith(
         "bot-1",
-        expect.arrayContaining([expect.stringContaining("peerId")]),
+        expect.arrayContaining([expect.stringContaining("accountId")]),
       );
 
       await gateway.stop();
@@ -992,6 +993,142 @@ describe("TemplarGateway", () => {
       );
 
       expect(handler).not.toHaveBeenCalled();
+
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Multi-agent routing + conversation scoping integration (#11)
+  // -------------------------------------------------------------------------
+
+  describe("multi-agent routing + conversation scoping", () => {
+    it("binding resolver + routeWithScope produces per-agent conversation keys", async () => {
+      const { gateway, wss } = createTestGateway({
+        bindings: [
+          { agentId: "work-agent", match: { channel: "slack" } },
+          { agentId: "personal-agent", match: { channel: "whatsapp" } },
+        ],
+      });
+      await gateway.start();
+
+      // Register two nodes, each serving a different agent
+      const ws1 = wss.connect("ws-1");
+      sendFrame(ws1, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["work-agent"] },
+        token: "test-key",
+      });
+
+      const ws2 = wss.connect("ws-2");
+      sendFrame(ws2, {
+        kind: "node.register",
+        nodeId: "node-2",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["personal-agent"] },
+        token: "test-key",
+      });
+
+      gateway.bindChannel("slack", "node-1");
+      gateway.bindChannel("whatsapp", "node-2");
+
+      const router = gateway.getRouter();
+
+      // Same peer messages two different agents via two channels
+      const r1 = router.routeWithScope(
+        {
+          id: "msg-slack",
+          lane: "steer",
+          channelId: "slack",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "work-agent",
+      );
+
+      const r2 = router.routeWithScope(
+        {
+          id: "msg-whatsapp",
+          lane: "steer",
+          channelId: "whatsapp",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "personal-agent",
+      );
+
+      // Different agents → different conversation keys
+      expect(r1.key).not.toBe(r2.key);
+      expect(r1.key).toContain("work-agent");
+      expect(r2.key).toContain("personal-agent");
+
+      // Both should have conversation store bindings
+      const store = gateway.getConversationStore();
+      expect(store.get(r1.key)?.nodeId).toBe("node-1");
+      expect(store.get(r2.key)?.nodeId).toBe("node-2");
+      expect(store.size).toBe(2);
+
+      await gateway.stop();
+    });
+
+    it("agent-level scope override with multi-agent routing", async () => {
+      const { gateway, wss } = createTestGateway({
+        bindings: [
+          { agentId: "shared-agent", match: { channel: "slack" } },
+          { agentId: "isolated-agent", match: { channel: "telegram" } },
+        ],
+      });
+      await gateway.start();
+
+      const ws = wss.connect("ws-1");
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["shared-agent", "isolated-agent"] },
+        token: "test-key",
+      });
+
+      gateway.bindChannel("slack", "node-1");
+      gateway.bindChannel("telegram", "node-1");
+
+      const router = gateway.getRouter();
+      // shared-agent uses main scope (all peers share one conversation)
+      router.setAgentScope("shared-agent", "main");
+      // isolated-agent keeps gateway default (per-channel-peer)
+
+      const rShared = router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "slack",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "shared-agent",
+      );
+
+      const rIsolated = router.routeWithScope(
+        {
+          id: "msg-2",
+          lane: "steer",
+          channelId: "telegram",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "isolated-agent",
+      );
+
+      // shared-agent uses main scope → key does not contain peerId
+      expect(rShared.key).toBe("agent:shared-agent:main");
+      expect(rShared.effectiveScope).toBe("main");
+
+      // isolated-agent uses per-channel-peer → key contains channel + peerId
+      expect(rIsolated.key).toBe("agent:isolated-agent:telegram:dm:peer-1");
+      expect(rIsolated.effectiveScope).toBe("per-channel-peer");
 
       await gateway.stop();
     });
