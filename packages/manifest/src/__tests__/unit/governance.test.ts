@@ -27,43 +27,43 @@ describe("scanRawGovernanceViolations", () => {
   it("rejects ${{ expression }} (GitHub Actions style)", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_DOUBLE_BRACE);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-template-expression");
+    expect(violations[0]?.rule).toBe("no-template-expression");
   });
 
   it("rejects {{ variable }} (Jinja2/Go template)", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_JINJA2_VAR);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-template-expression");
+    expect(violations[0]?.rule).toBe("no-template-expression");
   });
 
   it("rejects {% block %} (Jinja2 block)", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_JINJA2_BLOCK);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-template-expression");
+    expect(violations[0]?.rule).toBe("no-template-expression");
   });
 
   it("rejects {{ .Value }} (Go template)", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_GO_TEMPLATE);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-template-expression");
+    expect(violations[0]?.rule).toBe("no-template-expression");
   });
 
   it("rejects ${lowercase} env var names", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_LOWERCASE_ENV);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-invalid-interpolation");
+    expect(violations[0]?.rule).toBe("no-invalid-interpolation");
   });
 
   it("rejects ${complex.path} expressions", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_COMPLEX_EXPR);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-invalid-interpolation");
+    expect(violations[0]?.rule).toBe("no-invalid-interpolation");
   });
 
   it("rejects ${getSecret()} function calls in env vars", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_FUNC_CALL_ENV);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-invalid-interpolation");
+    expect(violations[0]?.rule).toBe("no-invalid-interpolation");
   });
 
   it("allows ${UPPER_CASE} env vars", () => {
@@ -84,14 +84,14 @@ describe("scanRawGovernanceViolations", () => {
   it("includes line numbers in violations", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_DOUBLE_BRACE);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].line).toBeTypeOf("number");
-    expect(violations[0].line).toBeGreaterThan(0);
+    expect(violations[0]?.line).toBeTypeOf("number");
+    expect(violations[0]?.line).toBeGreaterThan(0);
   });
 
   it("includes the offending snippet in violations", () => {
     const violations = scanRawGovernanceViolations(YAML_WITH_DOUBLE_BRACE);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].snippet).toContain("${{");
+    expect(violations[0]?.snippet).toContain("${{");
   });
 
   it("returns empty array for empty string", () => {
@@ -109,7 +109,7 @@ describe("walkParsedGovernanceViolations", () => {
     const parsed = { name: "test", if: "production" };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-conditional");
+    expect(violations[0]?.rule).toBe("no-conditional");
   });
 
   it("rejects 'when' key at any level", () => {
@@ -119,42 +119,42 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-conditional");
+    expect(violations[0]?.rule).toBe("no-conditional");
   });
 
   it("rejects 'unless' key", () => {
     const parsed = { name: "test", unless: "disabled" };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-conditional");
+    expect(violations[0]?.rule).toBe("no-conditional");
   });
 
   it("rejects 'for' key", () => {
     const parsed = { name: "test", for: "each_channel" };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-loop");
+    expect(violations[0]?.rule).toBe("no-loop");
   });
 
   it("rejects 'each' key", () => {
     const parsed = { name: "test", config: { each: "item" } };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-loop");
+    expect(violations[0]?.rule).toBe("no-loop");
   });
 
   it("rejects 'forEach' key", () => {
     const parsed = { name: "test", config: { forEach: "channel" } };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-loop");
+    expect(violations[0]?.rule).toBe("no-loop");
   });
 
   it("rejects 'map' key", () => {
     const parsed = { name: "test", config: { map: "transform" } };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-loop");
+    expect(violations[0]?.rule).toBe("no-loop");
   });
 
   it("rejects nested conditional keys", () => {
@@ -164,8 +164,8 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-conditional");
-    expect(violations[0].snippet).toContain("if");
+    expect(violations[0]?.rule).toBe("no-conditional");
+    expect(violations[0]?.snippet).toContain("if");
   });
 
   it("rejects eval() at start of string value", () => {
@@ -175,7 +175,7 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-inline-code");
+    expect(violations[0]?.rule).toBe("no-inline-code");
   });
 
   it("rejects exec() at start of string value", () => {
@@ -185,7 +185,7 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-inline-code");
+    expect(violations[0]?.rule).toBe("no-inline-code");
   });
 
   it('rejects Function("...") at start of string value', () => {
@@ -195,7 +195,7 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-inline-code");
+    expect(violations[0]?.rule).toBe("no-inline-code");
   });
 
   it('rejects new Function("...") at start of string value', () => {
@@ -205,7 +205,7 @@ describe("walkParsedGovernanceViolations", () => {
     };
     const violations = walkParsedGovernanceViolations(parsed);
     expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].rule).toBe("no-inline-code");
+    expect(violations[0]?.rule).toBe("no-inline-code");
   });
 
   it("allows eval in prose (mid-sentence, not at start)", () => {
