@@ -2,6 +2,12 @@ import { BindingResolver } from "./binding-resolver.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
 import { DeliveryTracker } from "./delivery-tracker.js";
+import { timingSafeTokenCompare, verifyDeviceJwt } from "./device-auth.js";
+import {
+  type DeviceKeyStore,
+  InMemoryDeviceKeyStore,
+  importBase64urlPublicKey,
+} from "./device-key-store.js";
 import type {
   GatewayConfig,
   GatewayFrame,
@@ -74,6 +80,7 @@ export class TemplarGateway {
   private readonly server: GatewayServer;
   private readonly deliveryTracker: DeliveryTracker;
   private readonly conversationStore: ConversationStore;
+  private readonly deviceKeyStore: DeviceKeyStore;
   private readonly events: Emitter<GatewayEvents> = createEmitter();
 
   // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
@@ -102,16 +109,38 @@ export class TemplarGateway {
     this.configWatcher =
       deps.configWatcher ?? new ConfigWatcher(config, 300, deps.configWatcherDeps);
 
-    // 5. WebSocket server with token validation
+    // 5. Device key store for Ed25519 auth
+    this.deviceKeyStore = new InMemoryDeviceKeyStore({
+      maxKeys: config.deviceAuth?.maxDeviceKeys ?? 10_000,
+    });
+    if (config.deviceAuth?.knownKeys) {
+      (this.deviceKeyStore as InMemoryDeviceKeyStore).loadFromConfig(config.deviceAuth.knownKeys);
+    }
+
+    // 6. WebSocket server with token validation
     this.server = new GatewayServer(
       {
         port: config.port,
-        validateToken: (token) => token === config.nexusApiKey,
+        validateToken: (token) => {
+          // Ed25519 JWTs start with "eyJ" — lightweight format check, full verify in frame handler
+          if (
+            (config.authMode === "ed25519" || config.authMode === "dual") &&
+            token.startsWith("eyJ")
+          ) {
+            return { valid: true, authMethod: "ed25519" as const };
+          }
+          // Legacy token comparison with timing-safe check
+          if (config.authMode === "legacy" || config.authMode === "dual") {
+            return timingSafeTokenCompare(token, config.nexusApiKey);
+          }
+          // ed25519-only mode but non-JWT token → reject
+          return false;
+        },
       },
       deps.wsFactory,
     );
 
-    // 6. Health monitor (injectable, sends pings via server)
+    // 7. Health monitor (injectable, sends pings via server)
     this.healthMonitor =
       deps.healthMonitor ??
       new HealthMonitor(
@@ -122,10 +151,10 @@ export class TemplarGateway {
         },
       );
 
-    // 7. Delivery tracker for lane message ack
+    // 8. Delivery tracker for lane message ack
     this.deliveryTracker = new DeliveryTracker(config.laneCapacity);
 
-    // 8. Conversation store for session scoping
+    // 9. Conversation store for session scoping
     this.conversationStore = new ConversationStore({
       maxConversations: config.maxConversations,
       conversationTtl: config.conversationTtl,
@@ -133,7 +162,7 @@ export class TemplarGateway {
     this.router.setConversationStore(this.conversationStore);
     this.router.setConversationScope(config.defaultConversationScope);
 
-    // 9. Binding resolver for multi-agent routing
+    // 10. Binding resolver for multi-agent routing
     if (config.bindings && config.bindings.length > 0) {
       this.bindingResolver = new BindingResolver();
       this.bindingResolver.updateBindings(config.bindings);
@@ -424,15 +453,126 @@ export class TemplarGateway {
     config: GatewayConfig,
   ): void {
     const nodeId = frame.nodeId;
+    const authMode = config.authMode;
+
+    // Async wrapper for Ed25519 verification (sync path for legacy)
+    const proceed = () => this.completeNodeRegister(connectionId, frame, config);
+
+    // --- Ed25519 auth path ---
+    if (frame.signature && (authMode === "ed25519" || authMode === "dual")) {
+      void this.verifyAndRegister(connectionId, frame, config, proceed);
+      return;
+    }
+
+    // --- Legacy token path ---
+    if (frame.token && !frame.signature) {
+      if (authMode === "ed25519") {
+        // ed25519-only mode rejects legacy tokens
+        this.sendAuthError(connectionId, 403, "Legacy token auth is disabled");
+        return;
+      }
+      // Verify legacy token
+      if (!timingSafeTokenCompare(frame.token, config.nexusApiKey)) {
+        this.sendAuthError(connectionId, 401, "Invalid authentication token");
+        return;
+      }
+      if (authMode === "dual") {
+        console.warn(
+          `[TemplarGateway] DEPRECATION: Node '${nodeId}' using legacy token auth. Migrate to Ed25519 device keys.`,
+        );
+      }
+      proceed();
+      return;
+    }
+
+    // No token and no signature
+    this.sendAuthError(connectionId, 401, "Missing authentication credentials");
+  }
+
+  private async verifyAndRegister(
+    connectionId: string,
+    frame: NodeRegisterFrame,
+    config: GatewayConfig,
+    proceed: () => void,
+  ): Promise<void> {
+    const nodeId = frame.nodeId;
+
+    try {
+      // Look up stored public key
+      let publicKey = this.deviceKeyStore.get(nodeId);
+
+      if (!publicKey) {
+        // TOFU: accept and store the key from the frame
+        const allowTofu = config.deviceAuth?.allowTofu ?? false;
+        if (allowTofu && frame.publicKey) {
+          publicKey = importBase64urlPublicKey(frame.publicKey);
+          this.deviceKeyStore.set(nodeId, publicKey);
+          console.warn(`[TemplarGateway] TOFU: Accepted new device key for node '${nodeId}'`);
+        } else {
+          this.sendAuthError(
+            connectionId,
+            403,
+            "Unknown device key and TOFU is disabled; pre-register the key",
+          );
+          return;
+        }
+      } else if (frame.publicKey) {
+        // Key already stored — verify the presented key matches
+        const presentedKey = importBase64urlPublicKey(frame.publicKey);
+        const storedDer = (publicKey.export({ type: "spki", format: "der" }) as Buffer).toString(
+          "base64url",
+        );
+        const presentedDer = (
+          presentedKey.export({ type: "spki", format: "der" }) as Buffer
+        ).toString("base64url");
+        if (storedDer !== presentedDer) {
+          this.sendAuthError(
+            connectionId,
+            403,
+            "Device key mismatch: public key does not match previously registered key",
+          );
+          return;
+        }
+      }
+
+      // Verify the JWT signature
+      // signature is guaranteed non-undefined here (checked at call site)
+      const signature = frame.signature as string;
+      const result = await verifyDeviceJwt(signature, publicKey);
+      if (!result.valid) {
+        this.sendAuthError(connectionId, 401, result.error ?? "JWT verification failed");
+        return;
+      }
+
+      // Verify JWT sub matches frame nodeId
+      if (result.nodeId !== nodeId) {
+        this.sendAuthError(connectionId, 401, "JWT subject does not match nodeId");
+        return;
+      }
+
+      proceed();
+    } catch (err) {
+      this.sendAuthError(
+        connectionId,
+        401,
+        `Device auth failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private completeNodeRegister(
+    connectionId: string,
+    frame: NodeRegisterFrame,
+    config: GatewayConfig,
+  ): void {
+    const nodeId = frame.nodeId;
 
     try {
       // Clean up stale mappings before overwriting to prevent corruption.
-      // Case 1: this connection was previously mapped to a different node
       const previousNodeId = this.connectionToNode.get(connectionId);
       if (previousNodeId && previousNodeId !== nodeId) {
         this.nodeToConnection.delete(previousNodeId);
       }
-      // Case 2: this nodeId was previously mapped to a different connection
       const previousConnectionId = this.nodeToConnection.get(nodeId);
       if (previousConnectionId && previousConnectionId !== connectionId) {
         this.connectionToNode.delete(previousConnectionId);
@@ -444,9 +584,6 @@ export class TemplarGateway {
       // Map ephemeral connection ID ↔ node ID
       this.connectionToNode.set(connectionId, nodeId);
       this.nodeToConnection.set(nodeId, connectionId);
-
-      // Note: agentId → nodeId mapping is maintained by NodeRegistry automatically
-      // during register() — no need to update it here.
 
       // Create session
       const session = this.sessionManager.createSession(nodeId);
@@ -465,7 +602,6 @@ export class TemplarGateway {
 
       this.events.emit("node.registered", nodeId);
     } catch (err) {
-      // Send error frame if registration fails (e.g., already registered)
       const errorFrame: GatewayFrame = {
         kind: "error",
         error: {
@@ -478,6 +614,20 @@ export class TemplarGateway {
       };
       this.server.sendFrame(connectionId, errorFrame);
     }
+  }
+
+  private sendAuthError(connectionId: string, status: number, detail: string): void {
+    const errorFrame: GatewayFrame = {
+      kind: "error",
+      error: {
+        type: "about:blank",
+        title: "Authentication failed",
+        status,
+        detail,
+      },
+      timestamp: Date.now(),
+    };
+    this.server.sendFrame(connectionId, errorFrame);
   }
 
   private handleNodeDeregister(connectionId: string, frame: NodeDeregisterFrame): void {

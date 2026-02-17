@@ -1,3 +1,11 @@
+export {
+  createDeviceJwt,
+  exportPublicKeyBase64url,
+  generateKeyPair,
+  type KeyPair,
+  loadOrCreateKeyPair,
+  resolveKeyPair,
+} from "./device-auth.js";
 export { HeartbeatResponder } from "./heartbeat-responder.js";
 export { TemplarNode, type TemplarNodeDeps } from "./node.js";
 export { ReconnectStrategy } from "./reconnect.js";
@@ -10,6 +18,7 @@ export {
   DEFAULT_REGISTRATION_TIMEOUT,
   type DisconnectedHandler,
   type ErrorHandler,
+  type KeyProvider,
   type MessageHandler,
   NODE_STATES,
   type NodeConfig,

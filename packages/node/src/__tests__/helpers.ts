@@ -1,4 +1,5 @@
 import type { GatewayFrame } from "@templar/gateway/protocol";
+import { generateKeyPair } from "../device-auth.js";
 import type { TemplarNode } from "../node.js";
 import type { NodeConfig } from "../types.js";
 import type { WebSocketClientLike } from "../ws-client.js";
@@ -129,4 +130,20 @@ export async function startAndConnect(
   }
 
   await startPromise;
+}
+
+// ---------------------------------------------------------------------------
+// Crypto helpers for Ed25519 device auth tests
+// ---------------------------------------------------------------------------
+
+export function generateTestKeyPair() {
+  return generateKeyPair();
+}
+
+export function makeDeviceKeyConfig() {
+  const pair = generateKeyPair();
+  return {
+    deviceKey: pair,
+    ...pair,
+  };
 }

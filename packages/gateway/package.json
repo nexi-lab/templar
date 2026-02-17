@@ -26,6 +26,7 @@
   "dependencies": {
     "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*",
+    "jose": "^6.1.3",
     "zod": "^3.22.4"
   },
   "peerDependencies": {

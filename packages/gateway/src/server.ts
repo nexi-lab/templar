@@ -8,7 +8,15 @@ import { SlidingWindowRateLimiter } from "./utils/rate-limiter.js";
 // Types
 // ---------------------------------------------------------------------------
 
-export type TokenValidator = (token: string) => boolean | Promise<boolean>;
+export interface AuthResult {
+  readonly valid: boolean;
+  readonly nodeId?: string;
+  readonly authMethod: "legacy" | "ed25519";
+}
+
+export type TokenValidator = (
+  token: string,
+) => boolean | AuthResult | Promise<boolean | AuthResult>;
 export type FrameHandler = (nodeId: string, frame: GatewayFrame) => void;
 export type ConnectionHandler = (nodeId: string) => void;
 export type DisconnectHandler = (nodeId: string, code: number, reason: string) => void;
@@ -99,14 +107,19 @@ export class GatewayServer {
         return;
       }
       const token = authHeader.slice(7);
+      const toValid = (r: boolean | AuthResult): boolean => (typeof r === "boolean" ? r : r.valid);
       const result = this.config.validateToken(token);
       if (result instanceof Promise) {
         result.then(
-          (valid) => callback(valid, valid ? undefined : 403, valid ? undefined : "Forbidden"),
+          (r) => {
+            const valid = toValid(r);
+            callback(valid, valid ? undefined : 403, valid ? undefined : "Forbidden");
+          },
           () => callback(false, 500, "Auth validation error"),
         );
       } else {
-        callback(result, result ? undefined : 403, result ? undefined : "Forbidden");
+        const valid = toValid(result);
+        callback(valid, valid ? undefined : 403, valid ? undefined : "Forbidden");
       }
     };
 

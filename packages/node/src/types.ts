@@ -20,6 +20,20 @@ export type NodeState = (typeof NODE_STATES)[number];
 export type TokenProvider = string | (() => string | Promise<string>);
 
 // ---------------------------------------------------------------------------
+// Key Provider (Ed25519 device auth)
+// ---------------------------------------------------------------------------
+
+/**
+ * Ed25519 key pair for device authentication.
+ * Either a static key pair object or a factory function.
+ */
+export type KeyProvider =
+  | { readonly privateKey: string; readonly publicKey: string }
+  | (() =>
+      | { readonly privateKey: string; readonly publicKey: string }
+      | Promise<{ readonly privateKey: string; readonly publicKey: string }>);
+
+// ---------------------------------------------------------------------------
 // Reconnect Config
 // ---------------------------------------------------------------------------
 
@@ -56,6 +70,8 @@ export interface NodeConfig {
   readonly registrationTimeout?: number;
   readonly connectionTimeout?: number;
   readonly maxFrameSize?: number;
+  /** Ed25519 key pair for device authentication (optional, overrides legacy token auth) */
+  readonly deviceKey?: KeyProvider;
 }
 
 export const DEFAULT_REGISTRATION_TIMEOUT = 10_000;
@@ -71,6 +87,9 @@ export const NodeConfigSchema = z.object({
   registrationTimeout: z.number().int().positive().default(DEFAULT_REGISTRATION_TIMEOUT),
   connectionTimeout: z.number().int().positive().default(DEFAULT_CONNECTION_TIMEOUT),
   maxFrameSize: z.number().int().positive().default(DEFAULT_MAX_FRAME_SIZE),
+  deviceKey: z
+    .union([z.object({ privateKey: z.string(), publicKey: z.string() }), z.function()])
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -89,6 +108,7 @@ export interface ResolvedNodeConfig {
   readonly registrationTimeout: number;
   readonly connectionTimeout: number;
   readonly maxFrameSize: number;
+  readonly deviceKey?: KeyProvider;
 }
 
 /**

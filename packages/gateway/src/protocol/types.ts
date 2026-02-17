@@ -73,8 +73,47 @@ export const RESTART_REQUIRED_FIELDS = [
   "nexusUrl",
   "nexusApiKey",
   "maxConnections",
+  "authMode",
 ] as const;
 export type RestartRequiredField = (typeof RESTART_REQUIRED_FIELDS)[number];
+
+/**
+ * Authentication mode for node connections.
+ * - "legacy": Bearer token only (backward compatible)
+ * - "ed25519": Ed25519 JWT only (no legacy tokens accepted)
+ * - "dual": Both methods accepted (migration mode)
+ */
+export type AuthMode = "legacy" | "ed25519" | "dual";
+
+export const AuthModeSchema = z.enum(["legacy", "ed25519", "dual"]);
+
+/**
+ * Device authentication configuration for Ed25519 key-based node auth.
+ */
+export interface DeviceAuthConfig {
+  /** Allow Trust-On-First-Use key registration (default: false) */
+  readonly allowTofu: boolean;
+  /** Maximum number of device keys stored (default: 10_000) */
+  readonly maxDeviceKeys: number;
+  /** JWT maximum age/lifetime (default: "5m") */
+  readonly jwtMaxAge: string;
+  /** Pre-registered device keys */
+  readonly knownKeys?: readonly { readonly nodeId: string; readonly publicKey: string }[];
+}
+
+export const DeviceAuthConfigSchema = z.object({
+  allowTofu: z.boolean().default(false),
+  maxDeviceKeys: z.number().int().positive().default(10_000),
+  jwtMaxAge: z.string().min(1).default("5m"),
+  knownKeys: z
+    .array(
+      z.object({
+        nodeId: z.string().min(1),
+        publicKey: z.string().min(1),
+      }),
+    )
+    .optional(),
+});
 
 /**
  * Gateway configuration.
@@ -106,6 +145,10 @@ export interface GatewayConfig {
   readonly conversationTtl: number;
   /** Declarative agent bindings for multi-agent routing (optional, hot-reloadable) */
   readonly bindings?: readonly AgentBinding[];
+  /** Authentication mode (default: "legacy") */
+  readonly authMode: AuthMode;
+  /** Device authentication config for Ed25519 mode */
+  readonly deviceAuth?: DeviceAuthConfig;
 }
 
 export const GatewayConfigSchema = z.object({
@@ -122,6 +165,8 @@ export const GatewayConfigSchema = z.object({
   maxConversations: z.number().int().positive(),
   conversationTtl: z.number().int().positive(),
   bindings: z.array(AgentBindingSchema).optional(),
+  authMode: AuthModeSchema,
+  deviceAuth: DeviceAuthConfigSchema.optional(),
 });
 
 /**
@@ -138,4 +183,5 @@ export const DEFAULT_GATEWAY_CONFIG: Omit<GatewayConfig, "nexusUrl" | "nexusApiK
   defaultConversationScope: "per-channel-peer",
   maxConversations: 100_000,
   conversationTtl: 86_400_000,
+  authMode: "legacy",
 } as const;

@@ -1017,6 +1017,43 @@ export const ERROR_CATALOG = {
     title: "Node stopped",
     description: "The operation was cancelled because the node is stopping",
   },
+  NODE_DEVICE_KEY_INVALID: {
+    domain: "node",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Invalid device key",
+    description: "The Ed25519 device key JWT is invalid or malformed",
+  },
+  NODE_DEVICE_KEY_MISMATCH: {
+    domain: "node",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Device key mismatch",
+    description:
+      "The Ed25519 public key does not match the previously registered key for this node",
+  },
+  NODE_DEVICE_KEY_EXPIRED: {
+    domain: "node",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Device key expired",
+    description: "The Ed25519 device key JWT has expired",
+  },
+  GATEWAY_TOFU_REJECTED: {
+    domain: "gateway",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "TOFU registration rejected",
+    description: "Trust-On-First-Use device key registration is disabled; pre-register the key",
+  },
 
   // ============================================================================
   // SANITIZE ERRORS — Content sanitization
