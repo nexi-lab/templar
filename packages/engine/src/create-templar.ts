@@ -1,7 +1,13 @@
 import type { TemplarConfig, TemplarMiddleware } from "@templar/core";
 import { getErrorCause, getErrorMessage, TemplarConfigError } from "@templar/errors";
+import { IterationGuard } from "./iteration-guard.js";
 import { getMiddlewareWrapper } from "./middleware-wrapper.js";
-import { validateAgentType, validateManifest, validateNexusClient } from "./validation.js";
+import {
+  validateAgentType,
+  validateExecutionLimits,
+  validateManifest,
+  validateNexusClient,
+} from "./validation.js";
 
 /**
  * Placeholder for createDeepAgent from 'deepagents' package.
@@ -78,6 +84,10 @@ export function createTemplar(config: TemplarConfig): unknown {
   validateAgentType(config.agentType);
   validateNexusClient(config.nexus);
   validateManifest(config.manifest);
+  validateExecutionLimits(config.executionLimits);
+
+  // Create iteration guard for hard execution limits
+  const iterationGuard = new IterationGuard(config.executionLimits);
 
   // Middleware is always explicitly provided via config
   let middleware = [...(config.middleware ?? [])];
@@ -91,11 +101,12 @@ export function createTemplar(config: TemplarConfig): unknown {
     );
   }
 
-  // Create DeepAgent with merged config
+  // Create DeepAgent with merged config and iteration guard
   try {
     return createDeepAgent({
       ...config,
       middleware,
+      _iterationGuard: iterationGuard,
     });
   } catch (error) {
     throw new TemplarConfigError(`Failed to create Templar agent: ${getErrorMessage(error)}`, {

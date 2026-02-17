@@ -1,4 +1,5 @@
 import type { NexusClient as _NexusClient } from "@nexus/sdk";
+import type { ExecutionLimitsConfig } from "./execution-types.js";
 import type { IdentityConfig } from "./message-types.js";
 
 /**
@@ -149,4 +150,6 @@ export interface TemplarConfig extends DeepAgentConfig {
   manifest?: AgentManifest;
   /** High Templar (persistent) or Dark Templar (ephemeral) */
   agentType?: "high" | "dark";
+  /** Execution safety guards (iteration limits, loop detection) */
+  executionLimits?: ExecutionLimitsConfig;
 }

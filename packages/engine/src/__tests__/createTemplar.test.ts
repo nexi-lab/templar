@@ -236,6 +236,83 @@ describe("createTemplar", () => {
     });
   });
 
+  describe("executionLimits handling", () => {
+    it("should accept valid executionLimits", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        executionLimits: {
+          maxIterations: 50,
+          maxExecutionTimeMs: 60_000,
+        },
+      };
+
+      const agent = createTemplar(config);
+      expect(agent).toBeDefined();
+    });
+
+    it("should accept executionLimits with loopDetection", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        executionLimits: {
+          maxIterations: 10,
+          loopDetection: {
+            windowSize: 5,
+            repeatThreshold: 3,
+            onDetected: "warn",
+          },
+        },
+      };
+
+      const agent = createTemplar(config);
+      expect(agent).toBeDefined();
+    });
+
+    it("should work without executionLimits (uses defaults)", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+      };
+
+      const agent = createTemplar(config);
+      expect(agent).toBeDefined();
+    });
+
+    it("should throw on invalid executionLimits", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        executionLimits: {
+          maxIterations: 0,
+        },
+      };
+
+      expect(() => createTemplar(config)).toThrow(TemplarConfigError);
+    });
+
+    it("should throw on invalid loopDetection config", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        executionLimits: {
+          loopDetection: {
+            repeatThreshold: 1, // must be >= 2
+          },
+        },
+      };
+
+      expect(() => createTemplar(config)).toThrow(TemplarConfigError);
+    });
+
+    it("should attach iteration guard to created agent", () => {
+      const config: TemplarConfig = {
+        model: "gpt-4",
+        executionLimits: {
+          maxIterations: 10,
+        },
+      };
+
+      const agent = createTemplar(config) as Record<string, unknown>;
+      expect(agent._iterationGuard).toBeDefined();
+    });
+  });
+
   describe("middleware injection", () => {
     it("should handle custom middleware", () => {
       const customMiddleware = { name: "custom" };

@@ -91,6 +91,17 @@ export {
 } from "./guards.js";
 
 // ============================================================================
+// EXECUTION GUARD ERRORS — Loop detection and iteration limits (#151)
+// ============================================================================
+
+export {
+  ExecutionGuardError,
+  ExecutionTimeoutError,
+  IterationLimitError,
+  LoopDetectedError,
+} from "./execution-guard.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 

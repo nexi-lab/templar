@@ -41,6 +41,13 @@ export type {
   ToolConfig,
 } from "./config-types.js";
 export { CONVERSATION_SCOPES } from "./config-types.js";
+// Execution types
+export type {
+  ExecutionLimitsConfig,
+  LoopDetection,
+  LoopDetectionConfig,
+  StopReason,
+} from "./execution-types.js";
 // Message types
 export type {
   Button,
