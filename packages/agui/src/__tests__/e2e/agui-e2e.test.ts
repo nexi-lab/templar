@@ -261,4 +261,31 @@ describe("E2E: AG-UI server full round-trip", () => {
     // Connections should all be released
     expect(server.activeConnections).toBe(0);
   });
+
+  // -----------------------------------------------------------------------
+  // Trace context propagation (E2E)
+  // -----------------------------------------------------------------------
+
+  it("includes traceId in lifecycle events across full round-trip", async () => {
+    const result = await sseRequest(port, validInput());
+
+    const started = result.events[0] as unknown as Record<string, unknown>;
+    const finished = result.events[result.events.length - 1] as unknown as Record<string, unknown>;
+
+    // Both lifecycle events should have traceId
+    expect(started.traceId).toBeDefined();
+    expect(started.traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(finished.traceId).toBeDefined();
+    expect(finished.traceId).toMatch(/^[0-9a-f]{32}$/);
+
+    // Same traceId across the stream
+    expect(started.traceId).toBe(finished.traceId);
+  });
+
+  it("returns traceparent response header in SSE stream", async () => {
+    const result = await sseRequest(port, validInput());
+
+    expect(result.headers.traceparent).toBeDefined();
+    expect(result.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/);
+  });
 });
