@@ -10,7 +10,7 @@ import { IdentityConfigWatcher, type IdentityConfigWatcherDeps } from "../watche
 // ---------------------------------------------------------------------------
 
 /** Minimal valid manifest YAML with identity section. */
-function manifestYaml(identity?: Record<string, unknown>): string {
+function manifestYaml(identity?: IdentityConfig | Record<string, unknown>): string {
   const lines = ["name: test-agent", "version: 0.1.0", 'description: "Test"'];
   if (identity !== undefined) {
     lines.push(`identity: ${JSON.stringify(identity)}`);
@@ -27,7 +27,8 @@ function testParseYaml(content: string): unknown {
   for (const line of lines) {
     const match = line.match(/^(\w+):\s*(.+)$/);
     if (match) {
-      const [, key, value] = match;
+      const key = match[1] as string;
+      const value = match[2] as string;
       try {
         result[key] = JSON.parse(value);
       } catch {
