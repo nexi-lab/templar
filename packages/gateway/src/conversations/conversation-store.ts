@@ -126,34 +126,28 @@ export class ConversationStore {
 
   /**
    * Remove expired bindings. Returns the number swept.
+   * Single-pass: filters bindings and removes expired entries from the reverse index.
    */
   sweep(now?: number): number {
     const cutoff = (now ?? Date.now()) - this.config.conversationTtl;
     let swept = 0;
 
-    // Collect expired keys first to batch updates
-    const expiredKeys: string[] = [];
-    for (const [key, binding] of this.bindings) {
+    // Single pass: collect expired bindings for reverse index cleanup
+    // and filter in one iteration via mapFilter
+    const expired: ConversationBinding[] = [];
+    this.bindings = mapFilter(this.bindings, (_key, binding) => {
       if (binding.lastActiveAt < cutoff) {
-        expiredKeys.push(key);
+        expired.push(binding);
+        return false;
       }
-    }
+      return true;
+    });
 
-    if (expiredKeys.length === 0) {
-      return 0;
+    // Remove expired entries from reverse index
+    for (const binding of expired) {
+      this.removeFromNodeIndex(binding.nodeId, binding.conversationKey);
+      swept++;
     }
-
-    // Remove from reverse index
-    for (const key of expiredKeys) {
-      const binding = this.bindings.get(key);
-      if (binding) {
-        this.removeFromNodeIndex(binding.nodeId, key);
-        swept++;
-      }
-    }
-
-    // Remove from primary index
-    this.bindings = mapFilter(this.bindings, (_key, binding) => binding.lastActiveAt >= cutoff);
 
     // Reset hysteresis if ratio dropped below the reset threshold
     this.checkCapacityWarning();
