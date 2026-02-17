@@ -139,7 +139,7 @@ describe("Edge Cases", () => {
 
       // Entity was deleted in Nexus — getEntity returns 404
       mockClient.mockMemory.get.mockRejectedValue(new Error("Not found"));
-      const stale = await em.getEntity(entity!.id);
+      const stale = await em.getEntity(entity?.id ?? "");
       expect(stale).toBeUndefined();
     });
   });

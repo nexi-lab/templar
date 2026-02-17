@@ -1,4 +1,4 @@
-import { ManifestParseError, ManifestSchemaError } from "@templar/errors";
+import { ManifestGovernanceError, ManifestParseError, ManifestSchemaError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
 import { parseManifestYaml } from "../../parser.js";
 import {
@@ -8,7 +8,9 @@ import {
   VALID_MINIMAL_YAML,
   YAML_WITH_ALL_SUGAR,
   YAML_WITH_CHANNELS_ARRAY,
+  YAML_WITH_DOUBLE_BRACE,
   YAML_WITH_ENV_VARS,
+  YAML_WITH_IF_KEY,
   YAML_WITH_MODEL_INFERRED,
   YAML_WITH_MODEL_STRING,
   YAML_WITH_PROMPT,
@@ -109,6 +111,40 @@ description: Has comments # inline too
     expect(() => parseManifestYaml('"just a string"', { skipInterpolation: true })).toThrow(
       ManifestSchemaError,
     );
+  });
+});
+
+describe("parseManifestYaml — governance integration", () => {
+  it("throws ManifestGovernanceError for template expressions by default", () => {
+    expect(() => parseManifestYaml(YAML_WITH_DOUBLE_BRACE, { skipInterpolation: true })).toThrow(
+      ManifestGovernanceError,
+    );
+  });
+
+  it("throws ManifestGovernanceError for conditional keys by default", () => {
+    expect(() => parseManifestYaml(YAML_WITH_IF_KEY, { skipInterpolation: true })).toThrow(
+      ManifestGovernanceError,
+    );
+  });
+
+  it("skips governance with skipGovernance: true", () => {
+    // YAML_WITH_IF_KEY has an `if:` key that would fail governance
+    // but should still fail schema validation (schema doesn't expect `if`)
+    // The key point: no ManifestGovernanceError is thrown
+    try {
+      parseManifestYaml(YAML_WITH_IF_KEY, {
+        skipInterpolation: true,
+        skipGovernance: true,
+      });
+    } catch (error) {
+      // Should NOT be a governance error — schema error is fine
+      expect(error).not.toBeInstanceOf(ManifestGovernanceError);
+    }
+  });
+
+  it("clean manifests pass governance without skipGovernance", () => {
+    const manifest = parseManifestYaml(VALID_FULL_YAML, { skipInterpolation: true });
+    expect(manifest.name).toBe("research-agent");
   });
 });
 

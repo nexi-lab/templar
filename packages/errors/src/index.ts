@@ -158,6 +158,7 @@ export {
   LspServerNotFoundError,
   LspTransportError,
   ManifestFileNotFoundError,
+  ManifestGovernanceError,
   ManifestInterpolationError,
   ManifestParseError,
   ManifestSchemaError,

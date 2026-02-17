@@ -15,6 +15,10 @@ const ENV_VAR_REGEX = /\$\{([^}:]+?)(?::([^}]*))?\}/g;
  * - `${VAR:fallback}` — resolved from env, falls back to `fallback` if missing
  * - Empty string env value is valid (not treated as missing)
  * - No recursive expansion — values containing `${` are literal
+ *
+ * Note: This utility is permissive — it accepts any `${name}` pattern.
+ * When called via `parseManifestYaml()`, the governance layer enforces
+ * stricter rules (UPPER_SNAKE_CASE only) before interpolation runs.
  */
 export function interpolateEnvVars(
   template: string,
