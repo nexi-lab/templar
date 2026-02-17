@@ -23,7 +23,6 @@ export type {
   VoiceMessageCapability,
 } from "./channel-types.js";
 // Config types
-export { CONVERSATION_SCOPES } from "./config-types.js";
 export type {
   AgentManifest,
   BootstrapBudget,
@@ -41,6 +40,7 @@ export type {
   TemplarConfig,
   ToolConfig,
 } from "./config-types.js";
+export { CONVERSATION_SCOPES } from "./config-types.js";
 // Message types
 export type {
   Button,

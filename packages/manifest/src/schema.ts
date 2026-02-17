@@ -3,7 +3,7 @@
  * AgentManifest type from @templar/core.
  */
 
-import { CONVERSATION_SCOPES, type AgentManifest } from "@templar/core";
+import { type AgentManifest, CONVERSATION_SCOPES } from "@templar/core";
 import { parseExpression } from "cron-parser";
 import { z } from "zod";
 
