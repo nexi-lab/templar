@@ -1,13 +1,13 @@
 import { GatewayAgentNotFoundError, GatewayNodeNotFoundError } from "@templar/errors";
 import type { BindingResolver } from "./binding-resolver.js";
 import type { ConversationStore } from "./conversations/conversation-store.js";
-import type { LaneDispatcher } from "./lanes/lane-dispatcher.js";
 import {
   type ConversationKeyResult,
   type ConversationScope,
   type LaneMessage,
   resolveConversationKey,
 } from "./protocol/index.js";
+import type { MessageBuffer } from "./queue/message-buffer.js";
 import type { NodeRegistry } from "./registry/node-registry.js";
 import { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";
 
@@ -30,7 +30,7 @@ export type DegradationHandler = (agentId: string, warnings: readonly string[]) 
 // ---------------------------------------------------------------------------
 
 /**
- * Routes channel messages to the appropriate node's lane dispatcher.
+ * Routes channel messages to the appropriate node's message buffer.
  *
  * **Routing precedence** (first path that matches wins):
  *
@@ -53,7 +53,7 @@ export type DegradationHandler = (agentId: string, warnings: readonly string[]) 
  */
 export class AgentRouter {
   private channelBindings: ReadonlyMap<string, string> = new Map();
-  private dispatchers: ReadonlyMap<string, LaneDispatcher> = new Map();
+  private dispatchers: ReadonlyMap<string, MessageBuffer> = new Map();
   private readonly registry: NodeRegistry;
   private conversationStore: ConversationStore | undefined;
   private conversationScope: ConversationScope = "per-channel-peer";
@@ -84,9 +84,9 @@ export class AgentRouter {
   }
 
   /**
-   * Register a lane dispatcher for a node.
+   * Register a message buffer for a node.
    */
-  setDispatcher(nodeId: string, dispatcher: LaneDispatcher): void {
+  setDispatcher(nodeId: string, dispatcher: MessageBuffer): void {
     this.dispatchers = mapSet(this.dispatchers, nodeId, dispatcher);
   }
 
@@ -124,7 +124,7 @@ export class AgentRouter {
   }
 
   /**
-   * Route a message to the appropriate node's lane dispatcher.
+   * Route a message to the appropriate node's message buffer.
    * Returns the nodeId that the message was dispatched to.
    *
    * See class-level JSDoc for routing precedence rules.
@@ -316,7 +316,7 @@ export class AgentRouter {
   }
 
   /**
-   * Dispatch a message to a node's lane dispatcher by nodeId.
+   * Dispatch a message to a node's message buffer by nodeId.
    * Throws if the node has no registered dispatcher.
    */
   private dispatchToNode(nodeId: string, message: LaneMessage): void {

@@ -2,7 +2,7 @@ import { GatewayAgentNotFoundError, GatewayNodeNotFoundError } from "@templar/er
 import { describe, expect, it } from "vitest";
 import { BindingResolver } from "../binding-resolver.js";
 import { ConversationStore } from "../conversations/conversation-store.js";
-import { LaneDispatcher } from "../lanes/lane-dispatcher.js";
+import { MessageBuffer } from "../queue/message-buffer.js";
 import { NodeRegistry } from "../registry/node-registry.js";
 import { AgentRouter } from "../router.js";
 import { DEFAULT_CAPS, makeMessage } from "./helpers.js";
@@ -56,7 +56,7 @@ describe("AgentRouter", () => {
         const registry = new NodeRegistry();
         registry.register("node-1", DEFAULT_CAPS);
 
-        const dispatcher = new LaneDispatcher(256);
+        const dispatcher = new MessageBuffer(256);
         const router = new AgentRouter(registry);
         router.setDispatcher("node-1", dispatcher);
         router.bind("ch-1", "node-1");
@@ -92,8 +92,8 @@ describe("AgentRouter", () => {
         registry.register("node-1", DEFAULT_CAPS);
         registry.register("node-2", DEFAULT_CAPS);
 
-        const d1 = new LaneDispatcher(256);
-        const d2 = new LaneDispatcher(256);
+        const d1 = new MessageBuffer(256);
+        const d2 = new MessageBuffer(256);
         const router = new AgentRouter(registry);
         router.setDispatcher("node-1", d1);
         router.setDispatcher("node-2", d2);
@@ -119,7 +119,7 @@ describe("AgentRouter", () => {
       registry.register("node-1", { ...DEFAULT_CAPS, agentIds: ["work"] });
 
       const router = new AgentRouter(registry);
-      const dispatcher = new LaneDispatcher(256);
+      const dispatcher = new MessageBuffer(256);
       router.setDispatcher("node-1", dispatcher);
 
       const resolver = new BindingResolver();
@@ -187,8 +187,8 @@ describe("AgentRouter", () => {
       registry.register("node-2", DEFAULT_CAPS);
 
       const router = new AgentRouter(registry);
-      const d1 = new LaneDispatcher(256);
-      const d2 = new LaneDispatcher(256);
+      const d1 = new MessageBuffer(256);
+      const d2 = new MessageBuffer(256);
       router.setDispatcher("node-1", d1);
       router.setDispatcher("node-2", d2);
 
@@ -212,8 +212,8 @@ describe("AgentRouter", () => {
       registry.register("node-2", DEFAULT_CAPS);
 
       const router = new AgentRouter(registry);
-      const d1 = new LaneDispatcher(256);
-      const d2 = new LaneDispatcher(256);
+      const d1 = new MessageBuffer(256);
+      const d2 = new MessageBuffer(256);
       router.setDispatcher("node-1", d1);
       router.setDispatcher("node-2", d2);
 
@@ -244,8 +244,8 @@ describe("AgentRouter", () => {
       registry.register("node-2", DEFAULT_CAPS);
 
       const router = new AgentRouter(registry);
-      router.setDispatcher("node-1", new LaneDispatcher(256));
-      router.setDispatcher("node-2", new LaneDispatcher(256));
+      router.setDispatcher("node-1", new MessageBuffer(256));
+      router.setDispatcher("node-2", new MessageBuffer(256));
       router.bind("ch-1", "node-1");
       router.bind("ch-2", "node-2");
 
@@ -282,7 +282,7 @@ describe("AgentRouter", () => {
       const registry = new NodeRegistry();
       registry.register("node-1", DEFAULT_CAPS);
       const router = new AgentRouter(registry);
-      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.setDispatcher("node-1", new MessageBuffer(256));
       router.bind("ch-1", "node-1");
 
       const nodeId = router.route(makeMessage({ channelId: "ch-1" }));
@@ -293,7 +293,7 @@ describe("AgentRouter", () => {
       const registry = new NodeRegistry();
       registry.register("node-1", { ...DEFAULT_CAPS, agentIds: ["work"] });
       const router = new AgentRouter(registry);
-      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.setDispatcher("node-1", new MessageBuffer(256));
 
       const resolver = new BindingResolver();
       resolver.updateBindings([{ agentId: "work", match: { channel: "slack" } }]);
@@ -314,7 +314,7 @@ describe("AgentRouter", () => {
       const registry = new NodeRegistry();
       registry.register("node-1", { ...DEFAULT_CAPS, agentIds: ["agent-a"] });
       const router = new AgentRouter(registry);
-      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.setDispatcher("node-1", new MessageBuffer(256));
 
       const store = new ConversationStore({ maxConversations: 1000, conversationTtl: 86_400_000 });
       router.setConversationStore(store);
@@ -347,7 +347,7 @@ describe("AgentRouter", () => {
       const registry = new NodeRegistry();
       registry.register("node-1", DEFAULT_CAPS);
       const router = new AgentRouter(registry);
-      router.setDispatcher("node-1", new LaneDispatcher(256));
+      router.setDispatcher("node-1", new MessageBuffer(256));
       router.bind("ch-1", "node-1");
 
       const store = new ConversationStore({ maxConversations: 1000, conversationTtl: 86_400_000 });

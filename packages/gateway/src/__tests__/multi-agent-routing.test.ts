@@ -1,9 +1,9 @@
 import { GatewayAgentNotFoundError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
 import { BindingResolver } from "../binding-resolver.js";
-import { LaneDispatcher } from "../lanes/lane-dispatcher.js";
 import type { AgentBinding } from "../protocol/bindings.js";
 import type { NodeCapabilities } from "../protocol/index.js";
+import { MessageBuffer } from "../queue/message-buffer.js";
 import { NodeRegistry } from "../registry/node-registry.js";
 import { AgentRouter } from "../router.js";
 import { createTestGateway, DEFAULT_CAPS, makeMessage, sendFrame } from "./helpers.js";
@@ -11,9 +11,9 @@ import { createTestGateway, DEFAULT_CAPS, makeMessage, sendFrame } from "./helpe
 function setupRouterWithBindings(
   bindings: AgentBinding[],
   nodes: Array<{ nodeId: string; agentIds: string[]; caps?: NodeCapabilities }>,
-): { router: AgentRouter; dispatchers: Map<string, LaneDispatcher> } {
+): { router: AgentRouter; dispatchers: Map<string, MessageBuffer> } {
   const registry = new NodeRegistry();
-  const dispatchers = new Map<string, LaneDispatcher>();
+  const dispatchers = new Map<string, MessageBuffer>();
   const router = new AgentRouter(registry);
 
   // Build agentToNode map
@@ -25,7 +25,7 @@ function setupRouterWithBindings(
       agentIds: node.agentIds,
     };
     registry.register(node.nodeId, caps);
-    const dispatcher = new LaneDispatcher(256);
+    const dispatcher = new MessageBuffer(256);
     router.setDispatcher(node.nodeId, dispatcher);
     dispatchers.set(node.nodeId, dispatcher);
 
@@ -106,8 +106,8 @@ describe("Multi-agent routing", () => {
     agentToNode.set("agent-a", "node-1");
     agentToNode.set("agent-b", "node-2");
 
-    const d1 = new LaneDispatcher(256);
-    const d2 = new LaneDispatcher(256);
+    const d1 = new MessageBuffer(256);
+    const d2 = new MessageBuffer(256);
     router.setDispatcher("node-1", d1);
     router.setDispatcher("node-2", d2);
 
@@ -168,7 +168,7 @@ describe("Multi-agent routing", () => {
     registry.register("node-1", DEFAULT_CAPS);
 
     const router = new AgentRouter(registry);
-    const dispatcher = new LaneDispatcher(256);
+    const dispatcher = new MessageBuffer(256);
     router.setDispatcher("node-1", dispatcher);
     router.bind("ch-1", "node-1");
 
@@ -206,8 +206,8 @@ describe("Multi-agent routing", () => {
     registry.register("node-2", DEFAULT_CAPS);
 
     const router = new AgentRouter(registry);
-    const d1 = new LaneDispatcher(256);
-    const d2 = new LaneDispatcher(256);
+    const d1 = new MessageBuffer(256);
+    const d2 = new MessageBuffer(256);
     router.setDispatcher("node-1", d1);
     router.setDispatcher("node-2", d2);
 

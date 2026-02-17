@@ -143,6 +143,14 @@ describe("Lanes", () => {
     expect(QUEUED_LANES).not.toContain("interrupt");
   });
 
+  it("QUEUED_LANES is sorted by LANE_PRIORITY ascending", () => {
+    for (let i = 1; i < QUEUED_LANES.length; i++) {
+      const prevLane = QUEUED_LANES[i - 1] as keyof typeof LANE_PRIORITY;
+      const currLane = QUEUED_LANES[i] as keyof typeof LANE_PRIORITY;
+      expect(LANE_PRIORITY[prevLane]).toBeLessThan(LANE_PRIORITY[currLane]);
+    }
+  });
+
   it("steer has highest priority (0)", () => {
     expect(LANE_PRIORITY.steer).toBe(0);
     expect(LANE_PRIORITY.collect).toBe(1);
