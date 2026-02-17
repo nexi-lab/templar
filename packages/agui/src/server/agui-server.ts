@@ -14,15 +14,23 @@
  * - Connection limit tracking
  * - Configurable max stream duration
  * - Graceful shutdown (SIGTERM)
+ * - OTel trace context propagation (traceparent → traceId in lifecycle events)
  */
 
 import { once } from "node:events";
 import * as http from "node:http";
+import { SpanStatusCode } from "@opentelemetry/api";
 import { encodeComment, encodeEvent, SSE_HEADERS } from "../protocol/encoder.js";
 import { RunAgentInputSchema } from "../protocol/schemas.js";
 import type { AgUiEvent } from "../protocol/types.js";
 import { EventType } from "../protocol/types.js";
 import { ConnectionTracker } from "./connection-tracker.js";
+import {
+  extractTraceContext,
+  formatTraceparent,
+  getTraceId,
+  startStreamSpan,
+} from "./trace-context.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,15 +153,24 @@ export class AgUiServer {
       return;
     }
 
+    // Extract OTel trace context from incoming request headers (traceparent/tracestate)
+    const traceContext = extractTraceContext(req);
+    const streamSpan = startStreamSpan(traceContext, {
+      "agui.thread_id": input.threadId,
+      "agui.run_id": input.runId,
+    });
+    const traceId = getTraceId(streamSpan);
+
     // Set up abort controller for this stream
     const controller = new AbortController();
     this._activeStreams.add(controller);
 
-    // Set SSE headers
+    // Set SSE headers + trace context response header
     res.statusCode = 200;
     for (const [key, value] of Object.entries(SSE_HEADERS)) {
       res.setHeader(key, value);
     }
+    res.setHeader("traceparent", formatTraceparent(streamSpan));
 
     // Detect client disconnect (res "close" fires when the socket drops)
     res.on("close", () => {
@@ -173,11 +190,12 @@ export class AgUiServer {
     }, this._options.maxStreamDurationMs);
 
     try {
-      // Emit RUN_STARTED
+      // Emit RUN_STARTED with traceId for frontend correlation
       await this._writeEvent(res, {
         type: EventType.RUN_STARTED,
         threadId: input.threadId,
         runId: input.runId,
+        traceId,
       } as AgUiEvent);
 
       // Run the handler
@@ -195,24 +213,37 @@ export class AgUiServer {
         controller.signal,
       );
 
-      // Emit RUN_FINISHED (only if not aborted)
+      // Emit RUN_FINISHED with traceId (only if not aborted)
       if (!controller.signal.aborted && !res.writableEnded) {
+        streamSpan.setStatus({ code: SpanStatusCode.OK });
         await this._writeEvent(res, {
           type: EventType.RUN_FINISHED,
           threadId: input.threadId,
           runId: input.runId,
+          traceId,
         } as AgUiEvent);
       }
     } catch (err) {
-      // Emit RUN_ERROR
+      // Record error on the span for OTel correlation
+      if (err instanceof Error) {
+        streamSpan.recordException(err);
+      }
+      streamSpan.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+
+      // Emit RUN_ERROR with traceId for frontend error correlation
       if (!res.writableEnded && !controller.signal.aborted) {
         const message = err instanceof Error ? err.message : "Unknown error";
         await this._writeEvent(res, {
           type: EventType.RUN_ERROR,
           message,
+          traceId,
         } as AgUiEvent);
       }
     } finally {
+      streamSpan.end();
       clearInterval(heartbeatTimer);
       clearTimeout(durationTimer);
       this._activeStreams.delete(controller);

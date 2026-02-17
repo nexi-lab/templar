@@ -57,6 +57,13 @@ export { mapBlockToEvents } from "./mappers/to-agui.js";
 export { AgUiServer, type AgUiServerOptions, type RunHandler } from "./server/agui-server.js";
 export { type AgUiServerConfig, AgUiServerConfigSchema } from "./server/config.js";
 export { ConnectionTracker } from "./server/connection-tracker.js";
+export {
+  extractTraceContext,
+  formatTraceparent,
+  getTraceId,
+  INVALID_TRACE_ID,
+  isValidTraceId,
+} from "./server/trace-context.js";
 
 // ---------------------------------------------------------------------------
 // CopilotKit bridge
