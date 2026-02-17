@@ -5,3 +5,9 @@ export {
   type ValidatedChannelIdentityConfig,
   type ValidatedIdentityConfig,
 } from "./schema.js";
+export {
+  IdentityConfigWatcher,
+  type IdentityConfigWatcherDeps,
+  type IdentityErrorHandler,
+  type IdentityUpdatedHandler,
+} from "./watcher.js";
