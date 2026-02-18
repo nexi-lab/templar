@@ -1,6 +1,12 @@
 import { coalesceBlocks, splitText } from "@templar/channel-base";
 import type { OutboundMessage } from "@templar/core";
 import { ChannelSendError } from "@templar/errors";
+import {
+  DISCORD_ERROR_MISSING_ACCESS,
+  DISCORD_ERROR_MISSING_PERMISSIONS,
+  sanitizeWebhookUsername,
+  type WebhookSendable,
+} from "./webhook-manager.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -177,7 +183,7 @@ function mapDiscordError(error: unknown, channelId: string): ChannelSendError {
   const message = error instanceof Error ? error.message : String(error);
   const cause = error instanceof Error ? error : undefined;
 
-  if (code === 50013) {
+  if (code === DISCORD_ERROR_MISSING_PERMISSIONS) {
     return new ChannelSendError(
       "discord",
       `Bot lacks permission to send in channel ${channelId}. Check that the bot has SendMessages, AttachFiles, and EmbedLinks permissions.`,
@@ -185,7 +191,7 @@ function mapDiscordError(error: unknown, channelId: string): ChannelSendError {
     );
   }
 
-  if (code === 50001) {
+  if (code === DISCORD_ERROR_MISSING_ACCESS) {
     return new ChannelSendError(
       "discord",
       `Bot cannot access channel ${channelId}. Verify channel permissions or that the bot is in the guild.`,
@@ -197,12 +203,46 @@ function mapDiscordError(error: unknown, channelId: string): ChannelSendError {
 }
 
 // ---------------------------------------------------------------------------
-// Execute render plan
+// Shared payload builder (DRY — used by both Gateway and webhook renders)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the base payload shared by both Gateway and webhook sends.
+ * Contains content, files, components, and threadId.
+ */
+function buildBasePayload(call: RenderPlanCall): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+
+  if (call.content.length > 0) {
+    payload.content = call.content;
+  }
+
+  if (call.files.length > 0) {
+    payload.files = call.files.map((f) => ({
+      attachment: f.url,
+      name: f.filename,
+    }));
+  }
+
+  if (call.components.length > 0) {
+    payload.components = call.components;
+  }
+
+  if (call.threadId != null) {
+    payload.threadId = call.threadId;
+  }
+
+  return payload;
+}
+
+// ---------------------------------------------------------------------------
+// Execute render plan (Gateway path)
 // ---------------------------------------------------------------------------
 
 /**
  * Render an OutboundMessage by executing Discord API calls sequentially.
  * Handles batched sends (content + files + components in one call).
+ * Used for Gateway sends (no identity override).
  */
 export async function renderMessage(
   message: OutboundMessage,
@@ -212,32 +252,60 @@ export async function renderMessage(
 
   for (const call of plan) {
     try {
-      const payload: Record<string, unknown> = {};
-
-      if (call.content.length > 0) {
-        payload.content = call.content;
-      }
-
-      if (call.files.length > 0) {
-        payload.files = call.files.map((f) => ({
-          attachment: f.url,
-          name: f.filename,
-        }));
-      }
-
-      if (call.components.length > 0) {
-        payload.components = call.components;
-      }
-
-      if (call.threadId != null) {
-        payload.threadId = call.threadId;
-      }
+      const payload = buildBasePayload(call);
 
       if (call.replyTo != null) {
         payload.reply = { messageReference: call.replyTo };
       }
 
       await sendable.send(payload);
+    } catch (error) {
+      throw mapDiscordError(error, message.channelId);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Webhook render (identity-aware sends)
+// ---------------------------------------------------------------------------
+
+let replyToWarned = false;
+
+/**
+ * Render an OutboundMessage via a Discord webhook with per-message identity.
+ * Reuses buildRenderPlan() for block coalescing and text splitting.
+ * Applies username + avatarURL from message.identity to every API call.
+ *
+ * Note: Discord webhooks do not support reply references (replyTo).
+ * If replyTo is set, a warning is logged and the field is ignored.
+ */
+export async function renderWebhookMessage(
+  message: OutboundMessage,
+  webhook: WebhookSendable,
+): Promise<void> {
+  // Discord webhooks do not support reply references — warn once
+  if (message.replyTo != null && !replyToWarned) {
+    console.warn(
+      "[DiscordChannel] replyTo is not supported for webhook identity sends and will be ignored.",
+    );
+    replyToWarned = true;
+  }
+
+  const plan = buildRenderPlan(message);
+
+  for (const call of plan) {
+    try {
+      const payload = buildBasePayload(call);
+
+      // Identity override — applied to every chunk so all messages share the persona
+      if (message.identity?.name) {
+        payload.username = sanitizeWebhookUsername(message.identity.name);
+      }
+      if (message.identity?.avatar && /^https?:\/\//i.test(message.identity.avatar)) {
+        payload.avatarURL = message.identity.avatar;
+      }
+
+      await webhook.send(payload);
     } catch (error) {
       throw mapDiscordError(error, message.channelId);
     }

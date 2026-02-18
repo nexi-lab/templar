@@ -70,6 +70,8 @@ export interface DiscordConfig {
   readonly intents: readonly IntentName[];
   readonly sweepers: SweepersConfig;
   readonly presence: PresenceConfig | undefined;
+  /** Name used when auto-creating webhooks for identity sends. Defaults to "Templar". */
+  readonly webhookName: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +121,7 @@ const DiscordConfigSchema = z.object({
   intents: z.array(IntentNameSchema).optional(),
   sweepers: SweepersConfigSchema,
   presence: PresenceConfigSchema,
+  webhookName: z.string().min(1).max(80).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -166,5 +169,6 @@ export function parseDiscordConfig(raw: Readonly<Record<string, unknown>>): Disc
     intents: parsed.intents ?? DEFAULT_INTENTS,
     sweepers: toSweepersConfig(parsed.sweepers),
     presence: toPresenceConfig(parsed.presence),
+    webhookName: parsed.webhookName,
   };
 }
