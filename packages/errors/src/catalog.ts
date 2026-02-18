@@ -1583,6 +1583,46 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // ENGINE SPAWN GOVERNANCE ERRORS (#163) — Cross-agent spawn limits
+  // ============================================================================
+  ENGINE_SPAWN_DEPTH_EXCEEDED: {
+    domain: "engine",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "InternalError" as const,
+    isExpected: true,
+    title: "Spawn depth exceeded",
+    description: "Sub-agent spawn attempt exceeds the maximum allowed spawn depth",
+  },
+  ENGINE_SPAWN_CHILD_LIMIT: {
+    domain: "engine",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "InternalError" as const,
+    isExpected: true,
+    title: "Spawn child limit exceeded",
+    description: "Parent agent exceeded the maximum number of concurrent children",
+  },
+  ENGINE_SPAWN_CONCURRENCY_LIMIT: {
+    domain: "engine",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "InternalError" as const,
+    isExpected: true,
+    title: "Spawn concurrency limit exceeded",
+    description: "Total concurrent sub-agents across the orchestration tree reached the limit",
+  },
+  ENGINE_SPAWN_TOOL_DENIED: {
+    domain: "engine",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Spawn tool denied",
+    description: "Tool is denied at the current spawn depth by the depth-aware tool policy",
+  },
+
+  // ============================================================================
   // SELF-TEST ERRORS — Pluggable self-verification (#44)
   // ============================================================================
   SELF_TEST_HEALTH_CHECK_FAILED: {

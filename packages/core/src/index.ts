@@ -76,3 +76,13 @@ export type {
   ToolResponse,
   TurnContext,
 } from "./middleware-types.js";
+// Spawn governance types (#163)
+export type {
+  DepthToolPolicy,
+  PreSubagentSpawnData,
+  SpawnDecision,
+  SpawnDenialCode,
+  SpawnGuardState,
+  SpawnLimitsConfig,
+  SpawnStopReason,
+} from "./spawn-types.js";

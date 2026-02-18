@@ -102,6 +102,18 @@ export {
 } from "./execution-guard.js";
 
 // ============================================================================
+// SPAWN GOVERNANCE ERRORS — Cross-agent spawn limits (#163)
+// ============================================================================
+
+export {
+  SpawnChildLimitError,
+  SpawnConcurrencyLimitError,
+  SpawnDepthExceededError,
+  SpawnGovernanceError,
+  SpawnToolDeniedError,
+} from "./spawn-governance.js";
+
+// ============================================================================
 // SELF-TEST ERRORS — Pluggable self-verification (#44)
 // ============================================================================
 

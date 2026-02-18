@@ -75,4 +75,11 @@ describe("DISCORD_CAPABILITIES", () => {
   it("does not include readReceipts", () => {
     expect(DISCORD_CAPABILITIES.readReceipts).toBeUndefined();
   });
+
+  it("supports per-message identity via webhooks", () => {
+    expect(DISCORD_CAPABILITIES.identity).toEqual({
+      supported: true,
+      perMessage: true,
+    });
+  });
 });
