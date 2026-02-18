@@ -125,7 +125,6 @@ export {
   SelfTestVerificationFailedError,
 } from "./self-test.js";
 
-// ============================================================================
 // ACE ERRORS — Adaptive Context Engine (#87)
 // ============================================================================
 
@@ -136,6 +135,20 @@ export {
   ReflectionError,
   TrajectoryError,
 } from "./ace.js";
+
+// ============================================================================
+// ARTIFACT ERRORS — Persistent artifact store (#162)
+// ============================================================================
+
+export {
+  ArtifactError,
+  ArtifactInvalidTypeError,
+  ArtifactNotFoundError,
+  ArtifactSearchFailedError,
+  ArtifactStoreUnavailableError,
+  ArtifactValidationFailedError,
+  ArtifactVersionConflictError,
+} from "./artifact.js";
 
 // ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)

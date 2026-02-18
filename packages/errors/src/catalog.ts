@@ -1661,6 +1661,63 @@ export const ERROR_CATALOG = {
     title: "Invalid self-test configuration",
     description: "The self-test configuration is invalid",
   },
+  // ============================================================================
+  // ARTIFACT ERRORS — Persistent artifact store (#162)
+  // ============================================================================
+  ARTIFACT_NOT_FOUND: {
+    domain: "artifact",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Artifact not found",
+    description: "The requested artifact does not exist",
+  },
+  ARTIFACT_VALIDATION_FAILED: {
+    domain: "artifact",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Artifact validation failed",
+    description: "The artifact input failed schema validation",
+  },
+  ARTIFACT_VERSION_CONFLICT: {
+    domain: "artifact",
+    httpStatus: 409,
+    grpcCode: "ABORTED" as const,
+    baseType: "ConflictError" as const,
+    isExpected: true,
+    title: "Artifact version conflict",
+    description: "A concurrent modification caused a version conflict",
+  },
+  ARTIFACT_SEARCH_FAILED: {
+    domain: "artifact",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Artifact search failed",
+    description: "The artifact search backend returned an error",
+  },
+  ARTIFACT_STORE_UNAVAILABLE: {
+    domain: "artifact",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Artifact store unavailable",
+    description: "The artifact storage backend is temporarily unavailable",
+  },
+  ARTIFACT_INVALID_TYPE: {
+    domain: "artifact",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid artifact type",
+    description: "The artifact type must be 'tool' or 'agent'",
+  },
 } as const;
 
 // ============================================================================

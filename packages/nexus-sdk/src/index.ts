@@ -35,6 +35,7 @@ export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
+export { ArtifactsResource } from "./resources/artifacts.js";
 export { ToolsResource } from "./resources/tools.js";
 // ACE types
 export type {
@@ -75,6 +76,26 @@ export type {
   TrajectoryStepType,
   UpdatePlaybookParams,
 } from "./types/ace.js";
+export type {
+  Artifact,
+  ArtifactBase,
+  ArtifactMetadata,
+  ArtifactsBatchResponse,
+  ArtifactSearchResponse,
+  ArtifactSearchResult,
+  ArtifactsResponse,
+  ArtifactStatus,
+  ArtifactType,
+  AgentArtifact,
+  CreateAgentArtifactParams,
+  CreateArtifactParams,
+  CreateToolArtifactParams,
+  GetArtifactsBatchParams,
+  ListArtifactsParams,
+  SearchArtifactsParams,
+  ToolArtifact,
+  UpdateArtifactParams,
+} from "./types/artifacts.js";
 export type {
   Agent,
   AgentModel,

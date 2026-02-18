@@ -71,6 +71,22 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/artifact-client:
+    dependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+    devDependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/channel-base:
     dependencies:
       zod:
