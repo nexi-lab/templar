@@ -36,4 +36,5 @@ export const INTERCEPTOR_EVENTS = [
   "BudgetExhausted",
   "PreCompact",
   "LoopDetected",
+  "PreSubagentSpawn",
 ] as const;

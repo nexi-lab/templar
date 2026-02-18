@@ -15,6 +15,10 @@ export interface SessionContext {
   userId?: string;
   /** Memory scope override */
   scope?: string;
+  /** Spawn depth in the agent tree (0 = root agent). Set by spawn governance. */
+  spawnDepth?: number;
+  /** Parent agent ID that spawned this agent. Undefined for root agents. */
+  parentAgentId?: string;
   /** Arbitrary metadata */
   metadata?: Record<string, unknown>;
 }
