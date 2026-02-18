@@ -135,6 +135,15 @@ export interface SubagentEndData {
 }
 
 // ---------------------------------------------------------------------------
+// Spawn Governance Events (#163 — Cross-agent spawn limits)
+// ---------------------------------------------------------------------------
+
+// Import from core (single source of truth) and re-export for consumers
+import type { PreSubagentSpawnData } from "@templar/core";
+
+export type { PreSubagentSpawnData } from "@templar/core";
+
+// ---------------------------------------------------------------------------
 // Execution Guard Events (#151 — Loop detection + max-iteration guards)
 // ---------------------------------------------------------------------------
 
@@ -175,6 +184,7 @@ export interface InterceptorEventMap {
   readonly BudgetExhausted: BudgetExhaustedData;
   readonly PreCompact: PreCompactData;
   readonly LoopDetected: LoopDetectedData;
+  readonly PreSubagentSpawn: PreSubagentSpawnData;
 }
 
 /** Events that are observe-only (no blocking or modification) */

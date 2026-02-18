@@ -1,6 +1,7 @@
 import type { NexusClient as _NexusClient } from "@nexus/sdk";
 import type { ExecutionLimitsConfig } from "./execution-types.js";
 import type { IdentityConfig } from "./message-types.js";
+import type { SpawnLimitsConfig } from "./spawn-types.js";
 
 /**
  * Re-export NexusClient from @nexus/sdk for consumers
@@ -152,4 +153,6 @@ export interface TemplarConfig extends DeepAgentConfig {
   agentType?: "high" | "dark";
   /** Execution safety guards (iteration limits, loop detection) */
   executionLimits?: ExecutionLimitsConfig;
+  /** Spawn governance guards (depth, children, concurrency limits) */
+  spawnLimits?: SpawnLimitsConfig;
 }

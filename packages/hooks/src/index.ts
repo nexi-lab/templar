@@ -42,6 +42,7 @@ export type {
   PreMessageData,
   PreModelCallData,
   PreModelSelectData,
+  PreSubagentSpawnData,
   PreToolUseData,
   SessionEndData,
   SessionStartData,

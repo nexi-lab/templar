@@ -116,8 +116,8 @@ describe("Loop detection hook events (#151)", () => {
   });
 
   describe("event count", () => {
-    it("should have 7 interceptor events (was 6, added LoopDetected)", () => {
-      expect(INTERCEPTOR_EVENTS).toHaveLength(7);
+    it("should have 8 interceptor events (was 7, added PreSubagentSpawn)", () => {
+      expect(INTERCEPTOR_EVENTS).toHaveLength(8);
     });
   });
 });
