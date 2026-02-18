@@ -32,7 +32,12 @@ export interface NodeRegisterFrame {
   readonly kind: "node.register";
   readonly nodeId: string;
   readonly capabilities: NodeCapabilities;
-  readonly token: string;
+  /** Legacy bearer token (optional when using Ed25519 auth) */
+  readonly token?: string;
+  /** Base64url-encoded Ed25519 JWT for device auth */
+  readonly signature?: string;
+  /** Base64url-encoded Ed25519 public key (for TOFU registration) */
+  readonly publicKey?: string;
 }
 
 /** Sent by gateway to acknowledge registration */
@@ -125,7 +130,9 @@ export const NodeRegisterFrameSchema = z.object({
   kind: z.literal("node.register"),
   nodeId: z.string().min(1),
   capabilities: NodeCapabilitiesSchema,
-  token: z.string().min(1),
+  token: z.string().min(1).optional(),
+  signature: z.string().min(1).optional(),
+  publicKey: z.string().min(1).optional(),
 });
 
 export const NodeRegisterAckFrameSchema = z.object({

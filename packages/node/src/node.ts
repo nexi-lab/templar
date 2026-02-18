@@ -11,6 +11,7 @@ import type {
   NodeRegisterFrame,
   SessionState,
 } from "@templar/gateway/protocol";
+import { createDeviceJwt, exportPublicKeyBase64url, resolveKeyPair } from "./device-auth.js";
 import { HeartbeatResponder } from "./heartbeat-responder.js";
 import { ReconnectStrategy } from "./reconnect.js";
 import type {
@@ -244,15 +245,38 @@ export class TemplarNode {
       AbortSignal.timeout(this.resolvedConfig.connectionTimeout),
     ]);
 
-    await this.wsClient.connect(this.resolvedConfig.gatewayUrl, token, connectionSignal);
+    // Resolve device key if configured (Ed25519 auth)
+    const deviceKey = this.resolvedConfig.deviceKey
+      ? await resolveKeyPair(this.resolvedConfig.deviceKey)
+      : undefined;
 
-    // Send register frame
-    const registerFrame: NodeRegisterFrame = {
-      kind: "node.register",
-      nodeId: this.resolvedConfig.nodeId,
-      capabilities: this.resolvedConfig.capabilities,
-      token,
-    };
+    // For Ed25519 mode, use the JWT as the WS auth token; otherwise use legacy token
+    const wsToken = deviceKey
+      ? await createDeviceJwt(deviceKey.privateKey, this.resolvedConfig.nodeId)
+      : token;
+
+    await this.wsClient.connect(this.resolvedConfig.gatewayUrl, wsToken, connectionSignal);
+
+    // Build register frame
+    let registerFrame: NodeRegisterFrame;
+    if (deviceKey) {
+      const signature = await createDeviceJwt(deviceKey.privateKey, this.resolvedConfig.nodeId);
+      const publicKey = exportPublicKeyBase64url(deviceKey.publicKey);
+      registerFrame = {
+        kind: "node.register",
+        nodeId: this.resolvedConfig.nodeId,
+        capabilities: this.resolvedConfig.capabilities,
+        signature,
+        publicKey,
+      };
+    } else {
+      registerFrame = {
+        kind: "node.register",
+        nodeId: this.resolvedConfig.nodeId,
+        capabilities: this.resolvedConfig.capabilities,
+        token,
+      };
+    }
     this.wsClient.send(registerFrame);
 
     // Wait for register ack

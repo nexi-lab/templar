@@ -35,10 +35,23 @@ describe("GatewayFrame schemas", () => {
       expect(result.success).toBe(false);
     });
 
-    it("rejects node.register with missing token", () => {
+    it("accepts node.register without token when signature is absent (validation in handler)", () => {
       const { token: _, ...noToken } = validFrame;
+      // Schema allows optional token/signature; auth validation happens in frame handler
       const result = safeParseFrame(noToken);
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts node.register with signature instead of token", () => {
+      const frame = {
+        kind: "node.register" as const,
+        nodeId: "node-1",
+        capabilities: validFrame.capabilities,
+        signature: "eyJhbGciOiJFZERTQSJ9.test.signature",
+        publicKey: "dGVzdC1wdWJsaWMta2V5",
+      };
+      const result = safeParseFrame(frame);
+      expect(result.success).toBe(true);
     });
   });
 

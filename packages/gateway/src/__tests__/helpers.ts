@@ -5,6 +5,9 @@
  * and frame simulation helpers across server, gateway, and integration tests.
  */
 
+import type { KeyObject } from "node:crypto";
+import { generateKeyPairSync } from "node:crypto";
+import { SignJWT } from "jose";
 import { vi } from "vitest";
 import type { TemplarGatewayDeps } from "../gateway.js";
 import { TemplarGateway } from "../gateway.js";
@@ -13,6 +16,7 @@ import type {
   GatewayFrame,
   LaneMessage,
   NodeCapabilities,
+  NodeRegisterFrame,
 } from "../protocol/index.js";
 import type { WebSocketLike, WebSocketServerLike, WsServerFactory } from "../server.js";
 
@@ -33,6 +37,7 @@ export const DEFAULT_CONFIG: GatewayConfig = {
   defaultConversationScope: "per-channel-peer",
   maxConversations: 100_000,
   conversationTtl: 86_400_000,
+  authMode: "legacy",
 };
 
 export const DEFAULT_CAPS: NodeCapabilities = {
@@ -180,4 +185,45 @@ export function createTestGateway(configOverrides: Partial<GatewayConfig> = {}):
   };
   const gateway = new TemplarGateway(config, deps);
   return { gateway, wss };
+}
+
+// ---------------------------------------------------------------------------
+// Crypto helpers for Ed25519 device auth tests
+// ---------------------------------------------------------------------------
+
+export function generateTestKeyPair() {
+  return generateKeyPairSync("ed25519");
+}
+
+export function exportTestPublicKeyBase64url(key: KeyObject): string {
+  const der = key.export({ type: "spki", format: "der" }) as Buffer;
+  return der.subarray(12).toString("base64url");
+}
+
+export async function createTestDeviceJwt(
+  nodeId: string,
+  privateKey: KeyObject,
+  options?: { exp?: string },
+): Promise<string> {
+  return new SignJWT({ sub: nodeId })
+    .setProtectedHeader({ alg: "EdDSA" })
+    .setIssuedAt()
+    .setExpirationTime(options?.exp ?? "5m")
+    .sign(privateKey);
+}
+
+export async function createSignedRegisterFrame(
+  nodeId: string,
+  privateKey: KeyObject,
+  publicKey: KeyObject,
+  capabilities: NodeCapabilities = DEFAULT_CAPS,
+): Promise<NodeRegisterFrame> {
+  const jwt = await createTestDeviceJwt(nodeId, privateKey);
+  return {
+    kind: "node.register",
+    nodeId,
+    capabilities,
+    signature: jwt,
+    publicKey: exportTestPublicKeyBase64url(publicKey),
+  };
 }

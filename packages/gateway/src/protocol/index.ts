@@ -86,7 +86,11 @@ export {
 } from "./sessions.js";
 // Types
 export {
+  type AuthMode,
+  AuthModeSchema,
   DEFAULT_GATEWAY_CONFIG,
+  type DeviceAuthConfig,
+  DeviceAuthConfigSchema,
   type GatewayConfig,
   GatewayConfigSchema,
   HOT_RELOADABLE_FIELDS,

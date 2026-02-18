@@ -29,6 +29,7 @@ describe("GatewayConfig", () => {
     defaultConversationScope: "per-channel-peer" as const,
     maxConversations: 100_000,
     conversationTtl: 86_400_000,
+    authMode: "legacy" as const,
   };
 
   it("accepts valid config", () => {

@@ -18,6 +18,7 @@ const VALID_CONFIG: GatewayConfig = {
   defaultConversationScope: "per-channel-peer",
   maxConversations: 100_000,
   conversationTtl: 86_400_000,
+  authMode: "legacy",
 };
 
 function createMockDeps(): ConfigWatcherDeps {

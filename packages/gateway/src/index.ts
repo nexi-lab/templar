@@ -32,6 +32,14 @@ export {
 } from "./conversations/index.js";
 // Delivery tracking
 export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
+// Device auth
+export { type DeviceJwtResult, timingSafeTokenCompare, verifyDeviceJwt } from "./device-auth.js";
+export {
+  type DeviceKeyStore,
+  InMemoryDeviceKeyStore,
+  type InMemoryDeviceKeyStoreOptions,
+  importBase64urlPublicKey,
+} from "./device-key-store.js";
 // Orchestrator
 export { type GatewayEventHandler, TemplarGateway, type TemplarGatewayDeps } from "./gateway.js";
 // Protocol (shared with @templar/node via @templar/gateway/protocol subpath)
@@ -56,6 +64,7 @@ export { NodeRegistry, type RegisteredNode } from "./registry/node-registry.js";
 export { type AgentNodeResolver, AgentRouter, type DegradationHandler } from "./router.js";
 // Server
 export {
+  type AuthResult,
   type ConnectionHandler,
   type DisconnectHandler,
   type FrameHandler,
