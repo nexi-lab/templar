@@ -1541,6 +1541,46 @@ export const ERROR_CATALOG = {
     title: "Execution timeout",
     description: "Agent execution exceeded the configured wall-clock time limit",
   },
+
+  // ============================================================================
+  // SELF-TEST ERRORS — Pluggable self-verification (#44)
+  // ============================================================================
+  SELF_TEST_HEALTH_CHECK_FAILED: {
+    domain: "selftest",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Health check failed",
+    description: "One or more health checks failed during preflight verification",
+  },
+  SELF_TEST_VERIFICATION_FAILED: {
+    domain: "selftest",
+    httpStatus: 422,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Verification failed",
+    description: "One or more verification assertions failed",
+  },
+  SELF_TEST_TIMEOUT: {
+    domain: "selftest",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Self-test timeout",
+    description: "A self-test verifier exceeded the configured timeout",
+  },
+  SELF_TEST_CONFIGURATION_INVALID: {
+    domain: "selftest",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid self-test configuration",
+    description: "The self-test configuration is invalid",
+  },
 } as const;
 
 // ============================================================================
