@@ -102,6 +102,18 @@ export {
 } from "./execution-guard.js";
 
 // ============================================================================
+// SELF-TEST ERRORS — Pluggable self-verification (#44)
+// ============================================================================
+
+export {
+  SelfTestConfigurationInvalidError,
+  SelfTestError,
+  SelfTestHealthCheckFailedError,
+  SelfTestTimeoutError,
+  SelfTestVerificationFailedError,
+} from "./self-test.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 

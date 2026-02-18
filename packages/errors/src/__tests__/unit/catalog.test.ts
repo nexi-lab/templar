@@ -80,6 +80,10 @@ describe("ERROR_CATALOG", () => {
     const exceptions = new Set([
       "RATE_LIMIT_EXCEEDED", // quota domain, but RATE prefix
       "PAYLOAD_TOO_LARGE", // quota domain, but PAYLOAD prefix
+      "SELF_TEST_HEALTH_CHECK_FAILED", // selftest domain, SELF prefix (compound)
+      "SELF_TEST_VERIFICATION_FAILED", // selftest domain, SELF prefix (compound)
+      "SELF_TEST_TIMEOUT", // selftest domain, SELF prefix (compound)
+      "SELF_TEST_CONFIGURATION_INVALID", // selftest domain, SELF prefix (compound)
     ]);
 
     for (const [code, entry] of Object.entries(ERROR_CATALOG)) {

@@ -1,0 +1,39 @@
+{
+  "name": "@templar/self-test",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@templar/core": "workspace:*",
+    "@templar/errors": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "playwright": "^1.50.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@templar/long-running": "workspace:*",
+    "@templar/test-utils": "workspace:*",
+    "@types/node": "^25.0.0",
+    "playwright": "^1.50.0",
+    "vitest": "^4.0.0"
+  }
+}
