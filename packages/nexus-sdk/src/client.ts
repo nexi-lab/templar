@@ -3,6 +3,7 @@
  */
 
 import { HttpClient } from "./http/index.js";
+import { AceResource } from "./resources/ace/index.js";
 import { AgentsResource } from "./resources/agents.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { EventLogResource } from "./resources/eventlog.js";
@@ -86,6 +87,11 @@ export class NexusClient {
   public readonly permissions: PermissionsResource;
 
   /**
+   * ACE resource (Adaptive Context Engine — trajectories, playbooks, reflection, etc.)
+   */
+  public readonly ace: AceResource;
+
+  /**
    * Create a new Nexus client
    *
    * @param config - Client configuration
@@ -107,6 +113,7 @@ export class NexusClient {
     this.pay = new PayResource(this._http);
     this.eventLog = new EventLogResource(this._http);
     this.permissions = new PermissionsResource(this._http);
+    this.ace = new AceResource(this._http);
   }
 
   /**

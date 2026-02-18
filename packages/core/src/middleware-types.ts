@@ -38,10 +38,58 @@ export interface TurnContext {
   metadata?: Record<string, unknown>;
 }
 
+// ---------------------------------------------------------------------------
+// Model call types — used by wrapModelCall hook
+// ---------------------------------------------------------------------------
+
+/** Request payload for an LLM model call */
+export interface ModelRequest {
+  readonly messages: readonly { readonly role: string; readonly content: string }[];
+  readonly model?: string;
+  readonly systemPrompt?: string;
+  readonly metadata?: Record<string, unknown>;
+}
+
+/** Response from an LLM model call */
+export interface ModelResponse {
+  readonly content: string;
+  readonly model?: string;
+  readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
+  readonly metadata?: Record<string, unknown>;
+}
+
+/** Next handler in the model call chain */
+export type ModelHandler = (req: ModelRequest) => Promise<ModelResponse>;
+
+// ---------------------------------------------------------------------------
+// Tool call types — used by wrapToolCall hook
+// ---------------------------------------------------------------------------
+
+/** Request payload for a tool invocation */
+export interface ToolRequest {
+  readonly toolName: string;
+  readonly input: unknown;
+  readonly metadata?: Record<string, unknown>;
+}
+
+/** Response from a tool invocation */
+export interface ToolResponse {
+  readonly output: unknown;
+  readonly metadata?: Record<string, unknown>;
+}
+
+/** Next handler in the tool call chain */
+export type ToolHandler = (req: ToolRequest) => Promise<ToolResponse>;
+
+// ---------------------------------------------------------------------------
+// Middleware interface
+// ---------------------------------------------------------------------------
+
 /**
  * Middleware interface — lifecycle hooks for DeepAgents integration
  *
  * All hooks are optional. Implement only the hooks your middleware needs.
+ * Includes both lifecycle hooks (session/turn) and wrap hooks (model/tool calls).
  */
 export interface TemplarMiddleware {
   /** Unique middleware name */
@@ -58,4 +106,10 @@ export interface TemplarMiddleware {
 
   /** Called when a session ends, after all turns */
   onSessionEnd?(context: SessionContext): Promise<void>;
+
+  /** Wrap an LLM model call — intercept, modify, or observe model requests/responses */
+  wrapModelCall?(req: ModelRequest, next: ModelHandler): Promise<ModelResponse>;
+
+  /** Wrap a tool invocation — intercept, modify, or observe tool requests/responses */
+  wrapToolCall?(req: ToolRequest, next: ToolHandler): Promise<ToolResponse>;
 }

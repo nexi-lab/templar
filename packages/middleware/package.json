@@ -28,6 +28,10 @@
       "types": "./dist/identity.d.ts",
       "import": "./dist/identity.js"
     },
+    "./ace": {
+      "types": "./dist/ace.d.ts",
+      "import": "./dist/ace.js"
+    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js"

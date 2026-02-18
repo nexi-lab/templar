@@ -55,6 +55,57 @@ export interface MockPermissionsResource {
   listNamespaceTools: ReturnType<typeof vi.fn>;
 }
 
+// ---------------------------------------------------------------------------
+// ACE sub-resource mocks
+// ---------------------------------------------------------------------------
+
+export interface MockTrajectoriesResource {
+  start: ReturnType<typeof vi.fn>;
+  logStep: ReturnType<typeof vi.fn>;
+  complete: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  query: ReturnType<typeof vi.fn>;
+}
+
+export interface MockPlaybooksResource {
+  create: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  recordUsage: ReturnType<typeof vi.fn>;
+  query: ReturnType<typeof vi.fn>;
+}
+
+export interface MockReflectionResource {
+  reflect: ReturnType<typeof vi.fn>;
+}
+
+export interface MockCurationResource {
+  curate: ReturnType<typeof vi.fn>;
+  curateBulk: ReturnType<typeof vi.fn>;
+}
+
+export interface MockConsolidationResource {
+  consolidate: ReturnType<typeof vi.fn>;
+  buildHierarchy: ReturnType<typeof vi.fn>;
+}
+
+export interface MockFeedbackResource {
+  add: ReturnType<typeof vi.fn>;
+  getScore: ReturnType<typeof vi.fn>;
+  markForRelearn: ReturnType<typeof vi.fn>;
+  getForTrajectory: ReturnType<typeof vi.fn>;
+}
+
+export interface MockAceResource {
+  trajectories: MockTrajectoriesResource;
+  playbooks: MockPlaybooksResource;
+  reflection: MockReflectionResource;
+  curation: MockCurationResource;
+  consolidation: MockConsolidationResource;
+  feedback: MockFeedbackResource;
+}
+
 export interface MockNexusClient {
   client: NexusClient;
   mockMemory: MockMemoryResource;
@@ -64,6 +115,7 @@ export interface MockNexusClient {
   mockChannels: MockChannelsResource;
   mockEventLog: MockEventLogResource;
   mockPermissions: MockPermissionsResource;
+  mockAce: MockAceResource;
 }
 
 /**
@@ -74,9 +126,9 @@ export interface MockNexusClient {
  *
  * @example
  * ```typescript
- * const { client, mockMemory, mockPay } = createMockNexusClient();
- * mockPay.getBalance.mockResolvedValue({ balance: 1000, currency: "credits", updated_at: "..." });
- * const middleware = new NexusPayMiddleware(client, config);
+ * const { client, mockMemory, mockPay, mockAce } = createMockNexusClient();
+ * mockAce.trajectories.start.mockResolvedValue({ trajectory_id: "t-1", status: "active" });
+ * const middleware = new NexusAceMiddleware(client, config);
  * ```
  */
 export function createMockNexusClient(): MockNexusClient {
@@ -130,6 +182,41 @@ export function createMockNexusClient(): MockNexusClient {
     listNamespaceTools: vi.fn(),
   };
 
+  const mockAce: MockAceResource = {
+    trajectories: {
+      start: vi.fn(),
+      logStep: vi.fn(),
+      complete: vi.fn(),
+      get: vi.fn(),
+      query: vi.fn(),
+    },
+    playbooks: {
+      create: vi.fn(),
+      get: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      recordUsage: vi.fn(),
+      query: vi.fn(),
+    },
+    reflection: {
+      reflect: vi.fn(),
+    },
+    curation: {
+      curate: vi.fn(),
+      curateBulk: vi.fn(),
+    },
+    consolidation: {
+      consolidate: vi.fn(),
+      buildHierarchy: vi.fn(),
+    },
+    feedback: {
+      add: vi.fn(),
+      getScore: vi.fn(),
+      markForRelearn: vi.fn(),
+      getForTrajectory: vi.fn(),
+    },
+  };
+
   const client = {
     memory: mockMemory,
     pay: mockPay,
@@ -138,6 +225,7 @@ export function createMockNexusClient(): MockNexusClient {
     channels: mockChannels,
     eventLog: mockEventLog,
     permissions: mockPermissions,
+    ace: mockAce,
     withRetry: () => client,
     withTimeout: () => client,
   } as unknown as NexusClient;
@@ -151,5 +239,6 @@ export function createMockNexusClient(): MockNexusClient {
     mockChannels,
     mockEventLog,
     mockPermissions,
+    mockAce,
   };
 }
