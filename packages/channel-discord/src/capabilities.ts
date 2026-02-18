@@ -25,4 +25,5 @@ export const DISCORD_CAPABILITIES: ChannelCapabilities = {
   threads: { supported: true, nested: false },
   reactions: { supported: true },
   groups: { supported: true, maxMembers: 500_000 },
+  identity: { supported: true, perMessage: true },
 } as const;

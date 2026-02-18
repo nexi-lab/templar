@@ -35,11 +35,32 @@ vi.mock("discord.js", () => {
 
 const VALID_CONFIG = { token: "Bot integration-test-token" };
 
+// Mock webhook for identity sends
+const mockWebhookSend = vi.fn().mockResolvedValue({ id: "wh-sent-001" });
+
+function createMockWebhookChannel() {
+  return {
+    id: "ch-001",
+    type: 0,
+    isThread: () => false,
+    send: mockChannelSend,
+    fetchWebhooks: vi.fn().mockResolvedValue(new Map()),
+    createWebhook: vi.fn().mockResolvedValue({
+      id: "wh-001",
+      token: "wh-token",
+      owner: { id: "bot-001" },
+      name: "Templar",
+      send: mockWebhookSend,
+    }),
+  };
+}
+
 describe("Discord send flow (integration)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockClient = createMockClientInstance();
     mockChannelSend.mockClear();
+    mockWebhookSend.mockClear();
 
     // Override channels.fetch to return a channel with our tracked send mock
     mockClient.channels.fetch = vi.fn().mockResolvedValue({
@@ -182,5 +203,156 @@ describe("Discord send flow (integration)", () => {
     };
 
     await expect(adapter.send(outbound)).rejects.toThrow(ChannelSendError);
+  });
+
+  // -----------------------------------------------------------------------
+  // Webhook identity send flow (Issue #78)
+  // -----------------------------------------------------------------------
+
+  describe("webhook identity send flow", () => {
+    it("sends via webhook when identity is present", async () => {
+      const webhookChannel = createMockWebhookChannel();
+      mockClient.channels.fetch = vi.fn().mockResolvedValue(webhookChannel);
+
+      const adapter = new DiscordChannel(VALID_CONFIG);
+      await adapter.connect();
+
+      const outbound: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "Hello with identity" }],
+        identity: { name: "Research Bot", avatar: "https://example.com/avatar.png" },
+      };
+      await adapter.send(outbound);
+
+      // Should have used webhook send, not channel send
+      expect(mockWebhookSend).toHaveBeenCalledOnce();
+      const webhookPayload = mockWebhookSend.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(webhookPayload.content).toBe("Hello with identity");
+      expect(webhookPayload.username).toBe("Research Bot");
+      expect(webhookPayload.avatarURL).toBe("https://example.com/avatar.png");
+
+      expect(mockChannelSend).not.toHaveBeenCalled();
+    });
+
+    it("sends via Gateway when no identity (regression)", async () => {
+      const webhookChannel = createMockWebhookChannel();
+      mockClient.channels.fetch = vi.fn().mockResolvedValue(webhookChannel);
+
+      const adapter = new DiscordChannel(VALID_CONFIG);
+      await adapter.connect();
+
+      const outbound: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "Hello no identity" }],
+      };
+      await adapter.send(outbound);
+
+      // Should have used channel.send (Gateway), not webhook
+      expect(mockChannelSend).toHaveBeenCalledOnce();
+      expect(mockWebhookSend).not.toHaveBeenCalled();
+    });
+
+    it("falls back to Gateway on webhook permission error", async () => {
+      const permError = Object.assign(new Error("Missing Permissions"), { code: 50013 });
+      const failingChannel = {
+        id: "ch-001",
+        type: 0,
+        isThread: () => false,
+        send: mockChannelSend,
+        fetchWebhooks: vi.fn().mockRejectedValue(permError),
+        createWebhook: vi.fn().mockRejectedValue(permError),
+      };
+      mockClient.channels.fetch = vi.fn().mockResolvedValue(failingChannel);
+
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const adapter = new DiscordChannel(VALID_CONFIG);
+      await adapter.connect();
+
+      const outbound: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "Fallback test" }],
+        identity: { name: "Bot" },
+      };
+      await adapter.send(outbound);
+
+      // Should have fallen back to Gateway send
+      expect(mockChannelSend).toHaveBeenCalledOnce();
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it("retries with new webhook on 10015 Unknown Webhook error", async () => {
+      const unknownError = Object.assign(new Error("Unknown Webhook"), { code: 10015 });
+      const failingSend = vi.fn().mockRejectedValueOnce(unknownError);
+      const successSend = vi.fn().mockResolvedValue({ id: "sent-ok" });
+
+      let callCount = 0;
+      const webhookChannel = {
+        id: "ch-001",
+        type: 0,
+        isThread: () => false,
+        send: mockChannelSend,
+        fetchWebhooks: vi.fn().mockResolvedValue(new Map()),
+        createWebhook: vi.fn().mockImplementation(() => {
+          callCount++;
+          return Promise.resolve({
+            id: `wh-${callCount}`,
+            token: "wh-token",
+            owner: { id: "bot-001" },
+            name: "Templar",
+            send: callCount === 1 ? failingSend : successSend,
+          });
+        }),
+      };
+      mockClient.channels.fetch = vi.fn().mockResolvedValue(webhookChannel);
+
+      const adapter = new DiscordChannel(VALID_CONFIG);
+      await adapter.connect();
+
+      const outbound: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "Retry test" }],
+        identity: { name: "Bot" },
+      };
+      await adapter.send(outbound);
+
+      // Should have retried with a new webhook
+      expect(webhookChannel.createWebhook).toHaveBeenCalledTimes(2);
+      expect(successSend).toHaveBeenCalledOnce();
+    });
+
+    it("cached webhook works with changed identity name (hot-reload edge)", async () => {
+      const webhookChannel = createMockWebhookChannel();
+      mockClient.channels.fetch = vi.fn().mockResolvedValue(webhookChannel);
+
+      const adapter = new DiscordChannel(VALID_CONFIG);
+      await adapter.connect();
+
+      // First send with identity "Bot A"
+      const outbound1: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "First" }],
+        identity: { name: "Bot A" },
+      };
+      await adapter.send(outbound1);
+
+      // Second send with identity "Bot B" — same channel, cached webhook
+      const outbound2: OutboundMessage = {
+        channelId: "ch-001",
+        blocks: [{ type: "text", content: "Second" }],
+        identity: { name: "Bot B" },
+      };
+      await adapter.send(outbound2);
+
+      // Webhook should only be created once (cached)
+      expect(webhookChannel.createWebhook).toHaveBeenCalledTimes(1);
+
+      // Both sends should have different usernames
+      expect(mockWebhookSend).toHaveBeenCalledTimes(2);
+      const payload1 = mockWebhookSend.mock.calls[0]?.[0] as Record<string, unknown>;
+      const payload2 = mockWebhookSend.mock.calls[1]?.[0] as Record<string, unknown>;
+      expect(payload1.username).toBe("Bot A");
+      expect(payload2.username).toBe("Bot B");
+    });
   });
 });
