@@ -89,8 +89,10 @@ export function createTemplar(config: TemplarConfig): unknown {
   // Create iteration guard for hard execution limits
   const iterationGuard = new IterationGuard(config.executionLimits);
 
-  // Middleware is always explicitly provided via config
-  let middleware = [...(config.middleware ?? [])];
+  // Merge plugin middleware with explicitly provided middleware
+  // Plugin middleware comes first (ordered by trust tier), then explicit
+  const pluginMiddleware = config.pluginAssembly?.middleware ?? [];
+  let middleware = [...pluginMiddleware, ...(config.middleware ?? [])];
 
   // Wrap middleware with OTel tracing when @templar/telemetry has registered a wrapper
   const middlewareWrapper = getMiddlewareWrapper();

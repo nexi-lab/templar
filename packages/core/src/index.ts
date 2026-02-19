@@ -90,6 +90,16 @@ export type {
   ToolResponse,
   TurnContext,
 } from "./middleware-types.js";
+// Plugin types (#108)
+export type {
+  PluginAssemblyResult,
+  PluginCapability,
+  PluginConfig,
+  PluginManifestSnapshot,
+  PluginTrust,
+  TemplarPluginApi,
+  TemplarPluginDefinition,
+} from "./plugin-types.js";
 // Resolver types
 export type { Resolver } from "./resolver-types.js";
 // Spawn governance types (#163)

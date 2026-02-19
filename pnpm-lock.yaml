@@ -507,6 +507,19 @@ importers:
         specifier: ^8.19.0
         version: 8.19.0
 
+  packages/plugins:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/sandbox:
     dependencies:
       '@anthropic-ai/sandbox-runtime':
@@ -641,6 +654,25 @@ importers:
         specifier: '>=4.0.0'
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.2)(yaml@2.8.2)
     devDependencies:
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
+  packages/web-search:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
