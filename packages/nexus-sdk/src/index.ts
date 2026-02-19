@@ -29,13 +29,13 @@ export { HttpClient } from "./http/index.js";
 // Resources
 export { AceResource } from "./resources/ace/index.js";
 export { AgentsResource } from "./resources/agents.js";
+export { ArtifactsResource } from "./resources/artifacts.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
 export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
-export { ArtifactsResource } from "./resources/artifacts.js";
 export { ToolsResource } from "./resources/tools.js";
 // ACE types
 export type {
@@ -77,26 +77,6 @@ export type {
   UpdatePlaybookParams,
 } from "./types/ace.js";
 export type {
-  Artifact,
-  ArtifactBase,
-  ArtifactMetadata,
-  ArtifactsBatchResponse,
-  ArtifactSearchResponse,
-  ArtifactSearchResult,
-  ArtifactsResponse,
-  ArtifactStatus,
-  ArtifactType,
-  AgentArtifact,
-  CreateAgentArtifactParams,
-  CreateArtifactParams,
-  CreateToolArtifactParams,
-  GetArtifactsBatchParams,
-  ListArtifactsParams,
-  SearchArtifactsParams,
-  ToolArtifact,
-  UpdateArtifactParams,
-} from "./types/artifacts.js";
-export type {
   Agent,
   AgentModel,
   AgentStatus,
@@ -106,6 +86,26 @@ export type {
   ListAgentsParams,
   UpdateAgentParams,
 } from "./types/agents.js";
+export type {
+  AgentArtifact,
+  Artifact,
+  ArtifactBase,
+  ArtifactMetadata,
+  ArtifactSearchResponse,
+  ArtifactSearchResult,
+  ArtifactStatus,
+  ArtifactsBatchResponse,
+  ArtifactsResponse,
+  ArtifactType,
+  CreateAgentArtifactParams,
+  CreateArtifactParams,
+  CreateToolArtifactParams,
+  GetArtifactsBatchParams,
+  ListArtifactsParams,
+  SearchArtifactsParams,
+  ToolArtifact,
+  UpdateArtifactParams,
+} from "./types/artifacts.js";
 export type {
   Channel,
   ChannelStatus,

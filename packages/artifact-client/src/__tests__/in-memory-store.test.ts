@@ -119,8 +119,8 @@ describe("InMemoryArtifactStore", () => {
 
       const metadata = await store.discover();
       expect(metadata).toHaveLength(2);
-      expect(metadata[0].name).toBe("a");
-      expect(metadata[1].name).toBe("b");
+      expect(metadata[0]?.name).toBe("a");
+      expect(metadata[1]?.name).toBe("b");
     });
 
     it("returns empty array for empty store", async () => {
@@ -233,7 +233,7 @@ describe("InMemoryArtifactStore", () => {
 
       const tools = await store.list({ type: "tool" });
       expect(tools).toHaveLength(1);
-      expect(tools[0].type).toBe("tool");
+      expect(tools[0]?.type).toBe("tool");
     });
 
     it("filters by status", async () => {
@@ -244,7 +244,7 @@ describe("InMemoryArtifactStore", () => {
 
       const active = await store.list({ status: "active" });
       expect(active).toHaveLength(1);
-      expect(active[0].name).toBe("active-one");
+      expect(active[0]?.name).toBe("active-one");
     });
 
     it("filters by tags (all required)", async () => {
@@ -254,7 +254,7 @@ describe("InMemoryArtifactStore", () => {
 
       const results = await store.list({ tags: ["finance", "refund"] });
       expect(results).toHaveLength(1);
-      expect(results[0].name).toBe("a");
+      expect(results[0]?.name).toBe("a");
     });
   });
 
@@ -269,8 +269,8 @@ describe("InMemoryArtifactStore", () => {
 
       const results = await store.search("refund");
       expect(results).toHaveLength(1);
-      expect(results[0].metadata.name).toBe("refund-calc");
-      expect(results[0].score).toBeGreaterThan(0);
+      expect(results[0]?.metadata.name).toBe("refund-calc");
+      expect(results[0]?.score).toBeGreaterThan(0);
     });
 
     it("returns empty for no match", async () => {

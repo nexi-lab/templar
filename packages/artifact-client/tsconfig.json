@@ -6,9 +6,5 @@
     "isolatedDeclarations": false
   },
   "include": ["src/**/*"],
-  "references": [
-    { "path": "../errors" },
-    { "path": "../core" },
-    { "path": "../nexus-sdk" }
-  ]
+  "references": [{ "path": "../errors" }, { "path": "../core" }, { "path": "../nexus-sdk" }]
 }

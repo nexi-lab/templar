@@ -8,10 +8,10 @@
  * @typeParam Full - Complete entity returned by load()
  */
 export interface Resolver<Meta, Full> {
-	/** Resolver name (for logging and debugging) */
-	readonly name: string;
-	/** Discover all available entities, returning metadata only */
-	discover(): Promise<readonly Meta[]>;
-	/** Load a specific entity's full content by identifier */
-	load(id: string): Promise<Full | undefined>;
+  /** Resolver name (for logging and debugging) */
+  readonly name: string;
+  /** Discover all available entities, returning metadata only */
+  discover(): Promise<readonly Meta[]>;
+  /** Load a specific entity's full content by identifier */
+  load(id: string): Promise<Full | undefined>;
 }

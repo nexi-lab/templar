@@ -317,7 +317,7 @@ describe("ArtifactClient", () => {
 
       const result = await client.search({ query: "calculator" });
       expect(result).toHaveLength(1);
-      expect(result[0].score).toBe(0.95);
+      expect(result[0]?.score).toBe(0.95);
     });
 
     it("falls back to in-memory keyword search on failure", async () => {
