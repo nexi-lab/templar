@@ -8,7 +8,12 @@ import {
   type SessionState,
   SessionStateSchema,
 } from "./sessions.js";
-import { type NodeCapabilities, NodeCapabilitiesSchema } from "./types.js";
+import {
+  type DelegationScope,
+  DelegationScopeSchema,
+  type NodeCapabilities,
+  NodeCapabilitiesSchema,
+} from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Frame Kinds
@@ -26,6 +31,10 @@ export const FRAME_KINDS = [
   "session.identity.update",
   "config.changed",
   "error",
+  "delegation.request",
+  "delegation.accept",
+  "delegation.result",
+  "delegation.cancel",
 ] as const;
 export type FrameKind = (typeof FRAME_KINDS)[number];
 
@@ -119,6 +128,50 @@ export interface ErrorFrame {
 }
 
 // ---------------------------------------------------------------------------
+// Delegation Frames
+// ---------------------------------------------------------------------------
+
+/** Delegation status for result frames */
+export type DelegationStatus = "completed" | "failed" | "refused" | "timeout";
+
+/** Sent by a node to request task delegation to another node */
+export interface DelegationRequestFrame {
+  readonly kind: "delegation.request";
+  readonly delegationId: string;
+  readonly fromNodeId: string;
+  readonly toNodeId: string;
+  readonly scope: DelegationScope;
+  readonly intent: string;
+  readonly payload: LaneMessage;
+  readonly fallbackNodeIds: readonly string[];
+  readonly timeoutMs: number;
+}
+
+/** Sent by a node to accept a delegated task */
+export interface DelegationAcceptFrame {
+  readonly kind: "delegation.accept";
+  readonly delegationId: string;
+  readonly nodeId: string;
+  readonly estimatedDurationMs?: number;
+}
+
+/** Sent by a node to report delegation outcome */
+export interface DelegationResultFrame {
+  readonly kind: "delegation.result";
+  readonly delegationId: string;
+  readonly status: DelegationStatus;
+  readonly result?: unknown;
+  readonly error?: ProblemDetails;
+}
+
+/** Sent to cancel an in-flight delegation */
+export interface DelegationCancelFrame {
+  readonly kind: "delegation.cancel";
+  readonly delegationId: string;
+  readonly reason: string;
+}
+
+// ---------------------------------------------------------------------------
 // Discriminated Union
 // ---------------------------------------------------------------------------
 
@@ -136,7 +189,11 @@ export type GatewayFrame =
   | SessionUpdateFrame
   | SessionIdentityUpdateFrame
   | ConfigChangedFrame
-  | ErrorFrame;
+  | ErrorFrame
+  | DelegationRequestFrame
+  | DelegationAcceptFrame
+  | DelegationResultFrame
+  | DelegationCancelFrame;
 
 // ---------------------------------------------------------------------------
 // Zod Schemas
@@ -213,6 +270,41 @@ export const ErrorFrameSchema = z.object({
   timestamp: z.number().int().positive(),
 });
 
+export const DelegationStatusSchema = z.enum(["completed", "failed", "refused", "timeout"]);
+
+export const DelegationRequestFrameSchema = z.object({
+  kind: z.literal("delegation.request"),
+  delegationId: z.string().min(1),
+  fromNodeId: z.string().min(1),
+  toNodeId: z.string().min(1),
+  scope: DelegationScopeSchema,
+  intent: z.string().min(1),
+  payload: LaneMessageSchema,
+  fallbackNodeIds: z.array(z.string().min(1)),
+  timeoutMs: z.number().int().positive(),
+});
+
+export const DelegationAcceptFrameSchema = z.object({
+  kind: z.literal("delegation.accept"),
+  delegationId: z.string().min(1),
+  nodeId: z.string().min(1),
+  estimatedDurationMs: z.number().int().positive().optional(),
+});
+
+export const DelegationResultFrameSchema = z.object({
+  kind: z.literal("delegation.result"),
+  delegationId: z.string().min(1),
+  status: DelegationStatusSchema,
+  result: z.unknown().optional(),
+  error: ProblemDetailsSchema.optional(),
+});
+
+export const DelegationCancelFrameSchema = z.object({
+  kind: z.literal("delegation.cancel"),
+  delegationId: z.string().min(1),
+  reason: z.string().min(1),
+});
+
 /**
  * Discriminated union schema for all gateway frames.
  */
@@ -228,6 +320,10 @@ export const GatewayFrameSchema = z.discriminatedUnion("kind", [
   SessionIdentityUpdateFrameSchema,
   ConfigChangedFrameSchema,
   ErrorFrameSchema,
+  DelegationRequestFrameSchema,
+  DelegationAcceptFrameSchema,
+  DelegationResultFrameSchema,
+  DelegationCancelFrameSchema,
 ]);
 
 // ---------------------------------------------------------------------------

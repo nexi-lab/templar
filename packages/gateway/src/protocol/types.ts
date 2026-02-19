@@ -50,6 +50,25 @@ export const TaskRequirementsSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Delegation Scope
+// ---------------------------------------------------------------------------
+
+/**
+ * Scope constraints for a delegation request.
+ */
+export interface DelegationScope {
+  readonly requiredCapabilities?: readonly string[];
+  readonly requiredTools?: readonly string[];
+  readonly maxDurationMs?: number;
+}
+
+export const DelegationScopeSchema = z.object({
+  requiredCapabilities: z.array(z.string().min(1)).optional(),
+  requiredTools: z.array(z.string().min(1)).optional(),
+  maxDurationMs: z.number().int().positive().optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Gateway Configuration
 // ---------------------------------------------------------------------------
 

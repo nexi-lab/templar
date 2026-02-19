@@ -161,6 +161,18 @@ export {
 } from "./artifact.js";
 
 // ============================================================================
+// DELEGATION ERRORS — Task delegation lifecycle (#141)
+// ============================================================================
+
+export {
+  DelegationError,
+  DelegationExhaustedError,
+  DelegationInvalidError,
+  DelegationNodeUnavailableError,
+  DelegationTimeoutError,
+} from "./delegation.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 
