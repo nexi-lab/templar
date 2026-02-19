@@ -150,18 +150,6 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
-// Re-export pay types
-export type {
-  BalanceResponse,
-  DebitParams,
-  DebitResponse,
-  TokenUsage,
-  TransferParams,
-  TransferPhase,
-  TransferResponse,
-  TransferStatus,
-} from "./pay.js";
-
 // Re-export ACE types
 export type {
   AddFeedbackParams,
@@ -188,8 +176,8 @@ export type {
   QueryPlaybooksResponse,
   QueryTrajectoriesParams,
   QueryTrajectoriesResponse,
-  ReflectParams,
   ReflectionResult,
+  ReflectParams,
   RelearnParams,
   ScoreStrategy,
   StartTrajectoryParams,
@@ -201,3 +189,14 @@ export type {
   TrajectoryStepType,
   UpdatePlaybookParams,
 } from "./ace.js";
+// Re-export pay types
+export type {
+  BalanceResponse,
+  DebitParams,
+  DebitResponse,
+  TokenUsage,
+  TransferParams,
+  TransferPhase,
+  TransferResponse,
+  TransferStatus,
+} from "./pay.js";

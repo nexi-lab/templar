@@ -15,12 +15,7 @@
  * - wrapToolCall → record tool call step, track feedback signals
  */
 
-import type {
-  LogStepParams,
-  MemoryEntry,
-  NexusClient,
-  PlaybookStrategy,
-} from "@nexus/sdk";
+import type { LogStepParams, MemoryEntry, NexusClient, PlaybookStrategy } from "@nexus/sdk";
 import type {
   ModelHandler,
   ModelRequest,
@@ -138,22 +133,17 @@ function resolveConfig(config: NexusAceConfig): ResolvedAceConfig {
       ...DEFAULT_FEATURE_FLAGS,
       ...config.enabled,
     },
-    maxStrategiesInjected:
-      config.maxStrategiesInjected ?? DEFAULT_ACE_CONFIG.maxStrategiesInjected,
-    minStrategyConfidence:
-      config.minStrategyConfidence ?? DEFAULT_ACE_CONFIG.minStrategyConfidence,
+    maxStrategiesInjected: config.maxStrategiesInjected ?? DEFAULT_ACE_CONFIG.maxStrategiesInjected,
+    minStrategyConfidence: config.minStrategyConfidence ?? DEFAULT_ACE_CONFIG.minStrategyConfidence,
     playbookScope: config.playbookScope ?? DEFAULT_ACE_CONFIG.playbookScope,
-    playbookLoadTimeoutMs:
-      config.playbookLoadTimeoutMs ?? DEFAULT_ACE_CONFIG.playbookLoadTimeoutMs,
+    playbookLoadTimeoutMs: config.playbookLoadTimeoutMs ?? DEFAULT_ACE_CONFIG.playbookLoadTimeoutMs,
     stepBufferSize: config.stepBufferSize ?? DEFAULT_ACE_CONFIG.stepBufferSize,
     stepFlushTimeoutMs: config.stepFlushTimeoutMs ?? DEFAULT_ACE_CONFIG.stepFlushTimeoutMs,
     reflectionMode: config.reflectionMode ?? DEFAULT_ACE_CONFIG.reflectionMode,
-    reflectionTimeoutMs:
-      config.reflectionTimeoutMs ?? DEFAULT_ACE_CONFIG.reflectionTimeoutMs,
+    reflectionTimeoutMs: config.reflectionTimeoutMs ?? DEFAULT_ACE_CONFIG.reflectionTimeoutMs,
     curationQueryTimeoutMs:
       config.curationQueryTimeoutMs ?? DEFAULT_ACE_CONFIG.curationQueryTimeoutMs,
-    maxCuratedMemories:
-      config.maxCuratedMemories ?? DEFAULT_ACE_CONFIG.maxCuratedMemories,
+    maxCuratedMemories: config.maxCuratedMemories ?? DEFAULT_ACE_CONFIG.maxCuratedMemories,
     taskType: config.taskType ?? DEFAULT_ACE_CONFIG.taskType,
   };
 }
@@ -205,25 +195,19 @@ export class NexusAceMiddleware implements TemplarMiddleware {
     // Parallel load: playbook strategies + curated memories (Decision 4B)
     const [strategies, curated] = await Promise.all([
       this.config.enabled.playbooks
-        ? safeNexusCall(
-            () => this.loadPlaybookStrategies(context),
-            {
-              timeout: this.config.playbookLoadTimeoutMs,
-              fallback: [] as readonly PlaybookStrategy[],
-              label: `${label}:playbooks`,
-            },
-          )
+        ? safeNexusCall(() => this.loadPlaybookStrategies(context), {
+            timeout: this.config.playbookLoadTimeoutMs,
+            fallback: [] as readonly PlaybookStrategy[],
+            label: `${label}:playbooks`,
+          })
         : ([] as readonly PlaybookStrategy[]),
 
       this.config.enabled.curation
-        ? safeNexusCall(
-            () => this.loadCuratedMemories(context),
-            {
-              timeout: this.config.curationQueryTimeoutMs,
-              fallback: [] as readonly MemoryEntry[],
-              label: `${label}:curation`,
-            },
-          )
+        ? safeNexusCall(() => this.loadCuratedMemories(context), {
+            timeout: this.config.curationQueryTimeoutMs,
+            fallback: [] as readonly MemoryEntry[],
+            label: `${label}:curation`,
+          })
         : ([] as readonly MemoryEntry[]),
     ]);
 
@@ -236,8 +220,7 @@ export class NexusAceMiddleware implements TemplarMiddleware {
         () =>
           this.client.ace.trajectories.start({
             task_description:
-              (context.metadata?.taskDescription as string) ??
-              `Session ${context.sessionId}`,
+              (context.metadata?.taskDescription as string) ?? `Session ${context.sessionId}`,
             task_type: this.config.taskType,
             metadata: {
               agent_id: context.agentId,
@@ -261,12 +244,8 @@ export class NexusAceMiddleware implements TemplarMiddleware {
       const metadata = context.metadata ?? {};
       context.metadata = {
         ...metadata,
-        ...(this.loadedStrategies.length > 0
-          ? { aceStrategies: this.loadedStrategies }
-          : {}),
-        ...(this.curatedMemories.length > 0
-          ? { aceCuratedMemories: this.curatedMemories }
-          : {}),
+        ...(this.loadedStrategies.length > 0 ? { aceStrategies: this.loadedStrategies } : {}),
+        ...(this.curatedMemories.length > 0 ? { aceCuratedMemories: this.curatedMemories } : {}),
       };
     }
   }
@@ -282,9 +261,7 @@ export class NexusAceMiddleware implements TemplarMiddleware {
         result: context.output,
         metadata: {
           input_preview:
-            typeof context.input === "string"
-              ? context.input.slice(0, 200)
-              : undefined,
+            typeof context.input === "string" ? context.input.slice(0, 200) : undefined,
         },
       };
 
@@ -360,10 +337,7 @@ export class NexusAceMiddleware implements TemplarMiddleware {
   // Wrap Hooks (Decision 2A)
   // ---------------------------------------------------------------------------
 
-  async wrapModelCall(
-    req: ModelRequest,
-    next: ModelHandler,
-  ): Promise<ModelResponse> {
+  async wrapModelCall(req: ModelRequest, next: ModelHandler): Promise<ModelResponse> {
     // Inject playbook strategies into system prompt (Decision 14A)
     const enrichedReq =
       this.loadedStrategies.length > 0
@@ -394,10 +368,7 @@ export class NexusAceMiddleware implements TemplarMiddleware {
     return response;
   }
 
-  async wrapToolCall(
-    req: ToolRequest,
-    next: ToolHandler,
-  ): Promise<ToolResponse> {
+  async wrapToolCall(req: ToolRequest, next: ToolHandler): Promise<ToolResponse> {
     const response = await next(req);
 
     // Buffer trajectory step for tool call
@@ -446,9 +417,7 @@ export class NexusAceMiddleware implements TemplarMiddleware {
   /**
    * Load curated memories from the Nexus Memory API.
    */
-  private async loadCuratedMemories(
-    context: SessionContext,
-  ): Promise<readonly MemoryEntry[]> {
+  private async loadCuratedMemories(context: SessionContext): Promise<readonly MemoryEntry[]> {
     const result = await this.client.memory.search({
       query: (context.metadata?.taskDescription as string) ?? "",
       scope: (context.scope ?? "agent") as "agent" | "user" | "zone" | "global" | "session",

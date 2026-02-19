@@ -50,9 +50,8 @@ export class FeedbackResource extends BaseResource {
    * Get all feedback for a trajectory
    */
   async getForTrajectory(trajectoryId: string): Promise<TrajectoryFeedbackResponse> {
-    return this.http.request<TrajectoryFeedbackResponse>(
-      `/api/v2/feedback/${trajectoryId}`,
-      { method: "GET" },
-    );
+    return this.http.request<TrajectoryFeedbackResponse>(`/api/v2/feedback/${trajectoryId}`, {
+      method: "GET",
+    });
   }
 }

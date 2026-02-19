@@ -68,9 +68,7 @@ describe("NexusAceMiddleware edge cases", () => {
   });
 
   it("2. Trajectory log failure mid-session → LLM chain uninterrupted", async () => {
-    mocks.mockAce.trajectories.logStep.mockRejectedValue(
-      new Error("trajectory API down"),
-    );
+    mocks.mockAce.trajectories.logStep.mockRejectedValue(new Error("trajectory API down"));
 
     const mw = new NexusAceMiddleware(mocks.client, { stepBufferSize: 1 });
     await mw.onSessionStart(makeSessionContext());
@@ -80,9 +78,7 @@ describe("NexusAceMiddleware edge cases", () => {
   });
 
   it("3. Reflection LLM call fails → session ends cleanly", async () => {
-    mocks.mockAce.reflection.reflect.mockRejectedValue(
-      new Error("LLM provider error"),
-    );
+    mocks.mockAce.reflection.reflect.mockRejectedValue(new Error("LLM provider error"));
 
     const mw = new NexusAceMiddleware(mocks.client, {
       enabled: { reflection: true },

@@ -2,11 +2,7 @@
  * Curation sub-resource for the ACE API
  */
 
-import type {
-  CurateBulkParams,
-  CurateParams,
-  CurationResult,
-} from "../../types/ace.js";
+import type { CurateBulkParams, CurateParams, CurationResult } from "../../types/ace.js";
 import { BaseResource } from "../base.js";
 
 /**

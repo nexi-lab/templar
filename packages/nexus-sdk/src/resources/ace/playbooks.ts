@@ -41,24 +41,20 @@ export class PlaybooksResource extends BaseResource {
   /**
    * Update a playbook
    */
-  async update(
-    playbookId: string,
-    params: UpdatePlaybookParams,
-  ): Promise<Record<string, unknown>> {
-    return this.http.request<Record<string, unknown>>(
-      `/api/v2/playbooks/${playbookId}`,
-      { method: "PUT", body: params },
-    );
+  async update(playbookId: string, params: UpdatePlaybookParams): Promise<Record<string, unknown>> {
+    return this.http.request<Record<string, unknown>>(`/api/v2/playbooks/${playbookId}`, {
+      method: "PUT",
+      body: params,
+    });
   }
 
   /**
    * Delete a playbook
    */
   async delete(playbookId: string): Promise<Record<string, unknown>> {
-    return this.http.request<Record<string, unknown>>(
-      `/api/v2/playbooks/${playbookId}`,
-      { method: "DELETE" },
-    );
+    return this.http.request<Record<string, unknown>>(`/api/v2/playbooks/${playbookId}`, {
+      method: "DELETE",
+    });
   }
 
   /**
@@ -66,10 +62,10 @@ export class PlaybooksResource extends BaseResource {
    */
   async recordUsage(params: PlaybookUsageParams): Promise<Record<string, unknown>> {
     const { playbook_id, ...body } = params;
-    return this.http.request<Record<string, unknown>>(
-      `/api/v2/playbooks/${playbook_id}/usage`,
-      { method: "POST", body },
-    );
+    return this.http.request<Record<string, unknown>>(`/api/v2/playbooks/${playbook_id}/usage`, {
+      method: "POST",
+      body,
+    });
   }
 
   /**

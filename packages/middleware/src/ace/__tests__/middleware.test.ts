@@ -97,9 +97,9 @@ describe("NexusAceMiddleware", () => {
     });
 
     it("rejects invalid minStrategyConfidence", () => {
-      expect(
-        () => new NexusAceMiddleware(mocks.client, { minStrategyConfidence: 1.5 }),
-      ).toThrow(AceConfigurationError);
+      expect(() => new NexusAceMiddleware(mocks.client, { minStrategyConfidence: 1.5 })).toThrow(
+        AceConfigurationError,
+      );
     });
 
     it("accepts valid custom config", () => {
@@ -387,20 +387,16 @@ describe("validateAceConfig", () => {
   });
 
   it("rejects invalid reflectionMode", () => {
-    expect(() =>
-      validateAceConfig({ reflectionMode: "invalid" as "sync" }),
-    ).toThrow(AceConfigurationError);
+    expect(() => validateAceConfig({ reflectionMode: "invalid" as "sync" })).toThrow(
+      AceConfigurationError,
+    );
   });
 
   it("rejects negative timeouts", () => {
-    expect(() => validateAceConfig({ playbookLoadTimeoutMs: -1 })).toThrow(
-      AceConfigurationError,
-    );
+    expect(() => validateAceConfig({ playbookLoadTimeoutMs: -1 })).toThrow(AceConfigurationError);
   });
 
   it("rejects maxCuratedMemories > 100", () => {
-    expect(() => validateAceConfig({ maxCuratedMemories: 101 })).toThrow(
-      AceConfigurationError,
-    );
+    expect(() => validateAceConfig({ maxCuratedMemories: 101 })).toThrow(AceConfigurationError);
   });
 });

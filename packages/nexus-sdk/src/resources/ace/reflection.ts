@@ -2,7 +2,7 @@
  * Reflection sub-resource for the ACE API
  */
 
-import type { ReflectParams, ReflectionResult } from "../../types/ace.js";
+import type { ReflectionResult, ReflectParams } from "../../types/ace.js";
 import { BaseResource } from "../base.js";
 
 /**

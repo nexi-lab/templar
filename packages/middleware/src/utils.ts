@@ -93,9 +93,7 @@ export async function safeNexusCall<T>(
     return result ?? options.fallback;
   } catch (error) {
     console.warn(
-      `[${options.label}] Call failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `[${options.label}] Call failed: ${error instanceof Error ? error.message : String(error)}`,
     );
     return options.fallback;
   }

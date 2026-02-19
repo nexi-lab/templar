@@ -22,9 +22,7 @@ export class ConsolidationResource extends BaseResource {
   /**
    * Build hierarchical memory structure
    */
-  async buildHierarchy(
-    params: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
+  async buildHierarchy(params: Record<string, unknown>): Promise<Record<string, unknown>> {
     return this.http.request<Record<string, unknown>>("/api/v2/consolidate/hierarchy", {
       method: "POST",
       body: params,

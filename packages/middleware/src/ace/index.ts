@@ -1,5 +1,5 @@
 import type { NexusClient } from "@nexus/sdk";
-import { NexusAceMiddleware, validateAceConfig } from "./middleware.js";
+import { NexusAceMiddleware } from "./middleware.js";
 import type { NexusAceConfig } from "./types.js";
 
 /**
