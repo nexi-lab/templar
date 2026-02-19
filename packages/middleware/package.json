@@ -32,6 +32,10 @@
       "types": "./dist/ace.d.ts",
       "import": "./dist/ace.js"
     },
+    "./context": {
+      "types": "./dist/context.d.ts",
+      "import": "./dist/context.js"
+    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js"

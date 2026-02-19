@@ -114,6 +114,54 @@ export const BootstrapPathConfigSchema = z.object({
  */
 export const SessionScopingSchema = z.enum(CONVERSATION_SCOPES);
 
+// ---------------------------------------------------------------------------
+// Context Hydration Config (#59)
+// ---------------------------------------------------------------------------
+
+const McpToolSourceSchema = z.object({
+  type: z.literal("mcp_tool"),
+  tool: z.string().min(1),
+  args: z.record(z.string()).optional(),
+  maxChars: z.number().int().positive().optional(),
+  timeoutMs: z.number().int().positive().optional(),
+});
+
+const WorkspaceSnapshotSourceSchema = z.object({
+  type: z.literal("workspace_snapshot"),
+  mode: z.enum(["latest", "files_only"]).optional(),
+  maxChars: z.number().int().positive().optional(),
+  timeoutMs: z.number().int().positive().optional(),
+});
+
+const MemoryQuerySourceSchema = z.object({
+  type: z.literal("memory_query"),
+  query: z.string().min(1),
+  limit: z.number().int().positive().optional(),
+  maxChars: z.number().int().positive().optional(),
+  timeoutMs: z.number().int().positive().optional(),
+});
+
+const LinkedResourceSourceSchema = z.object({
+  type: z.literal("linked_resource"),
+  urls: z.array(z.string().url()).nonempty(),
+  maxChars: z.number().int().positive().optional(),
+  timeoutMs: z.number().int().positive().optional(),
+});
+
+export const ContextSourceConfigSchema = z.discriminatedUnion("type", [
+  McpToolSourceSchema,
+  WorkspaceSnapshotSourceSchema,
+  MemoryQuerySourceSchema,
+  LinkedResourceSourceSchema,
+]);
+
+export const ContextHydrationConfigSchema = z.object({
+  sources: z.array(ContextSourceConfigSchema).optional(),
+  maxHydrationTimeMs: z.number().int().positive().optional(),
+  maxContextChars: z.number().int().positive().optional(),
+  failureStrategy: z.enum(["continue", "abort"]).optional(),
+});
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -129,6 +177,7 @@ export const AgentManifestSchema = z.object({
   skills: z.array(SkillRefSchema).optional(),
   bootstrap: BootstrapPathConfigSchema.optional(),
   sessionScoping: SessionScopingSchema.optional(),
+  context: ContextHydrationConfigSchema.optional(),
 });
 
 /**

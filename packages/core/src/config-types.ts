@@ -1,4 +1,5 @@
 import type { NexusClient as _NexusClient } from "@nexus/sdk";
+import type { ContextHydrationConfig } from "./context-types.js";
 import type { ExecutionLimitsConfig } from "./execution-types.js";
 import type { IdentityConfig } from "./message-types.js";
 import type { SpawnLimitsConfig } from "./spawn-types.js";
@@ -139,6 +140,8 @@ export interface AgentManifest {
   bootstrap?: BootstrapPathConfig;
   /** Conversation isolation mode */
   sessionScoping?: ConversationScope;
+  /** Deterministic context pre-loading (#59) */
+  context?: ContextHydrationConfig;
 }
 
 /**

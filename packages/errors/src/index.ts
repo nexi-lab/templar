@@ -114,6 +114,16 @@ export {
 } from "./spawn-governance.js";
 
 // ============================================================================
+// CONTEXT HYDRATION ERRORS — Deterministic context pre-loading (#59)
+// ============================================================================
+
+export {
+  ContextHydrationError,
+  HydrationSourceFailedError,
+  HydrationTimeoutError,
+} from "./context-hydration.js";
+
+// ============================================================================
 // SELF-TEST ERRORS — Pluggable self-verification (#44)
 // ============================================================================
 
