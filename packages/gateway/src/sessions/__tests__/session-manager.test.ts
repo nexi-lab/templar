@@ -324,6 +324,217 @@ describe("SessionManager", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Session ID generation
+  // -------------------------------------------------------------------------
+
+  describe("session ID", () => {
+    it("generates a UUID sessionId", () => {
+      const session = manager.createSession("node-1");
+      // UUID v4 format: 8-4-4-4-12 hex digits
+      expect(session.sessionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+    });
+
+    it("generates unique sessionIds across sessions", () => {
+      const session1 = manager.createSession("node-1");
+      manager.destroySession("node-1");
+      const session2 = manager.createSession("node-1");
+      expect(session1.sessionId).not.toBe(session2.sessionId);
+    });
+
+    it("sessionId persists through state transitions", () => {
+      const session = manager.createSession("node-1");
+      const originalId = session.sessionId;
+      manager.handleEvent("node-1", "idle_timeout");
+      expect(manager.getSession("node-1")?.sessionId).toBe(originalId);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Identity context
+  // -------------------------------------------------------------------------
+
+  describe("identity context", () => {
+    const testIdentity = {
+      identity: { name: "Bot", avatar: "https://a.png" },
+      channelType: "slack",
+      agentId: "agent-1",
+    };
+
+    describe("createSession with identity", () => {
+      it("creates session without identity context (backward compat)", () => {
+        const session = manager.createSession("node-1");
+        expect(session.identityContext).toBeUndefined();
+      });
+
+      it("creates session with identity context", () => {
+        const session = manager.createSession("node-1", {
+          identityContext: testIdentity,
+        });
+        expect(session.identityContext).toEqual(testIdentity);
+      });
+
+      it("deep-freezes the identity context including nested objects", () => {
+        const session = manager.createSession("node-1", {
+          identityContext: testIdentity,
+        });
+        expect(Object.isFrozen(session.identityContext)).toBe(true);
+        expect(Object.isFrozen(session.identityContext?.identity)).toBe(true);
+      });
+
+      it("deep-clones identity to prevent external mutation", () => {
+        const mutableIdentity = {
+          identity: { name: "Bot" },
+          channelType: "slack",
+        };
+        const session = manager.createSession("node-1", {
+          identityContext: mutableIdentity,
+        });
+        // Mutate the original — session should not be affected
+        mutableIdentity.identity.name = "Hacked";
+        expect(session.identityContext?.identity?.name).toBe("Bot");
+      });
+
+      it("creates session with empty identity context", () => {
+        const session = manager.createSession("node-1", {
+          identityContext: {},
+        });
+        expect(session.identityContext).toEqual({});
+      });
+
+      it("creates session with identity only (no channelType/agentId)", () => {
+        const session = manager.createSession("node-1", {
+          identityContext: {
+            identity: { name: "Minimal Bot" },
+          },
+        });
+        expect(session.identityContext?.identity?.name).toBe("Minimal Bot");
+        expect(session.identityContext?.channelType).toBeUndefined();
+      });
+    });
+
+    describe("identity persists through state transitions", () => {
+      it("identity survives CONNECTED → IDLE transition", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        vi.advanceTimersByTime(DEFAULT_CONFIG.sessionTimeout);
+        const session = manager.getSession("node-1");
+        expect(session?.state).toBe("idle");
+        expect(session?.identityContext).toEqual(testIdentity);
+      });
+
+      it("identity survives full lifecycle: CONNECTED → IDLE → SUSPENDED → reconnect → CONNECTED", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+
+        vi.advanceTimersByTime(DEFAULT_CONFIG.sessionTimeout);
+        expect(manager.getSession("node-1")?.identityContext).toEqual(testIdentity);
+
+        vi.advanceTimersByTime(DEFAULT_CONFIG.suspendTimeout);
+        expect(manager.getSession("node-1")?.identityContext).toEqual(testIdentity);
+
+        manager.handleEvent("node-1", "reconnect");
+        expect(manager.getSession("node-1")?.state).toBe("connected");
+        expect(manager.getSession("node-1")?.identityContext).toEqual(testIdentity);
+      });
+
+      it("identity survives heartbeat events", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        manager.handleEvent("node-1", "heartbeat");
+        expect(manager.getSession("node-1")?.identityContext).toEqual(testIdentity);
+      });
+
+      it("identity survives message events", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        manager.handleEvent("node-1", "message");
+        expect(manager.getSession("node-1")?.identityContext).toEqual(testIdentity);
+      });
+    });
+
+    describe("updateIdentityContext()", () => {
+      it("updates identity on existing session", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        const newIdentity = {
+          identity: { name: "Updated Bot" },
+          channelType: "discord",
+          agentId: "agent-2",
+        };
+        const updated = manager.updateIdentityContext("node-1", newIdentity);
+        expect(updated).toBeDefined();
+        expect(updated?.identityContext).toEqual(newIdentity);
+        expect(manager.getSession("node-1")?.identityContext).toEqual(newIdentity);
+      });
+
+      it("returns undefined when identity is unchanged", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        const result = manager.updateIdentityContext("node-1", testIdentity);
+        expect(result).toBeUndefined();
+      });
+
+      it("throws for unknown nodeId", () => {
+        expect(() => manager.updateIdentityContext("unknown", testIdentity)).toThrow(
+          GatewayNodeNotFoundError,
+        );
+      });
+
+      it("deep-freezes the new identity context including nested objects", () => {
+        manager.createSession("node-1");
+        const updated = manager.updateIdentityContext("node-1", testIdentity);
+        expect(Object.isFrozen(updated?.identityContext)).toBe(true);
+        expect(Object.isFrozen(updated?.identityContext?.identity)).toBe(true);
+      });
+
+      it("deep-clones to prevent external mutation", () => {
+        manager.createSession("node-1");
+        const mutableIdentity = {
+          identity: { name: "Bot" },
+          channelType: "slack",
+        };
+        manager.updateIdentityContext("node-1", mutableIdentity);
+        mutableIdentity.identity.name = "Hacked";
+        expect(manager.getSession("node-1")?.identityContext?.identity?.name).toBe("Bot");
+      });
+
+      it("can clear identity by setting to undefined", () => {
+        manager.createSession("node-1", { identityContext: testIdentity });
+        const updated = manager.updateIdentityContext("node-1", undefined);
+        expect(updated).toBeDefined();
+        expect(updated?.identityContext).toBeUndefined();
+        expect(manager.getSession("node-1")?.identityContext).toBeUndefined();
+      });
+
+      it("preserves other session fields", () => {
+        const session = manager.createSession("node-1", {
+          identityContext: testIdentity,
+        });
+        const originalSessionId = session.sessionId;
+        const newIdentity = { identity: { name: "New" }, channelType: "telegram" };
+        const updated = manager.updateIdentityContext("node-1", newIdentity);
+        expect(updated?.sessionId).toBe(originalSessionId);
+        expect(updated?.nodeId).toBe("node-1");
+        expect(updated?.state).toBe("connected");
+      });
+
+      it("can set identity on session created without identity", () => {
+        manager.createSession("node-1");
+        const updated = manager.updateIdentityContext("node-1", testIdentity);
+        expect(updated?.identityContext).toEqual(testIdentity);
+      });
+
+      it("detects change even when identity values differ subtly", () => {
+        manager.createSession("node-1", {
+          identityContext: { identity: { name: "Bot" }, channelType: "slack" },
+        });
+        const result = manager.updateIdentityContext("node-1", {
+          identity: { name: "Bot" },
+          channelType: "discord",
+        });
+        expect(result).toBeDefined();
+        expect(result?.identityContext?.channelType).toBe("discord");
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Edge cases
   // -------------------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+import type { ChannelIdentityConfig } from "@templar/core";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,42 @@ export const SESSION_TRANSITIONS: Readonly<
 } as const;
 
 // ---------------------------------------------------------------------------
+// Session Identity Context
+// ---------------------------------------------------------------------------
+
+/**
+ * Identity context resolved at session creation time.
+ *
+ * 3-level cascade: session override → channel → default.
+ * Frozen and immutable — updates create a new context object.
+ */
+export interface SessionIdentityContext {
+  /** Resolved identity for this session (name, avatar, bio, systemPromptPrefix) */
+  readonly identity?: ChannelIdentityConfig;
+  /** The channel type this session is serving */
+  readonly channelType?: string;
+  /** The agent ID operating in this session */
+  readonly agentId?: string;
+}
+
+/**
+ * Zod schema for ChannelIdentityConfig within the gateway protocol.
+ * Mirrors @templar/core ChannelIdentityConfig — validated at protocol boundary.
+ */
+export const ChannelIdentityConfigProtocolSchema = z.object({
+  name: z.string().max(80).optional(),
+  avatar: z.string().url().optional(),
+  bio: z.string().max(512).optional(),
+  systemPromptPrefix: z.string().max(4096).optional(),
+});
+
+export const SessionIdentityContextSchema = z.object({
+  identity: ChannelIdentityConfigProtocolSchema.optional(),
+  channelType: z.string().min(1).optional(),
+  agentId: z.string().min(1).optional(),
+});
+
+// ---------------------------------------------------------------------------
 // Session Metadata
 // ---------------------------------------------------------------------------
 
@@ -86,17 +123,23 @@ export const SESSION_TRANSITIONS: Readonly<
  * Metadata tracked per session.
  */
 export interface SessionInfo {
+  /** Unique session identifier (UUID) */
+  readonly sessionId: string;
   readonly nodeId: string;
   readonly state: SessionState;
   readonly connectedAt: number;
   readonly lastActivityAt: number;
   readonly reconnectCount: number;
+  /** Per-session identity context — resolved at session creation */
+  readonly identityContext?: SessionIdentityContext;
 }
 
 export const SessionInfoSchema = z.object({
+  sessionId: z.string().uuid(),
   nodeId: z.string().min(1),
   state: SessionStateSchema,
   connectedAt: z.number().int().positive(),
   lastActivityAt: z.number().int().positive(),
   reconnectCount: z.number().int().nonnegative(),
+  identityContext: SessionIdentityContextSchema.optional(),
 });

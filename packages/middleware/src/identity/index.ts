@@ -1,4 +1,9 @@
-export { resolveChannelIdentity, resolveIdentity } from "./resolver.js";
+export {
+  mergeIdentityConfig,
+  resolveChannelIdentity,
+  resolveIdentity,
+  resolveIdentityWithSession,
+} from "./resolver.js";
 export {
   ChannelIdentityConfigSchema,
   IdentityConfigSchema,

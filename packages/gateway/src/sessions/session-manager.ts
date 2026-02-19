@@ -1,7 +1,24 @@
+import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
-import type { SessionEvent, SessionInfo } from "../protocol/index.js";
+import type { SessionEvent, SessionIdentityContext, SessionInfo } from "../protocol/index.js";
 import { mapDelete, mapSet } from "../utils/immutable-map.js";
 import { type TransitionResult, transition } from "./state-machine.js";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Recursively freeze an object and all nested objects. */
+function deepFreeze<T>(obj: T): T {
+  Object.freeze(obj);
+  for (const value of Object.values(obj as Record<string, unknown>)) {
+    if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+      deepFreeze(value);
+    }
+  }
+  return obj;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,6 +29,14 @@ export interface SessionManagerConfig {
   readonly sessionTimeout: number;
   /** Suspend timeout in ms before IDLE → SUSPENDED */
   readonly suspendTimeout: number;
+}
+
+/**
+ * Options for creating a new session.
+ */
+export interface SessionCreateOptions {
+  /** Per-session identity context — resolved at session creation */
+  readonly identityContext?: SessionIdentityContext;
 }
 
 export type SessionEventHandler = (
@@ -44,17 +69,23 @@ export class SessionManager {
   /**
    * Create a new session for a node.
    */
-  createSession(nodeId: string): SessionInfo {
+  createSession(nodeId: string, options?: SessionCreateOptions): SessionInfo {
     if (this.sessions.has(nodeId)) {
       throw new GatewayNodeAlreadyRegisteredError(nodeId);
     }
     const now = Date.now();
+    const identityContext =
+      options?.identityContext !== undefined
+        ? deepFreeze(structuredClone(options.identityContext))
+        : undefined;
     const session: SessionInfo = {
+      sessionId: randomUUID(),
       nodeId,
       state: "connected",
       connectedAt: now,
       lastActivityAt: now,
       reconnectCount: 0,
+      ...(identityContext !== undefined ? { identityContext } : {}),
     };
     this.sessions = mapSet(this.sessions, nodeId, session);
     this.startIdleTimer(nodeId);
@@ -93,6 +124,37 @@ export class SessionManager {
     }
 
     return result;
+  }
+
+  /**
+   * Update the identity context for an existing session.
+   * Returns the updated session, or undefined if identity unchanged.
+   * Throws if the nodeId is not found.
+   */
+  updateIdentityContext(
+    nodeId: string,
+    identityContext: SessionIdentityContext | undefined,
+  ): SessionInfo | undefined {
+    const session = this.sessions.get(nodeId);
+    if (!session) {
+      throw new GatewayNodeNotFoundError(nodeId);
+    }
+
+    // Fast-path: skip update if identity is unchanged
+    if (isDeepStrictEqual(session.identityContext, identityContext)) {
+      return undefined;
+    }
+
+    const frozenContext =
+      identityContext !== undefined ? deepFreeze(structuredClone(identityContext)) : undefined;
+
+    // Build updated session — omit identityContext key when undefined
+    // to satisfy exactOptionalPropertyTypes
+    const { identityContext: _prev, ...rest } = session;
+    const updatedSession: SessionInfo =
+      frozenContext !== undefined ? { ...rest, identityContext: frozenContext } : { ...rest };
+    this.sessions = mapSet(this.sessions, nodeId, updatedSession);
+    return updatedSession;
   }
 
   /**
