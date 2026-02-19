@@ -1,6 +1,8 @@
 import { BindingResolver } from "./binding-resolver.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
+import { DelegationManager, type DelegationManagerConfig } from "./delegation-manager.js";
+import type { DelegationStore } from "./delegation-store.js";
 import { DeliveryTracker } from "./delivery-tracker.js";
 import { timingSafeTokenCompare, verifyDeviceJwt } from "./device-auth.js";
 import {
@@ -9,6 +11,10 @@ import {
   importBase64urlPublicKey,
 } from "./device-key-store.js";
 import type {
+  DelegationAcceptFrame,
+  DelegationCancelFrame,
+  DelegationRequestFrame,
+  DelegationResultFrame,
   GatewayConfig,
   GatewayFrame,
   LaneMessage,
@@ -40,6 +46,12 @@ export interface TemplarGatewayDeps {
   readonly router?: AgentRouter;
   readonly configWatcher?: ConfigWatcher;
   readonly healthMonitor?: HealthMonitor;
+  /** Delegation lifecycle manager (optional, created if delegationConfig provided) */
+  readonly delegationManager?: DelegationManager;
+  /** Delegation store for persistent tracking (optional, graceful degradation) */
+  readonly delegationStore?: DelegationStore;
+  /** Delegation config (providing this enables the delegation subsystem) */
+  readonly delegationConfig?: Partial<DelegationManagerConfig>;
 }
 
 export type GatewayEventHandler<T extends unknown[] = []> = (...args: T) => void;
@@ -52,6 +64,12 @@ type GatewayEvents = {
   "node.registered": [nodeId: string];
   "node.deregistered": [nodeId: string];
   "node.dead": [nodeId: string];
+  "delegation.started": [delegationId: string, fromNodeId: string, toNodeId: string];
+  "delegation.accepted": [delegationId: string, nodeId: string];
+  "delegation.failed": [delegationId: string, nodeId: string, reason: string];
+  "delegation.exhausted": [delegationId: string, failedNodes: readonly string[]];
+  "delegation.completed": [delegationId: string, nodeId: string];
+  "delegation.cancelled": [delegationId: string, reason: string];
 };
 
 // ---------------------------------------------------------------------------
@@ -81,6 +99,7 @@ export class TemplarGateway {
   private readonly deliveryTracker: DeliveryTracker;
   private readonly conversationStore: ConversationStore;
   private readonly deviceKeyStore: DeviceKeyStore;
+  private readonly delegationManager: DelegationManager | undefined;
   private readonly events: Emitter<GatewayEvents> = createEmitter();
 
   // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
@@ -172,6 +191,18 @@ export class TemplarGateway {
     // NodeRegistry maintains agentId → nodeId automatically during register/deregister.
     this.router.setAgentNodeResolver((agentId) => this.registry.resolveAgent(agentId));
 
+    // 11. Delegation manager (optional — created when config or deps provided)
+    if (deps.delegationManager) {
+      this.delegationManager = deps.delegationManager;
+    } else if (deps.delegationConfig) {
+      this.delegationManager = new DelegationManager(
+        deps.delegationConfig,
+        this.registry,
+        (nodeId, frame) => this.sendToNode(nodeId, frame),
+        deps.delegationStore,
+      );
+    }
+
     // Wire all event handlers
     this.wireFrameHandlers(config);
     this.wireConnectionHandlers();
@@ -203,6 +234,7 @@ export class TemplarGateway {
    */
   async stop(): Promise<void> {
     this.healthMonitor.stop();
+    this.delegationManager?.dispose();
     await this.configWatcher.stop();
     this.sessionManager.dispose();
     this.registry.clear();
@@ -304,6 +336,13 @@ export class TemplarGateway {
   }
 
   /**
+   * Get the delegation manager (for testing/inspection).
+   */
+  getDelegationManager(): DelegationManager | undefined {
+    return this.delegationManager;
+  }
+
+  /**
    * Get the agentId → nodeId map (for testing/inspection).
    * Delegates to NodeRegistry's reverse index.
    */
@@ -355,6 +394,36 @@ export class TemplarGateway {
         case "lane.message.ack":
           this.handleLaneMessageAck(connectionId, frame as LaneMessageAckFrame);
           break;
+        case "delegation.request": {
+          const reqNodeId = this.connectionToNode.get(connectionId);
+          if (!reqNodeId) {
+            this.sendAuthError(connectionId, 403, "Connection must register before delegating");
+            break;
+          }
+          const reqFrame = frame as DelegationRequestFrame;
+          if (reqNodeId !== reqFrame.fromNodeId) {
+            this.sendAuthError(connectionId, 403, "Cannot delegate on behalf of another node");
+            break;
+          }
+          this.handleDelegationRequest(connectionId, reqFrame);
+          break;
+        }
+        case "delegation.accept":
+        case "delegation.result": {
+          const respNodeId = this.connectionToNode.get(connectionId);
+          if (!respNodeId || !this.delegationManager) break;
+          this.delegationManager.handleDelegationFrame(
+            frame as DelegationAcceptFrame | DelegationResultFrame,
+          );
+          break;
+        }
+        case "delegation.cancel": {
+          const cancelNodeId = this.connectionToNode.get(connectionId);
+          if (!cancelNodeId || !this.delegationManager) break;
+          const cancelFrame = frame as DelegationCancelFrame;
+          this.delegationManager.cancel(cancelFrame.delegationId, cancelFrame.reason);
+          break;
+        }
         default:
           // Other frames (session.update, etc.) are handled by higher layers
           break;
@@ -388,6 +457,7 @@ export class TemplarGateway {
     // Piggyback conversation TTL sweep on health check interval
     this.healthMonitor.onSweep(() => {
       this.conversationStore.sweep();
+      this.delegationManager?.sweep();
     });
   }
 
@@ -707,6 +777,42 @@ export class TemplarGateway {
     }
   }
 
+  private handleDelegationRequest(connectionId: string, frame: DelegationRequestFrame): void {
+    if (!this.delegationManager) {
+      const errorFrame: GatewayFrame = {
+        kind: "error",
+        error: {
+          type: "about:blank",
+          title: "Delegation not enabled",
+          status: 501,
+          detail: "Delegation subsystem is not configured on this gateway",
+        },
+        timestamp: Date.now(),
+      };
+      this.server.sendFrame(connectionId, errorFrame);
+      return;
+    }
+
+    void this.delegationManager.delegate(frame).then(
+      (result) => {
+        this.sendToNode(frame.fromNodeId, result);
+      },
+      (err) => {
+        const errorFrame: GatewayFrame = {
+          kind: "error",
+          error: {
+            type: "about:blank",
+            title: "Delegation failed",
+            status: 500,
+            detail: err instanceof Error ? err.message : String(err),
+          },
+          timestamp: Date.now(),
+        };
+        this.sendToNode(frame.fromNodeId, errorFrame);
+      },
+    );
+  }
+
   private handleLaneMessageAck(connectionId: string, frame: LaneMessageAckFrame): void {
     const nodeId = this.connectionToNode.get(connectionId);
     if (nodeId) {
@@ -729,6 +835,9 @@ export class TemplarGateway {
   }
 
   private cleanupNode(nodeId: string): void {
+    // Cancel all delegations involving this node
+    this.delegationManager?.cleanupNode(nodeId);
+
     // Remove in reverse order of creation
     this.router.removeDispatcher(nodeId);
     this.conversationStore.removeNode(nodeId);

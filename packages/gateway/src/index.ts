@@ -15,6 +15,12 @@ export {
   type FieldMatcher,
   matchField,
 } from "./binding-resolver.js";
+// Circuit breaker
+export {
+  CircuitBreaker,
+  type CircuitBreakerConfig,
+  type CircuitBreakerState,
+} from "./circuit-breaker.js";
 // Config
 export {
   type ConfigErrorHandler,
@@ -30,6 +36,13 @@ export {
   ConversationStore,
   type ConversationStoreConfig,
 } from "./conversations/index.js";
+// Delegation
+export {
+  type DelegationEvents,
+  DelegationManager,
+  type DelegationManagerConfig,
+} from "./delegation-manager.js";
+export type { DelegationRecord, DelegationStore } from "./delegation-store.js";
 // Delivery tracking
 export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
 // Device auth
