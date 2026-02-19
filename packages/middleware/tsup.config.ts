@@ -10,6 +10,7 @@ export default defineConfig({
     permissions: "src/permissions/index.ts",
     identity: "src/identity/index.ts",
     ace: "src/ace/index.ts",
+    observational: "src/observational/index.ts",
     utils: "src/utils.ts",
   },
   format: ["esm"],

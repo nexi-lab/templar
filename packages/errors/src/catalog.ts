@@ -1606,6 +1606,37 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // OBSERVATIONAL MEMORY ERRORS — Observer + Reflector agents (#154)
+  // ============================================================================
+  OBSERVATIONAL_CONFIGURATION_INVALID: {
+    domain: "observational",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid observational memory configuration",
+    description: "The observational memory middleware configuration is invalid",
+  },
+  OBSERVATIONAL_EXTRACTION_FAILED: {
+    domain: "observational",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Observation extraction failed",
+    description: "The LLM observation extraction call failed during conversation analysis",
+  },
+  OBSERVATIONAL_REFLECTION_FAILED: {
+    domain: "observational",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Observation reflection failed",
+    description: "The reflector LLM call failed during observation synthesis",
+  },
+
+  // ============================================================================
   // ENGINE EXECUTION GUARD ERRORS — Loop detection and iteration limits
   // ============================================================================
   ENGINE_ITERATION_LIMIT: {
