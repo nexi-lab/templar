@@ -173,6 +173,17 @@ export {
 } from "./delegation.js";
 
 // ============================================================================
+// OBSERVATIONAL MEMORY ERRORS — Observer + Reflector agents (#154)
+// ============================================================================
+
+export {
+  ObservationalConfigurationError,
+  ObservationalError,
+  ObservationalReflectionError,
+  ObservationExtractionError,
+} from "./observational.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 
