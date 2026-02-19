@@ -22,8 +22,10 @@ function pick<T>(channelVal: T | undefined, defaultVal: T | undefined): T | unde
 /**
  * Merge channel override and default into a ChannelIdentityConfig.
  * Returns undefined if all fields are absent.
+ *
+ * Exported for use in 3-level cascade (session → channel → default).
  */
-function mergeIdentityConfig(
+export function mergeIdentityConfig(
   channelOverride: ChannelIdentityConfig | undefined,
   defaultIdentity: ChannelIdentityConfig | undefined,
 ): ChannelIdentityConfig | undefined {
@@ -72,6 +74,23 @@ export function resolveIdentity(
   }
 
   return mergeIdentityConfig(channelOverride, defaultIdentity);
+}
+
+/**
+ * Resolve identity with a 3-level cascade: session → channel → default.
+ *
+ * Session-level override takes precedence over channel, which takes precedence
+ * over default. Each level merges field-by-field (most specific wins per field).
+ * Returns a new frozen object (never mutates input).
+ */
+export function resolveIdentityWithSession(
+  config: IdentityConfig | undefined,
+  channelType: string,
+  sessionOverride?: ChannelIdentityConfig,
+): ChannelIdentityConfig | undefined {
+  const baseResolved = resolveIdentity(config, channelType);
+  if (sessionOverride === undefined) return baseResolved;
+  return mergeIdentityConfig(sessionOverride, baseResolved);
 }
 
 /**

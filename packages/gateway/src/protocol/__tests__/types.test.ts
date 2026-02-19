@@ -234,6 +234,7 @@ describe("Sessions", () => {
 describe("SessionInfo", () => {
   it("accepts valid session info", () => {
     const info = {
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
       nodeId: "node-1",
       state: "connected" as const,
       connectedAt: Date.now(),
@@ -243,8 +244,51 @@ describe("SessionInfo", () => {
     expect(SessionInfoSchema.parse(info)).toEqual(info);
   });
 
+  it("accepts session info with identityContext", () => {
+    const info = {
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      nodeId: "node-1",
+      state: "connected" as const,
+      connectedAt: Date.now(),
+      lastActivityAt: Date.now(),
+      reconnectCount: 0,
+      identityContext: {
+        identity: { name: "Bot", avatar: "https://a.png" },
+        channelType: "slack",
+        agentId: "agent-1",
+      },
+    };
+    expect(SessionInfoSchema.parse(info)).toEqual(info);
+  });
+
+  it("accepts session info without identityContext", () => {
+    const info = {
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      nodeId: "node-1",
+      state: "connected" as const,
+      connectedAt: Date.now(),
+      lastActivityAt: Date.now(),
+      reconnectCount: 0,
+    };
+    const result = SessionInfoSchema.safeParse(info);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects session info with invalid sessionId", () => {
+    const result = SessionInfoSchema.safeParse({
+      sessionId: "not-a-uuid",
+      nodeId: "node-1",
+      state: "connected",
+      connectedAt: Date.now(),
+      lastActivityAt: Date.now(),
+      reconnectCount: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects negative reconnectCount", () => {
     const result = SessionInfoSchema.safeParse({
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
       nodeId: "node-1",
       state: "connected",
       connectedAt: Date.now(),

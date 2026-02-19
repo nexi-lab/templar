@@ -1133,4 +1133,203 @@ describe("TemplarGateway", () => {
       await gateway.stop();
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Session identity tracking (#79)
+  // -------------------------------------------------------------------------
+
+  describe("session identity tracking", () => {
+    it("session ack contains UUID sessionId", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      const ackFrame = ws.sentFrames().find((f) => f.kind === "node.register.ack");
+      expect(ackFrame).toBeDefined();
+      if (ackFrame?.kind === "node.register.ack") {
+        // UUID v4 format
+        expect(ackFrame.sessionId).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        );
+      }
+
+      await gateway.stop();
+    });
+
+    it("updateSessionIdentity sets identity and emits frame", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      const identity = {
+        identity: { name: "Test Bot", avatar: "https://a.png" },
+        channelType: "slack",
+        agentId: "agent-1",
+      };
+      const changed = gateway.updateSessionIdentity("agent-1", identity);
+      expect(changed).toBe(true);
+
+      // Verify identity is stored
+      expect(gateway.getSessionIdentity("agent-1")).toEqual(identity);
+
+      // Verify identity update frame was sent
+      const identityFrame = ws.sentFrames().find((f) => f.kind === "session.identity.update");
+      expect(identityFrame).toBeDefined();
+      if (identityFrame?.kind === "session.identity.update") {
+        expect(identityFrame.identity).toEqual({ name: "Test Bot", avatar: "https://a.png" });
+        expect(identityFrame.nodeId).toBe("agent-1");
+      }
+
+      await gateway.stop();
+    });
+
+    it("updateSessionIdentity returns false when identity unchanged", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      const identity = { identity: { name: "Bot" }, channelType: "slack" };
+      gateway.updateSessionIdentity("agent-1", identity);
+
+      // Clear sent frames count
+      const framesBefore = ws.sentFrames().length;
+
+      // Same identity again
+      const changed = gateway.updateSessionIdentity("agent-1", identity);
+      expect(changed).toBe(false);
+
+      // No new frames sent
+      expect(ws.sentFrames().length).toBe(framesBefore);
+
+      await gateway.stop();
+    });
+
+    it("getSessionIdentity returns undefined for new session", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      expect(gateway.getSessionIdentity("agent-1")).toBeUndefined();
+      await gateway.stop();
+    });
+
+    it("session.update frame emitted on state transitions", async () => {
+      vi.useFakeTimers();
+      // Use short session timeout + long health check to avoid health monitor interference
+      const { gateway, wss } = createTestGateway({
+        sessionTimeout: 5_000,
+        healthCheckInterval: 600_000,
+      });
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      // Advance to trigger CONNECTED → IDLE
+      vi.advanceTimersByTime(5_000);
+
+      const updateFrame = ws.sentFrames().find((f) => f.kind === "session.update");
+      expect(updateFrame).toBeDefined();
+      if (updateFrame?.kind === "session.update") {
+        expect(updateFrame.state).toBe("idle");
+        expect(updateFrame.nodeId).toBe("agent-1");
+        expect(updateFrame.sessionId).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        );
+      }
+
+      vi.useRealTimers();
+      await gateway.stop();
+    });
+
+    it("identity persists after session state transition", async () => {
+      vi.useFakeTimers();
+      // Use short session timeout + long health check to avoid health monitor interference
+      const { gateway, wss } = createTestGateway({
+        sessionTimeout: 5_000,
+        healthCheckInterval: 600_000,
+      });
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      const identity = { identity: { name: "Bot" }, channelType: "slack" };
+      gateway.updateSessionIdentity("agent-1", identity);
+
+      // Advance to IDLE
+      vi.advanceTimersByTime(5_000);
+
+      // Identity should persist
+      expect(gateway.getSessionIdentity("agent-1")).toEqual(identity);
+
+      vi.useRealTimers();
+      await gateway.stop();
+    });
+
+    it("identity is cleared on node deregistration", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      gateway.updateSessionIdentity("agent-1", {
+        identity: { name: "Bot" },
+        channelType: "slack",
+      });
+
+      sendFrame(ws, {
+        kind: "node.deregister",
+        nodeId: "agent-1",
+      });
+
+      // Identity should be gone
+      expect(gateway.getSessionIdentity("agent-1")).toBeUndefined();
+      await gateway.stop();
+    });
+  });
 });

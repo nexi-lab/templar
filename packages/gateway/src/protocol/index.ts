@@ -65,6 +65,8 @@ export {
   type NodeRegisterFrame,
   NodeRegisterFrameSchema,
   parseFrame,
+  type SessionIdentityUpdateFrame,
+  SessionIdentityUpdateFrameSchema,
   type SessionUpdateFrame,
   SessionUpdateFrameSchema,
   safeParseFrame,
@@ -84,11 +86,14 @@ export {
 } from "./lanes.js";
 // Sessions
 export {
+  ChannelIdentityConfigProtocolSchema,
   SESSION_EVENTS,
   SESSION_STATES,
   SESSION_TRANSITIONS,
   type SessionEvent,
   SessionEventSchema,
+  type SessionIdentityContext,
+  SessionIdentityContextSchema,
   type SessionInfo,
   SessionInfoSchema,
   type SessionState,

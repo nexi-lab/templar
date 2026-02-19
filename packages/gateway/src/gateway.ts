@@ -22,6 +22,7 @@ import type {
   LaneMessageFrame,
   NodeDeregisterFrame,
   NodeRegisterFrame,
+  SessionIdentityContext,
 } from "./protocol/index.js";
 import { MessageBuffer } from "./queue/message-buffer.js";
 import { HealthMonitor } from "./registry/health-monitor.js";
@@ -208,6 +209,7 @@ export class TemplarGateway {
     this.wireConnectionHandlers();
     this.wireHealthMonitorHandlers();
     this.wireConfigWatcherHandlers();
+    this.wireSessionTransitionHandlers();
   }
 
   // -------------------------------------------------------------------------
@@ -326,6 +328,39 @@ export class TemplarGateway {
    */
   getConversationStore(): ConversationStore {
     return this.conversationStore;
+  }
+
+  /**
+   * Update the identity context for a session.
+   *
+   * Emits a `session.identity.update` frame to the node if the identity changed.
+   * Returns the updated session, or undefined if identity was unchanged.
+   * Throws if nodeId is not found.
+   */
+  updateSessionIdentity(
+    nodeId: string,
+    identityContext: SessionIdentityContext | undefined,
+  ): boolean {
+    const updated = this.sessionManager.updateIdentityContext(nodeId, identityContext);
+    if (!updated) return false;
+
+    // Emit identity update frame to the node (use frozen clone from session, not raw input)
+    const frame: GatewayFrame = {
+      kind: "session.identity.update",
+      sessionId: updated.sessionId,
+      nodeId,
+      identity: updated.identityContext?.identity ?? {},
+      timestamp: Date.now(),
+    };
+    this.sendToNode(nodeId, frame);
+    return true;
+  }
+
+  /**
+   * Get the identity context for a session.
+   */
+  getSessionIdentity(nodeId: string): SessionIdentityContext | undefined {
+    return this.sessionManager.getSession(nodeId)?.identityContext;
   }
 
   /**
@@ -513,6 +548,21 @@ export class TemplarGateway {
     });
   }
 
+  private wireSessionTransitionHandlers(): void {
+    this.sessionManager.onTransition((nodeId, result, session) => {
+      if (!result.valid) return;
+
+      const frame: GatewayFrame = {
+        kind: "session.update",
+        sessionId: session.sessionId,
+        nodeId,
+        state: session.state,
+        timestamp: Date.now(),
+      };
+      this.sendToNode(nodeId, frame);
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Frame handlers
   // -------------------------------------------------------------------------
@@ -666,38 +716,36 @@ export class TemplarGateway {
       const ackFrame: GatewayFrame = {
         kind: "node.register.ack",
         nodeId,
-        sessionId: `${nodeId}-${session.connectedAt}`,
+        sessionId: session.sessionId,
       };
       this.server.sendFrame(connectionId, ackFrame);
 
       this.events.emit("node.registered", nodeId);
     } catch (err) {
-      const errorFrame: GatewayFrame = {
-        kind: "error",
-        error: {
-          type: "about:blank",
-          title: "Registration failed",
-          status: 409,
-          detail: err instanceof Error ? err.message : String(err),
-        },
-        timestamp: Date.now(),
-      };
-      this.server.sendFrame(connectionId, errorFrame);
+      this.sendErrorFrame(
+        connectionId,
+        "Registration failed",
+        409,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
   private sendAuthError(connectionId: string, status: number, detail: string): void {
-    const errorFrame: GatewayFrame = {
+    this.sendErrorFrame(connectionId, "Authentication failed", status, detail);
+  }
+
+  private sendErrorFrame(
+    connectionId: string,
+    title: string,
+    status: number,
+    detail: string,
+  ): void {
+    this.server.sendFrame(connectionId, {
       kind: "error",
-      error: {
-        type: "about:blank",
-        title: "Authentication failed",
-        status,
-        detail,
-      },
+      error: { type: "about:blank", title, status, detail },
       timestamp: Date.now(),
-    };
-    this.server.sendFrame(connectionId, errorFrame);
+    });
   }
 
   private handleNodeDeregister(connectionId: string, frame: NodeDeregisterFrame): void {
@@ -706,17 +754,12 @@ export class TemplarGateway {
     // Verify the connection owns this node — prevent cross-node deregistration
     const ownerConnection = this.nodeToConnection.get(nodeId);
     if (ownerConnection && ownerConnection !== connectionId) {
-      const errorFrame: GatewayFrame = {
-        kind: "error",
-        error: {
-          type: "about:blank",
-          title: "Unauthorized deregistration",
-          status: 403,
-          detail: `Connection is not the owner of node '${nodeId}'`,
-        },
-        timestamp: Date.now(),
-      };
-      this.server.sendFrame(connectionId, errorFrame);
+      this.sendErrorFrame(
+        connectionId,
+        "Unauthorized deregistration",
+        403,
+        `Connection is not the owner of node '${nodeId}'`,
+      );
       return;
     }
 
@@ -735,17 +778,12 @@ export class TemplarGateway {
   private handleLaneMessage(connectionId: string, frame: LaneMessageFrame): void {
     const nodeId = this.connectionToNode.get(connectionId);
     if (!nodeId) {
-      const errorFrame: GatewayFrame = {
-        kind: "error",
-        error: {
-          type: "about:blank",
-          title: "Not registered",
-          status: 403,
-          detail: "Connection must register before sending lane messages",
-        },
-        timestamp: Date.now(),
-      };
-      this.server.sendFrame(connectionId, errorFrame);
+      this.sendErrorFrame(
+        connectionId,
+        "Not registered",
+        403,
+        "Connection must register before sending lane messages",
+      );
       return;
     }
 
@@ -762,18 +800,12 @@ export class TemplarGateway {
       };
       this.server.sendFrame(connectionId, ackFrame);
     } catch (err) {
-      // Send error frame back on routing failure
-      const errorFrame: GatewayFrame = {
-        kind: "error",
-        error: {
-          type: "about:blank",
-          title: "Message routing failed",
-          status: 500,
-          detail: err instanceof Error ? err.message : String(err),
-        },
-        timestamp: Date.now(),
-      };
-      this.server.sendFrame(connectionId, errorFrame);
+      this.sendErrorFrame(
+        connectionId,
+        "Message routing failed",
+        500,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

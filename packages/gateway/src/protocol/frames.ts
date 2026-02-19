@@ -1,8 +1,13 @@
+import type { ChannelIdentityConfig } from "@templar/core";
 import type { ProblemDetails } from "@templar/errors";
 import { ProblemDetailsSchema } from "@templar/errors";
 import { z } from "zod";
 import { type Lane, type LaneMessage, LaneMessageSchema, LaneSchema } from "./lanes.js";
-import { type SessionState, SessionStateSchema } from "./sessions.js";
+import {
+  ChannelIdentityConfigProtocolSchema,
+  type SessionState,
+  SessionStateSchema,
+} from "./sessions.js";
 import {
   type DelegationScope,
   DelegationScopeSchema,
@@ -23,6 +28,7 @@ export const FRAME_KINDS = [
   "lane.message",
   "lane.message.ack",
   "session.update",
+  "session.identity.update",
   "config.changed",
   "error",
   "delegation.request",
@@ -94,6 +100,15 @@ export interface SessionUpdateFrame {
   readonly sessionId: string;
   readonly nodeId: string;
   readonly state: SessionState;
+  readonly timestamp: number;
+}
+
+/** Session identity update notification — sent when identity changes */
+export interface SessionIdentityUpdateFrame {
+  readonly kind: "session.identity.update";
+  readonly sessionId: string;
+  readonly nodeId: string;
+  readonly identity: ChannelIdentityConfig;
   readonly timestamp: number;
 }
 
@@ -172,6 +187,7 @@ export type GatewayFrame =
   | LaneMessageFrame
   | LaneMessageAckFrame
   | SessionUpdateFrame
+  | SessionIdentityUpdateFrame
   | ConfigChangedFrame
   | ErrorFrame
   | DelegationRequestFrame
@@ -230,6 +246,14 @@ export const SessionUpdateFrameSchema = z.object({
   sessionId: z.string().min(1),
   nodeId: z.string().min(1),
   state: SessionStateSchema,
+  timestamp: z.number().int().positive(),
+});
+
+export const SessionIdentityUpdateFrameSchema = z.object({
+  kind: z.literal("session.identity.update"),
+  sessionId: z.string().min(1),
+  nodeId: z.string().min(1),
+  identity: ChannelIdentityConfigProtocolSchema,
   timestamp: z.number().int().positive(),
 });
 
@@ -293,6 +317,7 @@ export const GatewayFrameSchema = z.discriminatedUnion("kind", [
   LaneMessageFrameSchema,
   LaneMessageAckFrameSchema,
   SessionUpdateFrameSchema,
+  SessionIdentityUpdateFrameSchema,
   ConfigChangedFrameSchema,
   ErrorFrameSchema,
   DelegationRequestFrameSchema,
