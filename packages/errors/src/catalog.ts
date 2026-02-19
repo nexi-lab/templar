@@ -1803,6 +1803,55 @@ export const ERROR_CATALOG = {
     title: "Invalid artifact type",
     description: "The artifact type must be 'tool' or 'agent'",
   },
+
+  // ============================================================================
+  // PLUGIN ERRORS — Three-tier plugin discovery & registration (#108)
+  // ============================================================================
+  PLUGIN_CONFIGURATION_INVALID: {
+    domain: "plugin",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid plugin configuration",
+    description: "The plugin configuration is invalid",
+  },
+  PLUGIN_LOAD_FAILED: {
+    domain: "plugin",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Plugin load failed",
+    description: "Failed to discover, import, or validate a plugin",
+  },
+  PLUGIN_CAPABILITY_DENIED: {
+    domain: "plugin",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Plugin capability denied",
+    description: "The plugin attempted to use a capability it did not declare or is not allowed",
+  },
+  PLUGIN_REGISTRATION_FAILED: {
+    domain: "plugin",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Plugin registration failed",
+    description: "Plugin registration failed due to duplicate name or invalid registration",
+  },
+  PLUGIN_LIFECYCLE_FAILED: {
+    domain: "plugin",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Plugin lifecycle failed",
+    description: "A plugin register() or teardown() call threw an error",
+  },
 } as const;
 
 // ============================================================================

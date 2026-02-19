@@ -2,6 +2,7 @@ import type { NexusClient as _NexusClient } from "@nexus/sdk";
 import type { ContextHydrationConfig } from "./context-types.js";
 import type { ExecutionLimitsConfig } from "./execution-types.js";
 import type { IdentityConfig } from "./message-types.js";
+import type { PluginAssemblyResult, PluginConfig } from "./plugin-types.js";
 import type { SpawnLimitsConfig } from "./spawn-types.js";
 
 /**
@@ -142,6 +143,8 @@ export interface AgentManifest {
   sessionScoping?: ConversationScope;
   /** Deterministic context pre-loading (#59) */
   context?: ContextHydrationConfig;
+  /** Plugin declarations for three-tier discovery (#108) */
+  plugins?: PluginConfig[];
 }
 
 /**
@@ -158,4 +161,6 @@ export interface TemplarConfig extends DeepAgentConfig {
   executionLimits?: ExecutionLimitsConfig;
   /** Spawn governance guards (depth, children, concurrency limits) */
   spawnLimits?: SpawnLimitsConfig;
+  /** Merged plugin contributions (output of loadPlugins + assemblePlugins) */
+  pluginAssembly?: PluginAssemblyResult;
 }

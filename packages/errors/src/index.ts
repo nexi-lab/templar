@@ -173,6 +173,20 @@ export {
 } from "./delegation.js";
 
 // ============================================================================
+// PLUGIN ERRORS — Three-tier plugin discovery & registration (#108)
+// ============================================================================
+
+export {
+  PluginCapabilityError,
+  PluginConfigurationError,
+  PluginError,
+  PluginLifecycleError,
+  PluginLoadError,
+  type PluginLoadPhase,
+  PluginRegistrationError,
+} from "./plugin.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 

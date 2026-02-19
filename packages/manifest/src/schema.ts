@@ -162,6 +162,11 @@ export const ContextHydrationConfigSchema = z.object({
   failureStrategy: z.enum(["continue", "abort"]).optional(),
 });
 
+export const PluginConfigSchema = z.object({
+  name: z.string().min(1),
+  config: z.record(z.unknown()).optional(),
+});
+
 export const AgentManifestSchema = z.object({
   name: z.string().min(1),
   version: z.string().regex(/^\d+\.\d+\.\d+/, 'Must follow semver (e.g. "1.0.0")'),
@@ -178,6 +183,7 @@ export const AgentManifestSchema = z.object({
   bootstrap: BootstrapPathConfigSchema.optional(),
   sessionScoping: SessionScopingSchema.optional(),
   context: ContextHydrationConfigSchema.optional(),
+  plugins: z.array(PluginConfigSchema).optional(),
 });
 
 /**
