@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "isolatedDeclarations": false
+  },
+  "include": ["src/**/*"],
+  "references": [{ "path": "../errors" }, { "path": "../core" }, { "path": "../nexus-sdk" }]
+}

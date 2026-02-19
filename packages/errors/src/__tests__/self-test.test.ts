@@ -113,7 +113,7 @@ describe("SelfTestError hierarchy", () => {
     });
 
     it("should singularize for one assertion", () => {
-      const single = [failedAssertions[0]!];
+      const single = failedAssertions.slice(0, 1);
       const error = new SelfTestVerificationFailedError("test", single, report);
       expect(error.message).toContain("1 assertion failed");
     });

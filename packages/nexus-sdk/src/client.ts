@@ -5,6 +5,7 @@
 import { HttpClient } from "./http/index.js";
 import { AceResource } from "./resources/ace/index.js";
 import { AgentsResource } from "./resources/agents.js";
+import { ArtifactsResource } from "./resources/artifacts.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { EventLogResource } from "./resources/eventlog.js";
 import { MemoryResource } from "./resources/memory.js";
@@ -57,6 +58,11 @@ export class NexusClient {
   public readonly agents: AgentsResource;
 
   /**
+   * Artifacts resource (persistent tool and agent definitions)
+   */
+  public readonly artifacts: ArtifactsResource;
+
+  /**
    * Tools resource
    */
   public readonly tools: ToolsResource;
@@ -107,6 +113,7 @@ export class NexusClient {
     this._config = config;
     this._http = new HttpClient(config);
     this.agents = new AgentsResource(this._http);
+    this.artifacts = new ArtifactsResource(this._http);
     this.tools = new ToolsResource(this._http);
     this.channels = new ChannelsResource(this._http);
     this.memory = new MemoryResource(this._http);

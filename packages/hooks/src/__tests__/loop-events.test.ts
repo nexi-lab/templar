@@ -109,9 +109,9 @@ describe("Loop detection hook events (#151)", () => {
       registry.emit("IterationWarning", data);
 
       expect(receivedData).toBeDefined();
-      expect(receivedData!.iterationCount).toBe(20);
-      expect(receivedData!.maxIterations).toBe(25);
-      expect(receivedData!.percentage).toBe(80);
+      expect(receivedData?.iterationCount).toBe(20);
+      expect(receivedData?.maxIterations).toBe(25);
+      expect(receivedData?.percentage).toBe(80);
     });
   });
 

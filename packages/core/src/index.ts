@@ -76,6 +76,8 @@ export type {
   ToolResponse,
   TurnContext,
 } from "./middleware-types.js";
+// Resolver types
+export type { Resolver } from "./resolver-types.js";
 // Spawn governance types (#163)
 export type {
   DepthToolPolicy,
