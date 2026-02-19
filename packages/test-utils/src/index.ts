@@ -11,12 +11,19 @@ export {
 } from "./mock-provider.js";
 export {
   createMockNexusClient,
+  type MockAceResource,
   type MockAgentsResource,
   type MockChannelsResource,
+  type MockConsolidationResource,
+  type MockCurationResource,
   type MockEventLogResource,
+  type MockFeedbackResource,
   type MockMemoryResource,
   type MockNexusClient,
   type MockPayResource,
   type MockPermissionsResource,
+  type MockPlaybooksResource,
+  type MockReflectionResource,
   type MockToolsResource,
+  type MockTrajectoriesResource,
 } from "./mocks/nexus-client.js";

@@ -126,6 +126,18 @@ export {
 } from "./self-test.js";
 
 // ============================================================================
+// ACE ERRORS — Adaptive Context Engine (#87)
+// ============================================================================
+
+export {
+  AceConfigurationError,
+  AceError,
+  PlaybookError,
+  ReflectionError,
+  TrajectoryError,
+} from "./ace.js";
+
+// ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)
 // ============================================================================
 

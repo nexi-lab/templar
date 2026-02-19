@@ -27,6 +27,7 @@ export {
 // HTTP client
 export { HttpClient } from "./http/index.js";
 // Resources
+export { AceResource } from "./resources/ace/index.js";
 export { AgentsResource } from "./resources/agents.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
@@ -35,6 +36,45 @@ export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
 export { ToolsResource } from "./resources/tools.js";
+// ACE types
+export type {
+  AddFeedbackParams,
+  AddFeedbackResponse,
+  CompleteTrajectoryParams,
+  ConsolidateParams,
+  ConsolidationResult,
+  CreatePlaybookParams,
+  CreatePlaybookResponse,
+  CurateBulkParams,
+  CurateParams,
+  CurationResult,
+  EffectiveScoreParams,
+  EffectiveScoreResponse,
+  FeedbackEntry,
+  FeedbackType,
+  LogStepParams,
+  PlaybookEntry,
+  PlaybookScope,
+  PlaybookStrategy,
+  PlaybookUsageParams,
+  PlaybookVisibility,
+  QueryPlaybooksParams,
+  QueryPlaybooksResponse,
+  QueryTrajectoriesParams,
+  QueryTrajectoriesResponse,
+  ReflectionResult,
+  ReflectParams,
+  RelearnParams,
+  ScoreStrategy,
+  StartTrajectoryParams,
+  StartTrajectoryResponse,
+  TrajectoryEntry,
+  TrajectoryFeedbackResponse,
+  TrajectoryStatus,
+  TrajectoryStep,
+  TrajectoryStepType,
+  UpdatePlaybookParams,
+} from "./types/ace.js";
 export type {
   Agent,
   AgentModel,

@@ -1512,6 +1512,46 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // ACE ERRORS — Adaptive Context Engine (playbooks, trajectories, reflection)
+  // ============================================================================
+  ACE_CONFIGURATION_INVALID: {
+    domain: "ace",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid ACE configuration",
+    description: "The ACE middleware configuration is invalid",
+  },
+  ACE_TRAJECTORY_FAILED: {
+    domain: "ace",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Trajectory operation failed",
+    description: "Failed to start, log, or complete a trajectory via the Nexus ACE API",
+  },
+  ACE_PLAYBOOK_FAILED: {
+    domain: "ace",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Playbook operation failed",
+    description: "Failed to load or query playbooks via the Nexus ACE API",
+  },
+  ACE_REFLECTION_FAILED: {
+    domain: "ace",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Reflection failed",
+    description: "The reflection LLM call failed during post-session analysis",
+  },
+
+  // ============================================================================
   // ENGINE EXECUTION GUARD ERRORS — Loop detection and iteration limits
   // ============================================================================
   ENGINE_ITERATION_LIMIT: {

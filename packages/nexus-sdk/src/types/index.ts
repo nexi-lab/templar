@@ -150,6 +150,45 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
+// Re-export ACE types
+export type {
+  AddFeedbackParams,
+  AddFeedbackResponse,
+  CompleteTrajectoryParams,
+  ConsolidateParams,
+  ConsolidationResult,
+  CreatePlaybookParams,
+  CreatePlaybookResponse,
+  CurateBulkParams,
+  CurateParams,
+  CurationResult,
+  EffectiveScoreParams,
+  EffectiveScoreResponse,
+  FeedbackEntry,
+  FeedbackType,
+  LogStepParams,
+  PlaybookEntry,
+  PlaybookScope,
+  PlaybookStrategy,
+  PlaybookUsageParams,
+  PlaybookVisibility,
+  QueryPlaybooksParams,
+  QueryPlaybooksResponse,
+  QueryTrajectoriesParams,
+  QueryTrajectoriesResponse,
+  ReflectionResult,
+  ReflectParams,
+  RelearnParams,
+  ScoreStrategy,
+  StartTrajectoryParams,
+  StartTrajectoryResponse,
+  TrajectoryEntry,
+  TrajectoryFeedbackResponse,
+  TrajectoryStatus,
+  TrajectoryStep,
+  TrajectoryStepType,
+  UpdatePlaybookParams,
+} from "./ace.js";
 // Re-export pay types
 export type {
   BalanceResponse,

@@ -66,8 +66,14 @@ export type {
 // Middleware types
 export type {
   ConversationContext,
+  ModelHandler,
+  ModelRequest,
+  ModelResponse,
   SessionContext,
   TemplarMiddleware,
+  ToolHandler,
+  ToolRequest,
+  ToolResponse,
   TurnContext,
 } from "./middleware-types.js";
 // Spawn governance types (#163)
