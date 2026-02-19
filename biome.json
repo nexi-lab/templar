@@ -35,6 +35,36 @@
       "trailingCommas": "all"
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/core/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "deepagents": {
+                    "message": "@templar/core is an interfaces-only kernel. DeepAgents runtime belongs in @templar/engine. See TEMPLAR.md Principle #1 and issue #125."
+                  },
+                  "@templar/engine": {
+                    "message": "@templar/engine depends on @templar/core, not vice versa. See TEMPLAR.md Principle #1 and issue #125."
+                  }
+                },
+                "patterns": [
+                  {
+                    "group": ["@langchain/*", "@langchain/**"],
+                    "message": "@templar/core must not import LangGraph/LangChain types. All LangGraph integration belongs in @templar/engine. See TEMPLAR.md Principle #1 and issue #125."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": ["**", "!**/node_modules", "!**/dist", "!**/.turbo", "!**/coverage"]
   }
