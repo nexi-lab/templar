@@ -206,6 +206,136 @@ describe("GatewayFrame schemas", () => {
   });
 
   // -------------------------------------------------------------------------
+  // session.identity.update
+  // -------------------------------------------------------------------------
+  describe("session.identity.update", () => {
+    it("accepts a valid session identity update", () => {
+      const frame: GatewayFrame = {
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { name: "Bot", avatar: "https://a.png" },
+        timestamp: Date.now(),
+      };
+      expect(parseFrame(frame)).toEqual(frame);
+    });
+
+    it("accepts identity with all fields", () => {
+      const frame: GatewayFrame = {
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: {
+          name: "Full Bot",
+          avatar: "https://avatar.png",
+          bio: "A helpful bot",
+          systemPromptPrefix: "You are helpful.",
+        },
+        timestamp: Date.now(),
+      };
+      expect(parseFrame(frame)).toEqual(frame);
+    });
+
+    it("accepts identity with minimal fields (empty object)", () => {
+      const frame: GatewayFrame = {
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: {},
+        timestamp: Date.now(),
+      };
+      expect(parseFrame(frame)).toEqual(frame);
+    });
+
+    it("rejects missing identity field", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects empty sessionId", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "",
+        nodeId: "node-1",
+        identity: { name: "Bot" },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects empty nodeId", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "",
+        identity: { name: "Bot" },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects non-positive timestamp", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { name: "Bot" },
+        timestamp: 0,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects name exceeding 80 characters", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { name: "x".repeat(81) },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects invalid avatar URL", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { avatar: "not-a-url" },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects bio exceeding 512 characters", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { bio: "x".repeat(513) },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects systemPromptPrefix exceeding 4096 characters", () => {
+      const result = safeParseFrame({
+        kind: "session.identity.update",
+        sessionId: "sess-1",
+        nodeId: "node-1",
+        identity: { systemPromptPrefix: "x".repeat(4097) },
+        timestamp: Date.now(),
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // config.changed
   // -------------------------------------------------------------------------
   describe("config.changed", () => {

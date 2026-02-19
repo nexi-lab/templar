@@ -1,6 +1,11 @@
-import type { IdentityConfig } from "@templar/core";
+import type { ChannelIdentityConfig, IdentityConfig } from "@templar/core";
 import { describe, expect, it } from "vitest";
-import { resolveChannelIdentity, resolveIdentity } from "../resolver.js";
+import {
+  mergeIdentityConfig,
+  resolveChannelIdentity,
+  resolveIdentity,
+  resolveIdentityWithSession,
+} from "../resolver.js";
 
 describe("resolveIdentity", () => {
   // #1 — No config (undefined)
@@ -239,5 +244,180 @@ describe("resolveChannelIdentity", () => {
     };
     const result = resolveChannelIdentity(config, "slack");
     expect(Object.isFrozen(result)).toBe(true);
+  });
+});
+
+describe("mergeIdentityConfig", () => {
+  it("returns override when base is undefined", () => {
+    const override: ChannelIdentityConfig = { name: "Session Bot" };
+    expect(mergeIdentityConfig(override, undefined)).toEqual({ name: "Session Bot" });
+  });
+
+  it("returns base when override is undefined", () => {
+    const base: ChannelIdentityConfig = { name: "Default Bot" };
+    expect(mergeIdentityConfig(undefined, base)).toEqual({ name: "Default Bot" });
+  });
+
+  it("returns undefined when both are undefined", () => {
+    expect(mergeIdentityConfig(undefined, undefined)).toBeUndefined();
+  });
+
+  it("override field wins over base field", () => {
+    const override: ChannelIdentityConfig = { name: "Override" };
+    const base: ChannelIdentityConfig = { name: "Base", avatar: "https://base.png" };
+    expect(mergeIdentityConfig(override, base)).toEqual({
+      name: "Override",
+      avatar: "https://base.png",
+    });
+  });
+
+  it("returns frozen result", () => {
+    const result = mergeIdentityConfig({ name: "A" }, { avatar: "https://b.png" });
+    expect(Object.isFrozen(result)).toBe(true);
+  });
+});
+
+describe("resolveIdentityWithSession", () => {
+  // #S1 — No session override, delegates to 2-level resolve
+  it("returns 2-level result when no session override", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot" },
+      channels: { slack: { name: "Slack Bot" } },
+    };
+    expect(resolveIdentityWithSession(config, "slack")).toEqual({ name: "Slack Bot" });
+  });
+
+  // #S2 — Session override wins over channel
+  it("session override wins over channel override", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot" },
+      channels: { slack: { name: "Slack Bot" } },
+    };
+    const session: ChannelIdentityConfig = { name: "Session Bot" };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({
+      name: "Session Bot",
+    });
+  });
+
+  // #S3 — Session override wins over default
+  it("session override wins over default", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot", avatar: "https://default.png" },
+    };
+    const session: ChannelIdentityConfig = { name: "Session Bot" };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({
+      name: "Session Bot",
+      avatar: "https://default.png",
+    });
+  });
+
+  // #S4 — Session merges with channel + default field-by-field
+  it("session merges field-by-field across all three levels", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot", avatar: "https://default.png", bio: "Default bio" },
+      channels: { slack: { avatar: "https://slack.png" } },
+    };
+    const session: ChannelIdentityConfig = { bio: "Session bio" };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({
+      name: "Bot",
+      avatar: "https://slack.png",
+      bio: "Session bio",
+    });
+  });
+
+  // #S5 — Session with systemPromptPrefix overrides
+  it("session systemPromptPrefix overrides channel and default", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot", systemPromptPrefix: "Default prefix" },
+      channels: { slack: { systemPromptPrefix: "Slack prefix" } },
+    };
+    const session: ChannelIdentityConfig = { systemPromptPrefix: "Session prefix" };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({
+      name: "Bot",
+      systemPromptPrefix: "Session prefix",
+    });
+  });
+
+  // #S6 — Session override with empty string is intentional
+  it("session empty string overrides non-empty values", () => {
+    const config: IdentityConfig = { default: { name: "Bot" } };
+    const session: ChannelIdentityConfig = { name: "" };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({ name: "" });
+  });
+
+  // #S7 — Session override when config is undefined
+  it("session override works when config is undefined", () => {
+    const session: ChannelIdentityConfig = { name: "Session Bot" };
+    expect(resolveIdentityWithSession(undefined, "slack", session)).toEqual({
+      name: "Session Bot",
+    });
+  });
+
+  // #S8 — All three levels empty → undefined
+  it("returns undefined when all three levels are empty", () => {
+    expect(resolveIdentityWithSession({}, "slack", {})).toBeUndefined();
+  });
+
+  // #S9 — Session override only (no config, no channel)
+  it("returns session identity when only session override exists", () => {
+    const session: ChannelIdentityConfig = {
+      name: "Session Bot",
+      avatar: "https://session.png",
+    };
+    expect(resolveIdentityWithSession(undefined, "slack", session)).toEqual({
+      name: "Session Bot",
+      avatar: "https://session.png",
+    });
+  });
+
+  // #S10 — Returns frozen result
+  it("returns frozen result", () => {
+    const config: IdentityConfig = { default: { name: "Bot" } };
+    const session: ChannelIdentityConfig = { avatar: "https://s.png" };
+    const result = resolveIdentityWithSession(config, "slack", session);
+    expect(Object.isFrozen(result)).toBe(true);
+  });
+
+  // #S11 — Does not mutate input config
+  it("does not mutate input config", () => {
+    const config: IdentityConfig = Object.freeze({
+      default: Object.freeze({ name: "Bot" }),
+    });
+    const session: ChannelIdentityConfig = Object.freeze({ avatar: "https://s.png" });
+    const result = resolveIdentityWithSession(config, "slack", session);
+    expect(result).toEqual({ name: "Bot", avatar: "https://s.png" });
+    expect(result).not.toBe(config.default);
+  });
+
+  // #S12 — Unknown channel with session override
+  it("unknown channel with session override uses default + session", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot", bio: "Default" },
+      channels: { slack: { name: "Slack Bot" } },
+    };
+    const session: ChannelIdentityConfig = { avatar: "https://session.png" };
+    expect(resolveIdentityWithSession(config, "telegram", session)).toEqual({
+      name: "Bot",
+      bio: "Default",
+      avatar: "https://session.png",
+    });
+  });
+
+  // #S13 — Session overrides all fields completely
+  it("session overrides all fields when fully specified", () => {
+    const config: IdentityConfig = {
+      default: { name: "Bot", avatar: "https://d.png", bio: "D" },
+      channels: { slack: { name: "Slack", avatar: "https://s.png", bio: "S" } },
+    };
+    const session: ChannelIdentityConfig = {
+      name: "Session",
+      avatar: "https://sess.png",
+      bio: "Sess bio",
+    };
+    expect(resolveIdentityWithSession(config, "slack", session)).toEqual({
+      name: "Session",
+      avatar: "https://sess.png",
+      bio: "Sess bio",
+    });
   });
 });
