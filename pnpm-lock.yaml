@@ -645,6 +645,25 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/web-search:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
 packages:
 
   '@adiwajshing/keyed-db@0.2.4':
