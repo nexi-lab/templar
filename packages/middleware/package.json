@@ -36,6 +36,10 @@
       "types": "./dist/context.d.ts",
       "import": "./dist/context.js"
     },
+    "./observational": {
+      "types": "./dist/observational.d.ts",
+      "import": "./dist/observational.js"
+    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js"

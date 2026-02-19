@@ -27,3 +27,4 @@ export {
   type MockToolsResource,
   type MockTrajectoriesResource,
 } from "./mocks/nexus-client.js";
+export { TestObservationExtractor, TestObservationReflector } from "./observational.js";
