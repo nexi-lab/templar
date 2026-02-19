@@ -1623,6 +1623,37 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // CONTEXT HYDRATION ERRORS — Deterministic context pre-loading (#59)
+  // ============================================================================
+  CONTEXT_HYDRATION_FAILED: {
+    domain: "context",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Context hydration failed",
+    description: "The context hydration process failed to resolve sources",
+  },
+  CONTEXT_HYDRATION_TIMEOUT: {
+    domain: "context",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Context hydration timeout",
+    description: "The context hydration process exceeded the global timeout",
+  },
+  CONTEXT_SOURCE_FAILED: {
+    domain: "context",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Context source resolution failed",
+    description: "A context source failed to resolve during hydration",
+  },
+
+  // ============================================================================
   // SELF-TEST ERRORS — Pluggable self-verification (#44)
   // ============================================================================
   SELF_TEST_HEALTH_CHECK_FAILED: {

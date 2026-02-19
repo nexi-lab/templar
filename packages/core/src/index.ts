@@ -41,6 +41,20 @@ export type {
   ToolConfig,
 } from "./config-types.js";
 export { CONVERSATION_SCOPES } from "./config-types.js";
+// Context hydration types (#59)
+export type {
+  ContextHydrationConfig,
+  ContextSourceConfig,
+  HydrationMetrics,
+  HydrationResult,
+  HydrationTemplateVars,
+  LinkedResourceSourceConfig,
+  McpToolSourceConfig,
+  MemoryQuerySourceConfig,
+  ResolvedContextSource,
+  ToolExecutor,
+  WorkspaceSnapshotSourceConfig,
+} from "./context-types.js";
 // Execution types
 export type {
   ExecutionLimitsConfig,

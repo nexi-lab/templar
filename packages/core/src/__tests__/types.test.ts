@@ -4,8 +4,12 @@ import type {
   ChannelAdapter,
   ChannelCapabilities,
   ChannelConfig,
+  ContextHydrationConfig,
+  ContextSourceConfig,
   DeepAgentConfig,
   ExecutionLimitsConfig,
+  HydrationResult,
+  HydrationTemplateVars,
   LoopDetection,
   LoopDetectionConfig,
   MessageHandler,
@@ -18,6 +22,7 @@ import type {
   TemplarConfig,
   TemplarMiddleware,
   ToolConfig,
+  ToolExecutor,
 } from "../index.js";
 
 describe("Type exports", () => {
@@ -502,6 +507,101 @@ describe("Type exports", () => {
     it("should accept empty capabilities (no features)", () => {
       const capabilities: ChannelCapabilities = {};
       expect(capabilities).toBeDefined();
+    });
+  });
+
+  // Context Hydration Types (#59)
+  describe("ContextHydrationConfig", () => {
+    it("should accept config with sources", () => {
+      const config: ContextHydrationConfig = {
+        sources: [
+          { type: "memory_query", query: "test", limit: 5 },
+          { type: "mcp_tool", tool: "search", args: { q: "test" } },
+        ],
+        maxHydrationTimeMs: 2000,
+        maxContextChars: 20_000,
+        failureStrategy: "continue",
+      };
+      expect(config).toBeDefined();
+    });
+
+    it("should accept empty config", () => {
+      const config: ContextHydrationConfig = {};
+      expect(config).toBeDefined();
+    });
+  });
+
+  describe("ContextSourceConfig", () => {
+    it("should discriminate on type field", () => {
+      const sources: ContextSourceConfig[] = [
+        { type: "mcp_tool", tool: "search" },
+        { type: "workspace_snapshot", mode: "files_only" },
+        { type: "memory_query", query: "test" },
+        { type: "linked_resource", urls: ["https://example.com"] },
+      ];
+      expect(sources).toHaveLength(4);
+    });
+  });
+
+  describe("HydrationTemplateVars", () => {
+    it("should accept vars with all fields", () => {
+      const vars: HydrationTemplateVars = {
+        task: { description: "fix bug", id: "t1" },
+        workspace: { root: "/app" },
+        agent: { id: "agent-1" },
+        user: { id: "user-1" },
+        session: { id: "session-1" },
+      };
+      expect(vars).toBeDefined();
+    });
+  });
+
+  describe("ToolExecutor", () => {
+    it("should accept an executor implementation", () => {
+      const executor: ToolExecutor = {
+        execute: async () => "result",
+      };
+      expect(executor).toBeDefined();
+    });
+  });
+
+  describe("HydrationResult", () => {
+    it("should accept a valid result", () => {
+      const result: HydrationResult = {
+        sources: [
+          {
+            type: "memory_query",
+            content: "data",
+            originalChars: 4,
+            truncated: false,
+            resolvedInMs: 10,
+          },
+        ],
+        mergedContext: "data",
+        metrics: {
+          hydrationTimeMs: 15,
+          sourcesResolved: 1,
+          sourcesFailed: 0,
+          contextCharsUsed: 4,
+          cacheHit: false,
+        },
+      };
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("AgentManifest with context field", () => {
+    it("should accept manifest with context hydration config", () => {
+      const manifest: AgentManifest = {
+        name: "test-agent",
+        version: "1.0.0",
+        description: "Test agent",
+        context: {
+          sources: [{ type: "memory_query", query: "test" }],
+          maxHydrationTimeMs: 2000,
+        },
+      };
+      expect(manifest.context).toBeDefined();
     });
   });
 });

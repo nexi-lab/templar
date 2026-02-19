@@ -5,6 +5,8 @@ import {
   BootstrapPathConfigSchema,
   ChannelConfigSchema,
   ChannelIdentityConfigSchema,
+  ContextHydrationConfigSchema,
+  ContextSourceConfigSchema,
   IdentityConfigSchema,
   ModelConfigSchema,
   PermissionConfigSchema,
@@ -619,5 +621,181 @@ describe("AgentManifestSchema — sessionScoping", () => {
       const result = AgentManifestSchema.safeParse({ ...minimal, sessionScoping: scope });
       expect(result.success).toBe(true);
     }
+  });
+});
+
+// ============================================================================
+// Context Hydration Config (#59)
+// ============================================================================
+
+describe("ContextSourceConfigSchema", () => {
+  it("accepts a valid mcp_tool source", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "mcp_tool",
+      tool: "search",
+      args: { query: "test" },
+      maxChars: 5000,
+      timeoutMs: 1000,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid memory_query source", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "memory_query",
+      query: "user preferences",
+      limit: 10,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid workspace_snapshot source", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "workspace_snapshot",
+      mode: "files_only",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid linked_resource source", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "linked_resource",
+      urls: ["https://example.com/doc"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown source type", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "unknown_type",
+      data: "test",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects mcp_tool without required tool field", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "mcp_tool",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects memory_query without required query field", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "memory_query",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects linked_resource with empty urls array", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "linked_resource",
+      urls: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects linked_resource with invalid URL", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "linked_resource",
+      urls: ["not-a-url"],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative maxChars", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "memory_query",
+      query: "test",
+      maxChars: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects zero timeoutMs", () => {
+    const result = ContextSourceConfigSchema.safeParse({
+      type: "memory_query",
+      query: "test",
+      timeoutMs: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("ContextHydrationConfigSchema", () => {
+  it("accepts a valid config with all fields", () => {
+    const result = ContextHydrationConfigSchema.safeParse({
+      sources: [{ type: "memory_query", query: "test" }],
+      maxHydrationTimeMs: 2000,
+      maxContextChars: 20000,
+      failureStrategy: "continue",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty config", () => {
+    const result = ContextHydrationConfigSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts config with failureStrategy=abort", () => {
+    const result = ContextHydrationConfigSchema.safeParse({
+      failureStrategy: "abort",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid failureStrategy", () => {
+    const result = ContextHydrationConfigSchema.safeParse({
+      failureStrategy: "retry",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative maxHydrationTimeMs", () => {
+    const result = ContextHydrationConfigSchema.safeParse({
+      maxHydrationTimeMs: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("AgentManifestSchema — context", () => {
+  const minimal = {
+    name: "test-agent",
+    version: "1.0.0",
+    description: "A test agent",
+  };
+
+  it("accepts manifest with context config", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      context: {
+        sources: [{ type: "memory_query", query: "{{task.description}}" }],
+        maxHydrationTimeMs: 2000,
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.context).toBeDefined();
+    }
+  });
+
+  it("accepts manifest without context (optional, backward compat)", () => {
+    const result = AgentManifestSchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.context).toBeUndefined();
+    }
+  });
+
+  it("rejects manifest with invalid context source", () => {
+    const result = AgentManifestSchema.safeParse({
+      ...minimal,
+      context: {
+        sources: [{ type: "invalid_source" }],
+      },
+    });
+    expect(result.success).toBe(false);
   });
 });
