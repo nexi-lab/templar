@@ -160,7 +160,6 @@ export {
   ArtifactVersionConflictError,
 } from "./artifact.js";
 
-// ============================================================================
 // DELEGATION ERRORS — Task delegation lifecycle (#141)
 // ============================================================================
 
@@ -172,7 +171,6 @@ export {
   DelegationTimeoutError,
 } from "./delegation.js";
 
-// ============================================================================
 // OBSERVATIONAL MEMORY ERRORS — Observer + Reflector agents (#154)
 // ============================================================================
 
@@ -196,6 +194,18 @@ export {
   type PluginLoadPhase,
   PluginRegistrationError,
 } from "./plugin.js";
+
+// ============================================================================
+// WEB SEARCH ERRORS — Pluggable search providers (#119)
+// ============================================================================
+
+export {
+  SearchAllProvidersFailedError,
+  SearchInvalidQueryError,
+  SearchProviderError,
+  SearchRateLimitedError,
+  WebSearchError,
+} from "./web-search.js";
 
 // ============================================================================
 // LEGACY ERROR CLASSES (backward compatibility — all @deprecated)

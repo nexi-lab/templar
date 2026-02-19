@@ -1883,6 +1883,46 @@ export const ERROR_CATALOG = {
     title: "Plugin lifecycle failed",
     description: "A plugin register() or teardown() call threw an error",
   },
+
+  // ============================================================================
+  // SEARCH ERRORS — Pluggable web search providers (#119)
+  // ============================================================================
+  SEARCH_PROVIDER_ERROR: {
+    domain: "search",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Search provider error",
+    description: "The search provider returned an unexpected error",
+  },
+  SEARCH_RATE_LIMITED: {
+    domain: "search",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "RateLimitError" as const,
+    isExpected: true,
+    title: "Search provider rate limited",
+    description: "The search provider rate-limited the request",
+  },
+  SEARCH_ALL_PROVIDERS_FAILED: {
+    domain: "search",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "All search providers failed",
+    description: "All providers in the search fallback chain have been exhausted",
+  },
+  SEARCH_INVALID_QUERY: {
+    domain: "search",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid search query",
+    description: "The search query is empty or invalid",
+  },
 } as const;
 
 // ============================================================================
