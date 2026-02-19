@@ -140,17 +140,17 @@ function parseReflectionLine(
   timestamp: string,
   sourceObservationCount: number,
 ): Reflection | undefined {
-  const parts = line.split("|").map((p) => p.trim());
-  if (parts.length < 2) {
+  const pipeIdx = line.indexOf("|");
+  if (pipeIdx === -1) {
     return undefined;
   }
 
-  const marker = parts[0].toUpperCase();
+  const marker = line.slice(0, pipeIdx).trim().toUpperCase();
   if (marker !== "REFLECTION") {
     return undefined;
   }
 
-  const insight = parts.slice(1).join("|").trim();
+  const insight = line.slice(pipeIdx + 1).trim();
   if (!insight) {
     return undefined;
   }
