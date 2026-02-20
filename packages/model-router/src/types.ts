@@ -18,7 +18,7 @@ export interface ModelRef {
   readonly model: string;
   readonly temperature?: number;
   readonly maxTokens?: number;
-  readonly thinking?: "extended" | "standard" | "none";
+  readonly thinking?: ThinkingLevel;
 }
 
 /** Union type: callers can pass either shorthand or structured form */
@@ -72,7 +72,7 @@ export interface CompletionRequest {
   readonly maxTokens?: number;
   readonly temperature?: number;
   readonly tools?: readonly ToolDefinition[];
-  readonly thinking?: "extended" | "standard" | "none";
+  readonly thinking?: ThinkingLevel;
   readonly responseFormat?: ResponseFormat;
 }
 
@@ -117,9 +117,26 @@ export type ProviderErrorCategory =
   | "timeout"
   | "context_overflow"
   | "model_error"
+  | "thinking"
   | "unknown";
 
-export type FailoverAction = "rotate_key" | "backoff" | "retry" | "compact" | "fallback";
+export type FailoverAction =
+  | "rotate_key"
+  | "backoff"
+  | "retry"
+  | "compact"
+  | "fallback"
+  | "thinking_downgrade";
+
+/** Result of classifying a provider error */
+export interface ClassificationResult {
+  readonly category: ProviderErrorCategory;
+  readonly retryAfterMs?: number;
+  readonly metadata?: Readonly<Record<string, string>>;
+}
+
+/** Thinking level for 3-tier downgrade chain */
+export type ThinkingLevel = "adaptive" | "extended" | "standard" | "none";
 
 // ---------------------------------------------------------------------------
 // Routing Strategy
@@ -186,6 +203,9 @@ export interface ModelRouterConfig {
   readonly maxRetries?: number;
   readonly retryBaseDelayMs?: number;
   readonly retryMaxDelayMs?: number;
+  readonly onPreModelSelect?: (
+    candidates: readonly ModelRef[],
+  ) => readonly ModelRef[] | Promise<readonly ModelRef[]>;
 }
 
 // ---------------------------------------------------------------------------

@@ -97,4 +97,31 @@ describe("validateRouterConfig", () => {
     const result = validateRouterConfig(config);
     expect(result).toBeDefined();
   });
+
+  it("accepts 'thinking' as a valid error category in failoverStrategy", () => {
+    const config = {
+      ...validConfig,
+      failoverStrategy: { thinking: "thinking_downgrade" },
+    };
+    const result = validateRouterConfig(config);
+    expect(result.failoverStrategy).toEqual({ thinking: "thinking_downgrade" });
+  });
+
+  it("accepts 'thinking_downgrade' as a valid failover action", () => {
+    const config = {
+      ...validConfig,
+      failoverStrategy: { model_error: "thinking_downgrade" },
+    };
+    const result = validateRouterConfig(config);
+    expect(result.failoverStrategy).toEqual({ model_error: "thinking_downgrade" });
+  });
+
+  it("accepts config with onPreModelSelect callback", () => {
+    const config = {
+      ...validConfig,
+      onPreModelSelect: (candidates: unknown[]) => candidates,
+    };
+    const result = validateRouterConfig(config);
+    expect(result).toBeDefined();
+  });
 });

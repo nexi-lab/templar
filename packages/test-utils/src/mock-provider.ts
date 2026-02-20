@@ -31,7 +31,7 @@ export interface MockCompletionRequest {
   readonly maxTokens?: number;
   readonly temperature?: number;
   readonly tools?: readonly unknown[];
-  readonly thinking?: "extended" | "standard" | "none";
+  readonly thinking?: "adaptive" | "extended" | "standard" | "none";
   readonly responseFormat?: unknown;
 }
 

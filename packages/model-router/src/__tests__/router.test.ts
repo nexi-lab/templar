@@ -11,6 +11,7 @@ import type {
   CompletionRequest,
   CompletionResponse,
   ModelProvider,
+  ModelRef,
   ModelRouterConfig,
   StreamChunk,
   UsageEvent,
@@ -624,6 +625,231 @@ describe("ModelRouter", () => {
 
       const result = await router.complete(makeRequest());
       expect(result.content).toBe("");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 3-tier thinking downgrade chain
+  // -------------------------------------------------------------------------
+
+  describe("thinking downgrade chain", () => {
+    it("downgrades extended → standard on thinking error", async () => {
+      const thinkingError = new ExternalError<"MODEL_THINKING_FAILED">({
+        code: "MODEL_THINKING_FAILED",
+        message: "budget_tokens must be >= 1024",
+      });
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [thinkingError, response]);
+      const config = makeConfig({ thinkingDowngrade: true });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest({ thinking: "extended" }));
+      expect(result.content).toBe("Hello!");
+      // The second call should have been made with thinking: "standard"
+      const calls = (provider as unknown as { _calls: CompletionRequest[] })._calls;
+      expect(calls[1]?.thinking).toBe("standard");
+    });
+
+    it("downgrades standard → none on second thinking error", async () => {
+      const thinkingError = new ExternalError<"MODEL_THINKING_FAILED">({
+        code: "MODEL_THINKING_FAILED",
+        message: "thinking failed",
+      });
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [thinkingError, thinkingError, response]);
+      const config = makeConfig({ thinkingDowngrade: true });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest({ thinking: "extended" }));
+      expect(result.content).toBe("Hello!");
+      const calls = (provider as unknown as { _calls: CompletionRequest[] })._calls;
+      expect(calls[1]?.thinking).toBe("standard");
+      expect(calls[2]?.thinking).toBe("none");
+    });
+
+    it("downgrades adaptive → standard → none full chain", async () => {
+      const thinkingError = new ExternalError<"MODEL_THINKING_FAILED">({
+        code: "MODEL_THINKING_FAILED",
+        message: "thinking failed",
+      });
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [thinkingError, thinkingError, response]);
+      const config = makeConfig({ thinkingDowngrade: true });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest({ thinking: "adaptive" }));
+      expect(result.content).toBe("Hello!");
+      const calls = (provider as unknown as { _calls: CompletionRequest[] })._calls;
+      expect(calls[0]?.thinking).toBe("adaptive");
+      expect(calls[1]?.thinking).toBe("standard");
+      expect(calls[2]?.thinking).toBe("none");
+    });
+
+    it("does not downgrade when thinkingDowngrade is false", async () => {
+      const thinkingError = new ExternalError<"MODEL_THINKING_FAILED">({
+        code: "MODEL_THINKING_FAILED",
+        message: "thinking failed",
+      });
+      const provider = createMockProvider("openai", [thinkingError]);
+      const config = makeConfig({ thinkingDowngrade: false, maxRetries: 0 });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      await expect(router.complete(makeRequest({ thinking: "extended" }))).rejects.toThrow();
+    });
+
+    it("does not downgrade on non-thinking requests", async () => {
+      const thinkingError = new ExternalError<"MODEL_THINKING_FAILED">({
+        code: "MODEL_THINKING_FAILED",
+        message: "thinking failed",
+      });
+      const provider = createMockProvider("openai", [thinkingError]);
+      const config = makeConfig({ thinkingDowngrade: true, maxRetries: 0 });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      // Request without thinking — already at "none", can't downgrade
+      await expect(router.complete(makeRequest())).rejects.toThrow();
+    });
+
+    it("downgrades thinking on context_overflow too", async () => {
+      const overflowError = new ValidationError<"MODEL_CONTEXT_OVERFLOW">({
+        code: "MODEL_CONTEXT_OVERFLOW",
+        message: "Context overflow",
+      });
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [overflowError, response]);
+      const config = makeConfig({ thinkingDowngrade: true });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest({ thinking: "extended" }));
+      expect(result.content).toBe("Hello!");
+      const calls = (provider as unknown as { _calls: CompletionRequest[] })._calls;
+      expect(calls[1]?.thinking).toBe("standard");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Full Jitter backoff
+  // -------------------------------------------------------------------------
+
+  describe("Full Jitter backoff", () => {
+    it("respects Retry-After delay from provider", async () => {
+      // Create a raw error (non-TemplarError) with retry-after header
+      let callCount = 0;
+      const rateLimitProvider: ModelProvider = {
+        id: "openai",
+        async complete(_request: CompletionRequest) {
+          if (callCount++ === 0) {
+            const err = Object.assign(new Error("rate limited"), {
+              status: 429,
+              headers: { "retry-after": "0" },
+            });
+            throw err;
+          }
+          return makeResponse();
+        },
+        async *stream() {
+          yield { type: "done" as const };
+        },
+      };
+
+      const config = makeConfig({
+        providers: { openai: { keys: [{ key: "sk-1" }, { key: "sk-2" }] } },
+        retryBaseDelayMs: 10,
+        retryMaxDelayMs: 50,
+      });
+      const router = new ModelRouter(config, new Map([["openai", rateLimitProvider]]));
+
+      const result = await router.complete(makeRequest());
+      expect(result.content).toBe("Hello!");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // onPreModelSelect callback
+  // -------------------------------------------------------------------------
+
+  describe("onPreModelSelect callback", () => {
+    it("callback receives correct candidates", async () => {
+      let receivedCandidates: readonly ModelRef[] = [];
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [response]);
+      const config = makeConfig({
+        onPreModelSelect: (candidates) => {
+          receivedCandidates = candidates;
+          return candidates;
+        },
+      });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      await router.complete(makeRequest());
+      expect(receivedCandidates.length).toBeGreaterThan(0);
+      expect(receivedCandidates[0]?.provider).toBe("openai");
+    });
+
+    it("callback can reorder candidates", async () => {
+      const response = makeResponse({ provider: "anthropic" });
+      const openaiProvider = createMockProvider("openai", []);
+      const anthropicProvider = createMockProvider("anthropic", [response]);
+
+      const config = makeConfig({
+        providers: {
+          openai: { keys: [{ key: "sk-1" }] },
+          anthropic: { keys: [{ key: "ak-1" }] },
+        },
+        fallbackChain: [{ provider: "anthropic", model: "claude-3" }],
+        onPreModelSelect: (candidates) => {
+          // Reverse the order: anthropic first
+          return [...candidates].reverse();
+        },
+      });
+
+      const router = new ModelRouter(
+        config,
+        new Map([
+          ["openai", openaiProvider],
+          ["anthropic", anthropicProvider],
+        ]),
+      );
+
+      const result = await router.complete(makeRequest());
+      expect(result.provider).toBe("anthropic");
+    });
+
+    it("callback error is handled gracefully", async () => {
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [response]);
+      const config = makeConfig({
+        onPreModelSelect: () => {
+          throw new Error("callback error");
+        },
+      });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      // Should not throw — falls back to default chain
+      const result = await router.complete(makeRequest());
+      expect(result.content).toBe("Hello!");
+    });
+
+    it("absent callback is a no-op", async () => {
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [response]);
+      const config = makeConfig(); // no onPreModelSelect
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest());
+      expect(result.content).toBe("Hello!");
+    });
+
+    it("falls back to default chain when callback returns empty array", async () => {
+      const response = makeResponse();
+      const provider = createMockProvider("openai", [response]);
+      const config = makeConfig({
+        onPreModelSelect: () => [],
+      });
+      const router = new ModelRouter(config, new Map([["openai", provider]]));
+
+      const result = await router.complete(makeRequest());
+      expect(result.content).toBe("Hello!");
     });
   });
 });
