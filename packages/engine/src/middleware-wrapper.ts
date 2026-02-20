@@ -31,3 +31,36 @@ export function unregisterMiddlewareWrapper(): void {
 export function getMiddlewareWrapper(): ((mw: TemplarMiddleware) => TemplarMiddleware) | undefined {
   return middlewareWrapper;
 }
+
+// ---------------------------------------------------------------------------
+// Auto-middleware registry — middlewares injected by packages like @templar/telemetry
+// ---------------------------------------------------------------------------
+
+let autoMiddlewares: readonly TemplarMiddleware[] = [];
+
+/**
+ * Register a middleware to be automatically prepended in every createTemplar() call.
+ *
+ * Used by @templar/telemetry to inject the cache-trace middleware without
+ * requiring users to pass it explicitly.
+ */
+export function registerAutoMiddleware(mw: TemplarMiddleware): void {
+  if (autoMiddlewares.some((existing) => existing.name === mw.name)) {
+    return;
+  }
+  autoMiddlewares = [...autoMiddlewares, mw];
+}
+
+/**
+ * Remove all auto-registered middlewares (called by shutdownTelemetry).
+ */
+export function unregisterAutoMiddlewares(): void {
+  autoMiddlewares = [];
+}
+
+/**
+ * Get currently registered auto-middlewares (used internally by createTemplar).
+ */
+export function getAutoMiddlewares(): readonly TemplarMiddleware[] {
+  return autoMiddlewares;
+}

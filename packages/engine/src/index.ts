@@ -3,7 +3,13 @@ export { ExecutionGuardMiddleware } from "./execution-guard-middleware.js";
 export { fnv1a32 } from "./fnv-hash.js";
 export { DEFAULT_EXECUTION_LIMITS, IterationGuard } from "./iteration-guard.js";
 export { DEFAULT_LOOP_DETECTION, LoopDetector } from "./loop-detector.js";
-export { registerMiddlewareWrapper, unregisterMiddlewareWrapper } from "./middleware-wrapper.js";
+export {
+  getAutoMiddlewares,
+  registerAutoMiddleware,
+  registerMiddlewareWrapper,
+  unregisterAutoMiddlewares,
+  unregisterMiddlewareWrapper,
+} from "./middleware-wrapper.js";
 export {
   type SpawnCheckResult,
   SpawnGovernanceMiddleware,

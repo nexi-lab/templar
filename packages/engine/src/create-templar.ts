@@ -1,7 +1,7 @@
 import type { TemplarConfig, TemplarMiddleware } from "@templar/core";
 import { getErrorCause, getErrorMessage, TemplarConfigError } from "@templar/errors";
 import { IterationGuard } from "./iteration-guard.js";
-import { getMiddlewareWrapper } from "./middleware-wrapper.js";
+import { getAutoMiddlewares, getMiddlewareWrapper } from "./middleware-wrapper.js";
 import {
   validateAgentType,
   validateExecutionLimits,
@@ -90,9 +90,10 @@ export function createTemplar(config: TemplarConfig): unknown {
   const iterationGuard = new IterationGuard(config.executionLimits);
 
   // Merge plugin middleware with explicitly provided middleware
-  // Plugin middleware comes first (ordered by trust tier), then explicit
+  // Auto-middlewares first (e.g., cache-trace from telemetry), then plugin, then explicit
+  const autoMw = getAutoMiddlewares();
   const pluginMiddleware = config.pluginAssembly?.middleware ?? [];
-  let middleware = [...pluginMiddleware, ...(config.middleware ?? [])];
+  let middleware = [...autoMw, ...pluginMiddleware, ...(config.middleware ?? [])];
 
   // Wrap middleware with OTel tracing when @templar/telemetry has registered a wrapper
   const middlewareWrapper = getMiddlewareWrapper();
