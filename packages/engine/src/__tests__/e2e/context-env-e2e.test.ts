@@ -201,7 +201,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
       const middleware = result.middleware as Array<{ name?: string }>;
 
       expect(middleware.length).toBeGreaterThanOrEqual(1);
-      expect(middleware[0].name).toBe("templar-context-env");
+      expect(middleware[0]!.name).toBe("templar-context-env");
     });
 
     it("ContextEnvMiddleware from createTemplar builds full runtime context", async () => {
@@ -210,7 +210,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         zoneId: "e2e-create-zone",
       }) as Record<string, unknown>;
       const middleware = result.middleware as ContextEnvMiddleware[];
-      const contextMw = middleware[0];
+      const contextMw = middleware[0]!;
 
       const session = fullSessionContext();
       await contextMw.onSessionStart(session);
@@ -240,6 +240,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
 
   describe("concurrent session isolation", () => {
     it("three simultaneous sessions see their own TEMPLAR_* vars", async () => {
+      type EnvResult = Record<string, string>;
       const sessions = [
         { sessionId: "concurrent-A", userId: "user-A", channelType: "telegram" },
         { sessionId: "concurrent-B", userId: "user-B", channelType: "slack" },
@@ -260,12 +261,13 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         ),
       );
 
-      expect(results[0].TEMPLAR_USER_ID).toBe("user-A");
-      expect(results[0].TEMPLAR_CHANNEL).toBe("telegram");
-      expect(results[1].TEMPLAR_USER_ID).toBe("user-B");
-      expect(results[1].TEMPLAR_CHANNEL).toBe("slack");
-      expect(results[2].TEMPLAR_USER_ID).toBe("user-C");
-      expect(results[2].TEMPLAR_CHANNEL).toBe("discord");
+      const [r0, r1, r2] = results as [EnvResult, EnvResult, EnvResult];
+      expect(r0.TEMPLAR_USER_ID).toBe("user-A");
+      expect(r0.TEMPLAR_CHANNEL).toBe("telegram");
+      expect(r1.TEMPLAR_USER_ID).toBe("user-B");
+      expect(r1.TEMPLAR_CHANNEL).toBe("slack");
+      expect(r2.TEMPLAR_USER_ID).toBe("user-C");
+      expect(r2.TEMPLAR_CHANNEL).toBe("discord");
     });
 
     it("child processes spawned from concurrent contexts inherit correct vars", async () => {
@@ -285,10 +287,14 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         ),
       );
 
-      expect(results[0].TEMPLAR_SESSION_ID).toBe("spawn-A");
-      expect(results[0].TEMPLAR_USER_ID).toBe("spawn-user-A");
-      expect(results[1].TEMPLAR_SESSION_ID).toBe("spawn-B");
-      expect(results[1].TEMPLAR_USER_ID).toBe("spawn-user-B");
+      const [s0, s1] = results as [
+        Record<string, string | undefined>,
+        Record<string, string | undefined>,
+      ];
+      expect(s0.TEMPLAR_SESSION_ID).toBe("spawn-A");
+      expect(s0.TEMPLAR_USER_ID).toBe("spawn-user-A");
+      expect(s1.TEMPLAR_SESSION_ID).toBe("spawn-B");
+      expect(s1.TEMPLAR_USER_ID).toBe("spawn-user-B");
     });
   });
 

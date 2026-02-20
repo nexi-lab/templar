@@ -186,8 +186,9 @@ describe("ContextEnvMiddleware", () => {
         const middleware = result.middleware as Array<{ name?: string }>;
 
         // ContextEnvMiddleware should be the first middleware
-        expect(middleware[0]).toBeDefined();
-        expect(middleware[0].name).toBe("templar-context-env");
+        const first = middleware[0];
+        expect(first).toBeDefined();
+        expect(first!.name).toBe("templar-context-env");
       } finally {
         _setDeepAgentsIntegrated(false);
       }
@@ -204,7 +205,7 @@ describe("ContextEnvMiddleware", () => {
           unknown
         >;
         const middleware = result.middleware as ContextEnvMiddleware[];
-        const contextMw = middleware[0];
+        const contextMw = middleware[0]!;
 
         // Build runtime context and verify zoneId is passed
         const ctx = contextMw.buildRuntimeContext({ sessionId: "s1" });
