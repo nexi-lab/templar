@@ -1763,7 +1763,7 @@ export const ERROR_CATALOG = {
     isExpected: false,
     title: "Runtime context not initialized",
     description:
-      "getContext() was called outside an active session. Ensure agent execution is wrapped with runWithContext()",
+      "getContext() was called outside an active session. Ensure the agent execution is wrapped with runWithContext().",
   },
 
   // ============================================================================

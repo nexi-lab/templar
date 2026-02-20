@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "^0.0.37",
+    "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*",
     "zod": "^3.24.0"
   },

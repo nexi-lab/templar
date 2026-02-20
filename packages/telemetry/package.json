@@ -30,6 +30,8 @@
     "@templar/engine": "workspace:*"
   },
   "devDependencies": {
+    "@templar/core": "workspace:*",
+    "@templar/engine": "workspace:*",
     "@templar/test-utils": "workspace:*",
     "@types/node": "^25.2.2"
   }

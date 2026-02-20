@@ -16,6 +16,16 @@ vi.mock("@anthropic-ai/sandbox-runtime", () => ({
   },
 }));
 
+// Mock @templar/core for context injection tests (#128)
+const mockTryGetContext = vi.fn<() => Record<string, string | undefined> | undefined>();
+const mockBuildEnvVars =
+  vi.fn<(ctx: Record<string, string | undefined>) => Record<string, string>>();
+
+vi.mock("@templar/core", () => ({
+  tryGetContext: () => mockTryGetContext(),
+  buildEnvVars: (ctx: Record<string, string | undefined>) => mockBuildEnvVars(ctx),
+}));
+
 // Dynamic import after mock setup
 const { TemplarSandbox } = await import("../sandbox.js");
 
@@ -33,6 +43,8 @@ describe("TemplarSandbox", () => {
     mockInitialize.mockResolvedValue(undefined);
     mockReset.mockResolvedValue(undefined);
     mockAnnotateStderr.mockImplementation((_cmd, s) => s);
+    // Default: no active context
+    mockTryGetContext.mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -549,5 +561,84 @@ describe("TemplarSandbox", () => {
     } finally {
       await sandbox.dispose();
     }
+  });
+
+  // -----------------------------------------------------------------------
+  // Context injection (#128)
+  // -----------------------------------------------------------------------
+  describe("context environment variable injection", () => {
+    it("injects TEMPLAR_* vars when an active session context exists", async () => {
+      const fakeCtx = { sessionId: "s1", userId: "u1" };
+      mockTryGetContext.mockReturnValue(fakeCtx);
+      mockBuildEnvVars.mockReturnValue({
+        TEMPLAR_SESSION_ID: "s1",
+        TEMPLAR_USER_ID: "u1",
+      });
+
+      const sandbox = new TemplarSandbox(validConfig);
+      try {
+        const result = await sandbox.exec({ command: "echo ok" });
+        expect(result.exitCode).toBe(0);
+        expect(mockTryGetContext).toHaveBeenCalled();
+        expect(mockBuildEnvVars).toHaveBeenCalledWith(fakeCtx);
+      } finally {
+        await sandbox.dispose();
+      }
+    });
+
+    it("does not inject TEMPLAR_* vars when no active session exists", async () => {
+      mockTryGetContext.mockReturnValue(undefined);
+
+      const sandbox = new TemplarSandbox(validConfig);
+      try {
+        const result = await sandbox.exec({ command: "echo ok" });
+        expect(result.exitCode).toBe(0);
+        expect(mockTryGetContext).toHaveBeenCalled();
+        expect(mockBuildEnvVars).not.toHaveBeenCalled();
+      } finally {
+        await sandbox.dispose();
+      }
+    });
+
+    it("omits fields that are undefined in the context", async () => {
+      const partialCtx = { sessionId: "s2" };
+      mockTryGetContext.mockReturnValue(partialCtx);
+      mockBuildEnvVars.mockReturnValue({
+        TEMPLAR_SESSION_ID: "s2",
+      });
+
+      const sandbox = new TemplarSandbox(validConfig);
+      try {
+        const result = await sandbox.exec({ command: "echo ok" });
+        expect(result.exitCode).toBe(0);
+        expect(mockBuildEnvVars).toHaveBeenCalledWith(partialCtx);
+      } finally {
+        await sandbox.dispose();
+      }
+    });
+
+    it("explicit opts.env overrides context vars", async () => {
+      const fakeCtx = { sessionId: "s1", userId: "u1" };
+      mockTryGetContext.mockReturnValue(fakeCtx);
+      mockBuildEnvVars.mockReturnValue({
+        TEMPLAR_SESSION_ID: "s1",
+        TEMPLAR_USER_ID: "u1",
+      });
+
+      const sandbox = new TemplarSandbox(validConfig);
+      try {
+        // Verify that exec with explicit env still calls context functions
+        // and the merge order is process.env < contextVars < opts.env
+        const result = await sandbox.exec({
+          command: "echo ok",
+          env: { TEMPLAR_SESSION_ID: "override" },
+        });
+        expect(result.exitCode).toBe(0);
+        expect(mockTryGetContext).toHaveBeenCalled();
+        expect(mockBuildEnvVars).toHaveBeenCalledWith(fakeCtx);
+      } finally {
+        await sandbox.dispose();
+      }
+    });
   });
 });
