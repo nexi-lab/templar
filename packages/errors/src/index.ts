@@ -241,6 +241,18 @@ export {
 export { HumanDelayConfigurationError, HumanDelayError } from "./human-delay.js";
 
 // ============================================================================
+// PAIRING ERRORS — Code-based DM channel access control (#89)
+// ============================================================================
+
+export {
+  PairingCodeExpiredError,
+  PairingCodeInvalidError,
+  PairingConfigurationError,
+  PairingError,
+  PairingRateLimitedError,
+} from "./pairing.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 

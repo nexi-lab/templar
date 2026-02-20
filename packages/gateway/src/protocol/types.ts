@@ -83,6 +83,7 @@ export const HOT_RELOADABLE_FIELDS = [
   "maxConversations",
   "conversationTtl",
   "bindings",
+  "pairing",
 ] as const;
 export type HotReloadableField = (typeof HOT_RELOADABLE_FIELDS)[number];
 
@@ -168,6 +169,15 @@ export interface GatewayConfig {
   readonly authMode: AuthMode;
   /** Device authentication config for Ed25519 mode */
   readonly deviceAuth?: DeviceAuthConfig;
+  /** Pairing configuration for DM access control (optional, hot-reloadable) */
+  readonly pairing?: {
+    readonly enabled: boolean;
+    readonly channels: readonly string[];
+    readonly codeLength?: number;
+    readonly expiryMs?: number;
+    readonly maxAttempts?: number;
+    readonly maxPendingCodes?: number;
+  };
 }
 
 export const GatewayConfigSchema = z.object({
@@ -186,6 +196,16 @@ export const GatewayConfigSchema = z.object({
   bindings: z.array(AgentBindingSchema).optional(),
   authMode: AuthModeSchema,
   deviceAuth: DeviceAuthConfigSchema.optional(),
+  pairing: z
+    .object({
+      enabled: z.boolean(),
+      channels: z.array(z.string()),
+      codeLength: z.number().int().min(4).optional(),
+      expiryMs: z.number().int().positive().optional(),
+      maxAttempts: z.number().int().positive().optional(),
+      maxPendingCodes: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 
 /**

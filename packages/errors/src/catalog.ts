@@ -1755,6 +1755,16 @@ export const ERROR_CATALOG = {
     title: "Context source resolution failed",
     description: "A context source failed to resolve during hydration",
   },
+  CONTEXT_NOT_INITIALIZED: {
+    domain: "context",
+    httpStatus: 500,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Runtime context not initialized",
+    description:
+      "getContext() was called outside an active session. Ensure agent execution is wrapped with runWithContext()",
+  },
 
   // ============================================================================
   // SELF-TEST ERRORS — Pluggable self-verification (#44)
@@ -2112,6 +2122,47 @@ export const ERROR_CATALOG = {
     isExpected: true,
     title: "Invalid human delay configuration",
     description: "The human delay configuration is invalid",
+  },
+
+  // --------------------------------------------------------------------------
+  // PAIRING — Code-based DM channel access control (#89)
+  // --------------------------------------------------------------------------
+
+  PAIRING_CODE_EXPIRED: {
+    domain: "auth",
+    httpStatus: 410,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Pairing code expired",
+    description: "The pairing code has expired. Generate a new code.",
+  },
+  PAIRING_CODE_INVALID: {
+    domain: "auth",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Invalid pairing code",
+    description: "The provided pairing code does not match any pending codes.",
+  },
+  PAIRING_RATE_LIMITED: {
+    domain: "auth",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "RateLimitError" as const,
+    isExpected: true,
+    title: "Pairing rate limited",
+    description: "Too many pairing attempts. Wait and try again.",
+  },
+  PAIRING_CONFIGURATION_INVALID: {
+    domain: "validation",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid pairing configuration",
+    description: "The pairing configuration is invalid.",
   },
 } as const;
 

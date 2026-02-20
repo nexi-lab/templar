@@ -1,3 +1,4 @@
+import { PairingGuard } from "@templar/pairing";
 import { BindingResolver } from "./binding-resolver.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
@@ -53,6 +54,8 @@ export interface TemplarGatewayDeps {
   readonly delegationStore?: DelegationStore;
   /** Delegation config (providing this enables the delegation subsystem) */
   readonly delegationConfig?: Partial<DelegationManagerConfig>;
+  /** Pairing guard (optional — injected for testing) */
+  readonly pairingGuard?: PairingGuard;
 }
 
 export type GatewayEventHandler<T extends unknown[] = []> = (...args: T) => void;
@@ -101,6 +104,7 @@ export class TemplarGateway {
   private readonly conversationStore: ConversationStore;
   private readonly deviceKeyStore: DeviceKeyStore;
   private readonly delegationManager: DelegationManager | undefined;
+  private readonly pairingGuard: PairingGuard | undefined;
   private readonly events: Emitter<GatewayEvents> = createEmitter();
 
   // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
@@ -202,6 +206,15 @@ export class TemplarGateway {
         (nodeId, frame) => this.sendToNode(nodeId, frame),
         deps.delegationStore,
       );
+    }
+
+    // 12. Pairing guard (optional — created when config.pairing is enabled)
+    if (deps.pairingGuard) {
+      this.pairingGuard = deps.pairingGuard;
+    } else if (config.pairing?.enabled) {
+      this.pairingGuard = new PairingGuard({
+        ...config.pairing,
+      });
     }
 
     // Wire all event handlers
@@ -385,6 +398,11 @@ export class TemplarGateway {
     return this.registry.getAgentIndex();
   }
 
+  /** Get the PairingGuard instance (undefined if pairing is not configured). */
+  getPairingGuard(): PairingGuard | undefined {
+    return this.pairingGuard;
+  }
+
   // -------------------------------------------------------------------------
   // Event registration (returns disposers)
   // -------------------------------------------------------------------------
@@ -493,6 +511,7 @@ export class TemplarGateway {
     this.healthMonitor.onSweep(() => {
       this.conversationStore.sweep();
       this.delegationManager?.sweep();
+      this.pairingGuard?.sweep();
     });
   }
 
@@ -526,6 +545,13 @@ export class TemplarGateway {
         if (this.bindingResolver && (!newConfig.bindings || newConfig.bindings.length === 0)) {
           this.bindingResolver.updateBindings([]);
         }
+      }
+
+      // Update pairing guard config on hot-reload
+      if (changedFields.includes("pairing") && this.pairingGuard && newConfig.pairing) {
+        this.pairingGuard.updateConfig({
+          ...newConfig.pairing,
+        });
       }
 
       // Update conversation store config on relevant field changes
@@ -748,6 +774,38 @@ export class TemplarGateway {
     });
   }
 
+  private sendPairingResponse(
+    connectionId: string,
+    result: { readonly status: string; readonly message?: string },
+  ): void {
+    const statusMessages: Record<string, { title: string; status: number; detail: string }> = {
+      pending: {
+        title: "Pairing required",
+        status: 401,
+        detail:
+          (result as { message?: string }).message ??
+          "Please send your pairing code to access this channel.",
+      },
+      invalid_code: { title: "Invalid pairing code", status: 401, detail: "The code is invalid." },
+      expired_code: {
+        title: "Pairing code expired",
+        status: 410,
+        detail: "The pairing code has expired.",
+      },
+      rate_limited: {
+        title: "Rate limited",
+        status: 429,
+        detail: "Too many pairing attempts. Please wait.",
+      },
+    };
+    const info = statusMessages[result.status] ?? {
+      title: "Pairing failed",
+      status: 403,
+      detail: "Access denied.",
+    };
+    this.sendErrorFrame(connectionId, info.title, info.status, info.detail);
+  }
+
   private handleNodeDeregister(connectionId: string, frame: NodeDeregisterFrame): void {
     const nodeId = frame.nodeId;
 
@@ -785,6 +843,27 @@ export class TemplarGateway {
         "Connection must register before sending lane messages",
       );
       return;
+    }
+
+    // Pairing check — block unpaired DM senders
+    if (this.pairingGuard) {
+      const routingCtx = frame.message.routingContext;
+      if (routingCtx?.messageType === "dm" && routingCtx?.peerId) {
+        const result = this.pairingGuard.checkSender(
+          nodeId,
+          frame.message.channelId,
+          routingCtx.peerId,
+          typeof frame.message.payload === "string" ? frame.message.payload : undefined,
+        );
+        if (
+          result.status !== "approved" &&
+          result.status !== "paired" &&
+          result.status !== "bypass"
+        ) {
+          this.sendPairingResponse(connectionId, result);
+          return;
+        }
+      }
     }
 
     try {

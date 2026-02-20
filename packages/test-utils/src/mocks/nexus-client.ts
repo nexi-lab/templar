@@ -106,6 +106,12 @@ export interface MockAceResource {
   feedback: MockFeedbackResource;
 }
 
+export interface MockPairingResource {
+  addPeer: ReturnType<typeof vi.fn>;
+  listPeers: ReturnType<typeof vi.fn>;
+  removePeer: ReturnType<typeof vi.fn>;
+}
+
 export interface MockNexusClient {
   client: NexusClient;
   mockMemory: MockMemoryResource;
@@ -116,6 +122,7 @@ export interface MockNexusClient {
   mockEventLog: MockEventLogResource;
   mockPermissions: MockPermissionsResource;
   mockAce: MockAceResource;
+  mockPairing: MockPairingResource;
 }
 
 /**
@@ -217,6 +224,12 @@ export function createMockNexusClient(): MockNexusClient {
     },
   };
 
+  const mockPairing: MockPairingResource = {
+    addPeer: vi.fn(),
+    listPeers: vi.fn(),
+    removePeer: vi.fn(),
+  };
+
   const client = {
     memory: mockMemory,
     pay: mockPay,
@@ -226,6 +239,7 @@ export function createMockNexusClient(): MockNexusClient {
     eventLog: mockEventLog,
     permissions: mockPermissions,
     ace: mockAce,
+    pairing: mockPairing,
     withRetry: () => client,
     withTimeout: () => client,
   } as unknown as NexusClient;
@@ -240,5 +254,6 @@ export function createMockNexusClient(): MockNexusClient {
     mockEventLog,
     mockPermissions,
     mockAce,
+    mockPairing,
   };
 }
