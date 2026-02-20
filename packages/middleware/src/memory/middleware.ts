@@ -1,39 +1,51 @@
-import type { MemoryEntry, MemoryScope, NexusClient, StoreMemoryParams } from "@nexus/sdk";
+import type { MemoryEntry, NexusClient, StoreMemoryParams } from "@nexus/sdk";
 import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
 import { MemoryConfigurationError } from "@templar/errors";
-import { withTimeout } from "../utils.js";
-import { DEFAULT_CONFIG, type NexusMemoryConfig } from "./types.js";
+import { safeNexusCall, withTimeout } from "../utils.js";
+import { SimpleFactExtractor } from "./simple-extractor.js";
+import {
+  type AutoSaveConfig,
+  DEFAULT_AUTO_SAVE_CONFIG,
+  DEFAULT_CONFIG,
+  type ExtractedFact,
+  type FactExtractor,
+  type FactTurnSummary,
+  type NexusMemoryConfig,
+} from "./types.js";
 
-/**
- * Extract key facts from turn output using simple heuristics.
- * This is a v1 implementation — no LLM-based extraction.
- */
-function extractFacts(
-  output: unknown,
-  scope: MemoryScope,
-  namespace: string | undefined,
-): StoreMemoryParams[] {
-  if (output === null || output === undefined) {
-    return [];
+// ---------------------------------------------------------------------------
+// Content hashing for in-session deduplication
+// ---------------------------------------------------------------------------
+
+/** DJB2 hash — fast, deterministic, no crypto dependency */
+function contentHash(content: string): number {
+  let hash = 5381;
+  for (let i = 0; i < content.length; i++) {
+    hash = ((hash << 5) + hash + content.charCodeAt(i)) | 0;
   }
-
-  const text = typeof output === "string" ? output : JSON.stringify(output);
-
-  // Skip very short outputs (likely acknowledgements)
-  if (text.length < 20) {
-    return [];
-  }
-
-  return [
-    {
-      content: text,
-      scope,
-      memory_type: "experience",
-      importance: 0.5,
-      ...(namespace !== undefined ? { namespace } : {}),
-    },
-  ];
+  return hash >>> 0;
 }
+
+// ---------------------------------------------------------------------------
+// Resolved autoSave config
+// ---------------------------------------------------------------------------
+
+type ResolvedAutoSaveConfig = Required<AutoSaveConfig>;
+
+function resolveAutoSaveConfig(config?: AutoSaveConfig): ResolvedAutoSaveConfig {
+  return {
+    categories: config?.categories ?? DEFAULT_AUTO_SAVE_CONFIG.categories,
+    useLlmExtraction: config?.useLlmExtraction ?? DEFAULT_AUTO_SAVE_CONFIG.useLlmExtraction,
+    deduplication: config?.deduplication ?? DEFAULT_AUTO_SAVE_CONFIG.deduplication,
+    extractionTimeoutMs:
+      config?.extractionTimeoutMs ?? DEFAULT_AUTO_SAVE_CONFIG.extractionTimeoutMs,
+    maxPendingMemories: config?.maxPendingMemories ?? DEFAULT_AUTO_SAVE_CONFIG.maxPendingMemories,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
 
 /**
  * NexusMemoryMiddleware — integrates DeepAgents.js agents with Nexus Memory API
@@ -47,21 +59,30 @@ function extractFacts(
  * Memory lifecycle:
  * 1. Session start → load relevant memories from API
  * 2. Before each turn → inject memories into context (based on strategy)
- * 3. After each turn → extract facts, buffer, periodically flush
- * 4. Session end → flush remaining buffer + store session distillation
+ * 3. After each turn → buffer turn, extract facts at intervals, dedup, flush
+ * 4. Session end → extract remaining buffer, flush, store session distillation
+ *
+ * Supports pluggable fact extraction via FactExtractor interface:
+ * - SimpleFactExtractor (default): heuristic, no LLM call
+ * - LlmFactExtractor: LLM-based categorized extraction
  */
 export class NexusMemoryMiddleware implements TemplarMiddleware {
   readonly name = "nexus-memory";
 
   private readonly client: NexusClient;
-  private readonly config: Required<NexusMemoryConfig>;
+  private readonly config: Omit<Required<NexusMemoryConfig>, "autoSave">;
+  private readonly autoSaveConfig: ResolvedAutoSaveConfig;
+  private readonly extractor: FactExtractor;
 
   // State — reassigned (not mutated) on updates
   private turnCount = 0;
   private pendingMemories: readonly StoreMemoryParams[] = [];
   private sessionMemories: readonly MemoryEntry[] = [];
+  private turnBuffer: readonly FactTurnSummary[] = [];
+  private seenContentHashes: Set<number> = new Set();
+  private isExtracting = false;
 
-  constructor(client: NexusClient, config: NexusMemoryConfig) {
+  constructor(client: NexusClient, config: NexusMemoryConfig, extractor?: FactExtractor) {
     this.client = client;
     this.config = {
       scope: config.scope,
@@ -72,6 +93,8 @@ export class NexusMemoryMiddleware implements TemplarMiddleware {
       distillationTimeoutMs: config.distillationTimeoutMs ?? DEFAULT_CONFIG.distillationTimeoutMs,
       namespace: config.namespace ?? "",
     };
+    this.autoSaveConfig = resolveAutoSaveConfig(config.autoSave);
+    this.extractor = extractor ?? new SimpleFactExtractor();
   }
 
   /**
@@ -111,6 +134,9 @@ export class NexusMemoryMiddleware implements TemplarMiddleware {
 
     this.turnCount = 0;
     this.pendingMemories = [];
+    this.turnBuffer = [];
+    this.seenContentHashes = new Set();
+    this.isExtracting = false;
   }
 
   /**
@@ -154,25 +180,29 @@ export class NexusMemoryMiddleware implements TemplarMiddleware {
   }
 
   /**
-   * Extract facts from turn output, buffer, and periodically flush.
+   * Buffer turn summary, extract facts at intervals, and periodically flush.
    */
   async onAfterTurn(context: TurnContext): Promise<void> {
     this.turnCount += 1;
 
-    // Extract key facts from output
-    const facts = extractFacts(
-      context.output,
-      this.config.scope,
-      this.config.namespace !== "" ? this.config.namespace : undefined,
-    );
+    // Buffer turn summary
+    const summary: FactTurnSummary = {
+      turnNumber: context.turnNumber,
+      input:
+        typeof context.input === "string" ? context.input : JSON.stringify(context.input ?? ""),
+      output:
+        typeof context.output === "string" ? context.output : JSON.stringify(context.output ?? ""),
+      timestamp: new Date().toISOString(),
+    };
+    this.turnBuffer = [...this.turnBuffer, summary];
 
-    if (facts.length > 0) {
-      this.pendingMemories = [...this.pendingMemories, ...facts];
-    }
+    // Extract and flush at interval
+    if (this.turnCount % this.config.autoSaveInterval === 0) {
+      await this.extractBufferedTurns(context.sessionId);
 
-    // Flush on interval
-    if (this.turnCount % this.config.autoSaveInterval === 0 && this.pendingMemories.length > 0) {
-      await this.flushPendingMemories(context.sessionId);
+      if (this.pendingMemories.length > 0) {
+        await this.flushPendingMemories(context.sessionId);
+      }
     }
   }
 
@@ -180,33 +210,121 @@ export class NexusMemoryMiddleware implements TemplarMiddleware {
    * Flush remaining buffer and store session distillation summary.
    */
   async onSessionEnd(context: SessionContext): Promise<void> {
+    // Extract remaining buffered turns (await, not fire-and-forget)
+    if (this.turnBuffer.length > 0) {
+      await this.extractBufferedTurns(context.sessionId);
+    }
+
     // Flush remaining pending memories
     if (this.pendingMemories.length > 0) {
       await this.flushPendingMemories(context.sessionId);
     }
 
     // Store session distillation (best-effort with timeout)
-    try {
-      const distillation: StoreMemoryParams = {
-        content: `Session ${context.sessionId} completed with ${this.turnCount} turns.`,
-        scope: this.config.scope,
-        memory_type: "experience",
-        importance: 0.7,
-        ...(this.config.namespace !== "" ? { namespace: this.config.namespace } : {}),
-        metadata: {
-          session_id: context.sessionId,
-          turn_count: this.turnCount,
-          type: "session_distillation",
-        },
-      };
+    const distillation: StoreMemoryParams = {
+      content: `Session ${context.sessionId} completed with ${this.turnCount} turns.`,
+      scope: this.config.scope,
+      memory_type: "experience",
+      importance: 0.7,
+      ...(this.config.namespace !== "" ? { namespace: this.config.namespace } : {}),
+      metadata: {
+        session_id: context.sessionId,
+        turn_count: this.turnCount,
+        type: "session_distillation",
+      },
+    };
 
-      await withTimeout(this.client.memory.store(distillation), this.config.distillationTimeoutMs);
-    } catch (error) {
-      console.warn(
-        `[nexus-memory] Session ${context.sessionId}: failed to store distillation:`,
-        error instanceof Error ? error.message : String(error),
-      );
+    await safeNexusCall(() => this.client.memory.store(distillation), {
+      timeout: this.config.distillationTimeoutMs,
+      fallback: undefined,
+      label: `nexus-memory:${context.sessionId}:distillation`,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Extract facts from buffered turns via the pluggable extractor.
+   * Deduplicates, converts to StoreMemoryParams, and appends to pendingMemories.
+   * Guarded against concurrent execution via isExtracting flag.
+   */
+  private async extractBufferedTurns(sessionId: string): Promise<void> {
+    if (this.turnBuffer.length === 0 || this.isExtracting) {
+      return;
     }
+
+    this.isExtracting = true;
+    const turnsToProcess = [...this.turnBuffer];
+    this.turnBuffer = [];
+
+    try {
+      let extractedFacts: readonly ExtractedFact[];
+      try {
+        extractedFacts = await safeNexusCall(
+          () => this.extractor.extract(turnsToProcess, { sessionId }),
+          {
+            timeout: this.autoSaveConfig.extractionTimeoutMs,
+            fallback: [] as readonly ExtractedFact[],
+            label: `nexus-memory:${sessionId}:extract`,
+          },
+        );
+      } catch {
+        extractedFacts = [];
+      }
+
+      if (extractedFacts.length === 0) {
+        return;
+      }
+
+      // Deduplicate via in-session content hash
+      const deduped = this.deduplicateFacts(extractedFacts);
+      if (deduped.length === 0) {
+        return;
+      }
+
+      // Convert ExtractedFact → StoreMemoryParams
+      const namespace = this.config.namespace !== "" ? this.config.namespace : undefined;
+      const newMemories: StoreMemoryParams[] = deduped.map((fact) => ({
+        content: fact.content,
+        scope: this.config.scope,
+        memory_type: fact.category,
+        importance: fact.importance,
+        ...(namespace !== undefined ? { namespace } : {}),
+        ...(fact.pathKey !== undefined ? { path_key: fact.pathKey } : {}),
+      }));
+
+      // Append to pending, cap at maxPendingMemories
+      const combined = [...this.pendingMemories, ...newMemories];
+      const max = this.autoSaveConfig.maxPendingMemories;
+      this.pendingMemories = combined.length > max ? combined.slice(-max) : combined;
+    } finally {
+      this.isExtracting = false;
+    }
+  }
+
+  /**
+   * Filter out facts already seen in this session via content hash.
+   * Reassigns the hash set (immutable pattern — no in-place mutation).
+   */
+  private deduplicateFacts(facts: readonly ExtractedFact[]): readonly ExtractedFact[] {
+    if (!this.autoSaveConfig.deduplication) {
+      return facts;
+    }
+
+    const result: ExtractedFact[] = [];
+    const newHashes = new Set(this.seenContentHashes);
+    for (const fact of facts) {
+      const hash = contentHash(fact.content);
+      if (newHashes.has(hash)) {
+        continue;
+      }
+      newHashes.add(hash);
+      result.push(fact);
+    }
+    this.seenContentHashes = newHashes;
+    return result;
   }
 
   /**
@@ -274,5 +392,28 @@ export function validateMemoryConfig(config: NexusMemoryConfig): void {
     throw new MemoryConfigurationError(
       `distillationTimeoutMs must be >= 0, got ${config.distillationTimeoutMs}`,
     );
+  }
+
+  // Validate autoSave config
+  if (config.autoSave !== undefined) {
+    const as = config.autoSave;
+
+    if (
+      as.extractionTimeoutMs !== undefined &&
+      (!Number.isFinite(as.extractionTimeoutMs) || as.extractionTimeoutMs < 0)
+    ) {
+      throw new MemoryConfigurationError(
+        `autoSave.extractionTimeoutMs must be >= 0, got ${as.extractionTimeoutMs}`,
+      );
+    }
+
+    if (
+      as.maxPendingMemories !== undefined &&
+      (!Number.isFinite(as.maxPendingMemories) || as.maxPendingMemories < 1)
+    ) {
+      throw new MemoryConfigurationError(
+        `autoSave.maxPendingMemories must be >= 1, got ${as.maxPendingMemories}`,
+      );
+    }
   }
 }
