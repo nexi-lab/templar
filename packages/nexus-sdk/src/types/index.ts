@@ -200,3 +200,11 @@ export type {
   TransferResponse,
   TransferStatus,
 } from "./pay.js";
+// Re-export sandbox types
+export type {
+  CreateSandboxParams,
+  CreateSandboxResponse,
+  RunCodeParams,
+  RunCodeResponse,
+  SandboxInfoResponse,
+} from "./sandbox.js";

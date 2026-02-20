@@ -250,6 +250,25 @@ importers:
         specifier: ^22.0.0
         version: 22.19.11
 
+  packages/code-mode:
+    dependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+    devDependencies:
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/core:
     devDependencies:
       '@nexus/sdk':

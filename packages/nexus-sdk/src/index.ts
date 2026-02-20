@@ -36,6 +36,7 @@ export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
+export { SandboxResource } from "./resources/sandbox.js";
 export { ToolsResource } from "./resources/tools.js";
 // ACE types
 export type {
@@ -168,6 +169,13 @@ export type {
   ListNamespaceToolsParams,
   ListNamespaceToolsResponse,
 } from "./types/permissions.js";
+export type {
+  CreateSandboxParams,
+  CreateSandboxResponse,
+  RunCodeParams,
+  RunCodeResponse,
+  SandboxInfoResponse,
+} from "./types/sandbox.js";
 export type {
   CreateToolParams,
   ListToolsParams,
