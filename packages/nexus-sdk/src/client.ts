@@ -9,6 +9,7 @@ import { ArtifactsResource } from "./resources/artifacts.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { EventLogResource } from "./resources/eventlog.js";
 import { MemoryResource } from "./resources/memory.js";
+import { PairingResource } from "./resources/pairing.js";
 import { PayResource } from "./resources/pay.js";
 import { PermissionsResource } from "./resources/permissions.js";
 import { SandboxResource } from "./resources/sandbox.js";
@@ -99,6 +100,11 @@ export class NexusClient {
   public readonly sandbox: SandboxResource;
 
   /**
+   * Pairing resource (code-based DM channel access control)
+   */
+  public readonly pairing: PairingResource;
+
+  /**
    * ACE resource (Adaptive Context Engine — trajectories, playbooks, reflection, etc.)
    */
   public readonly ace: AceResource;
@@ -127,6 +133,7 @@ export class NexusClient {
     this.eventLog = new EventLogResource(this._http);
     this.permissions = new PermissionsResource(this._http);
     this.sandbox = new SandboxResource(this._http);
+    this.pairing = new PairingResource(this._http);
     this.ace = new AceResource(this._http);
   }
 

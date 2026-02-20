@@ -1,0 +1,27 @@
+{
+  "name": "@templar/pairing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@templar/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "@templar/core": "workspace:*",
+    "@templar/test-utils": "workspace:*",
+    "@types/node": "^22.0.0",
+    "vitest": "^4.0.0"
+  }
+}

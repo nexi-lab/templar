@@ -34,6 +34,7 @@ export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
 export { EventLogResource } from "./resources/eventlog.js";
 export { MemoryResource } from "./resources/memory.js";
+export { PairingResource } from "./resources/pairing.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
 export { SandboxResource } from "./resources/sandbox.js";
@@ -151,6 +152,13 @@ export type {
   SearchMode,
   StoreMemoryParams,
 } from "./types/memory.js";
+export type {
+  AddPeerParams,
+  ListPeersParams,
+  PeerEntry,
+  PeersPage,
+  RemovePeerParams,
+} from "./types/pairing.js";
 export type {
   BalanceResponse,
   DebitParams,
