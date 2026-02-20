@@ -210,6 +210,18 @@ export {
 } from "./a2a.js";
 
 // ============================================================================
+// DOCTOR ERRORS — Security scanner and multi-tenant audits (#27)
+// ============================================================================
+
+export {
+  DoctorCheckFailedError,
+  DoctorConfigurationError,
+  DoctorError,
+  DoctorNexusUnavailableError,
+  DoctorScanTimeoutError,
+} from "./doctor.js";
+
+// ============================================================================
 // CODE MODE ERRORS — LLM-generated code execution via Monty sandbox (#111)
 // ============================================================================
 

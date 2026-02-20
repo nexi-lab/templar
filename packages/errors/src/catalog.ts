@@ -2003,6 +2003,46 @@ export const ERROR_CATALOG = {
   },
 
   // ============================================================================
+  // DOCTOR ERRORS — Security scanner and multi-tenant audits (#27)
+  // ============================================================================
+  DOCTOR_CONFIGURATION_INVALID: {
+    domain: "doctor",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid doctor configuration",
+    description: "The doctor scan configuration is invalid",
+  },
+  DOCTOR_CHECK_FAILED: {
+    domain: "doctor",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Doctor check failed",
+    description: "A doctor security check threw an unexpected error",
+  },
+  DOCTOR_NEXUS_UNAVAILABLE: {
+    domain: "doctor",
+    httpStatus: 503,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Nexus unavailable for doctor",
+    description: "The Nexus API is unavailable for multi-tenant security checks",
+  },
+  DOCTOR_SCAN_TIMEOUT: {
+    domain: "doctor",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Doctor scan timeout",
+    description: "The doctor security scan exceeded the configured timeout",
+  },
+
+  // ============================================================================
   // CODE MODE ERRORS — LLM-generated code execution via Monty sandbox (#111)
   // ============================================================================
   CODE_SYNTAX_ERROR: {
