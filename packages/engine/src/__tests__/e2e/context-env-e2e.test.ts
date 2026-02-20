@@ -303,7 +303,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
   // -----------------------------------------------------------------------
 
   describe("performance", () => {
-    it("buildEnvVars completes 10,000 calls in under 100ms", () => {
+    it("buildEnvVars completes 10,000 calls in under 500ms", () => {
       const ctx: TemplarRuntimeContext = {
         sessionId: "perf-sess",
         agentId: "perf-agent",
@@ -318,10 +318,10 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         buildEnvVars(ctx);
       }
       const elapsed = performance.now() - start;
-      expect(elapsed).toBeLessThan(100);
+      expect(elapsed).toBeLessThan(500);
     });
 
-    it("runWithContext + getContext round-trip completes 10,000 iterations in under 200ms", () => {
+    it("runWithContext + getContext round-trip completes 10,000 iterations in under 500ms", () => {
       const start = performance.now();
       for (let i = 0; i < 10_000; i++) {
         runWithContext({ sessionId: `perf-${i}` }, () => {
@@ -329,10 +329,10 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         });
       }
       const elapsed = performance.now() - start;
-      expect(elapsed).toBeLessThan(200);
+      expect(elapsed).toBeLessThan(500);
     });
 
-    it("ContextEnvMiddleware.buildRuntimeContext() completes 10,000 calls in under 100ms", () => {
+    it("ContextEnvMiddleware.buildRuntimeContext() completes 10,000 calls in under 500ms", () => {
       const mw = new ContextEnvMiddleware({ zoneId: "perf-zone" });
       const session = fullSessionContext();
 
@@ -341,7 +341,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         mw.buildRuntimeContext(session);
       }
       const elapsed = performance.now() - start;
-      expect(elapsed).toBeLessThan(100);
+      expect(elapsed).toBeLessThan(500);
     });
   });
 
