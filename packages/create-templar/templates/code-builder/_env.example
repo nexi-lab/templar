@@ -1,0 +1,8 @@
+# Slack Bot Token — required for the slack channel adapter
+SLACK_BOT_TOKEN=xoxb-your-token-here
+
+# Anthropic API Key — required for the model
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Path to the project to build (defaults to current directory)
+PROJECT_PATH=.
