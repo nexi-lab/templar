@@ -16,7 +16,8 @@
     { "path": "packages/gateway" },
     { "path": "packages/test-utils" },
     { "path": "packages/agui" },
-    { "path": "packages/sanitize" }
+    { "path": "packages/sanitize" },
+    { "path": "packages/canvas" }
   ],
   "include": [],
   "exclude": ["node_modules", "dist", "coverage"]
