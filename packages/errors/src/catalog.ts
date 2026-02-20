@@ -2060,6 +2060,19 @@ export const ERROR_CATALOG = {
     description:
       "Code execution failed and the operation should fall back to sequential tool calls",
   },
+
+  // ============================================================================
+  // HUMAN DELAY ERRORS — Human-like typing delay simulation (#88)
+  // ============================================================================
+  HUMAN_DELAY_CONFIGURATION_INVALID: {
+    domain: "channel",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid human delay configuration",
+    description: "The human delay configuration is invalid",
+  },
 } as const;
 
 // ============================================================================
