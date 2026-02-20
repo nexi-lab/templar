@@ -1475,6 +1475,15 @@ export const ERROR_CATALOG = {
     title: "Skill validation error",
     description: "The skill metadata does not conform to the Agent Skills specification",
   },
+  SKILL_RESOURCE_NOT_FOUND: {
+    domain: "skill",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Skill resource not found",
+    description: "The requested bundled resource file does not exist within the skill directory",
+  },
 
   // ============================================================================
   // ACP ERRORS — Agent Client Protocol (IDE integration)

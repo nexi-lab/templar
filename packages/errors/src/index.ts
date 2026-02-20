@@ -338,6 +338,7 @@ export {
   ServiceUnavailableError,
   SkillNotFoundError,
   SkillParseError,
+  SkillResourceNotFoundError,
   SkillValidationError,
   TemplarConfigError,
   TokenExpiredError,

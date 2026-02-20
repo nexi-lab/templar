@@ -10,7 +10,7 @@ const FIXTURES = resolve(__dirname, "../fixtures");
 describe("Skill lifecycle integration", () => {
   it("discovers, lists, and loads skills end-to-end", async () => {
     const resolver = new LocalResolver([FIXTURES]);
-    const registry = new SkillRegistry([resolver]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
 
     // Step 1: Discover
     const count = await registry.discover();
@@ -59,7 +59,7 @@ describe("Skill lifecycle integration", () => {
 
   it("invalid skills are silently skipped during discovery", async () => {
     const resolver = new LocalResolver([FIXTURES]);
-    const registry = new SkillRegistry([resolver]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
 
     await registry.discover();
     const names = registry.listMetadata().map((m) => m.name);
@@ -71,10 +71,75 @@ describe("Skill lifecycle integration", () => {
 
   it("load returns undefined for non-discovered skill", async () => {
     const resolver = new LocalResolver([FIXTURES]);
-    const registry = new SkillRegistry([resolver]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
     await registry.discover();
 
     const result = await registry.load("does-not-exist");
+    expect(result).toBeUndefined();
+  });
+
+  it("3-level lifecycle: discover → load → loadResource → cache verification", async () => {
+    const resolver = new LocalResolver([FIXTURES]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
+
+    // Level 1: Discover metadata
+    const count = await registry.discover();
+    expect(count).toBeGreaterThanOrEqual(5);
+    expect(registry.has("with-scripts")).toBe(true);
+    expect(registry.has("with-assets")).toBe(true);
+
+    // Level 2: Load full content
+    const skill = await registry.load("with-scripts");
+    expect(skill).toBeDefined();
+    expect(skill?.content).toContain("scripts/extract.py");
+
+    // Level 3: Load bundled resource
+    const resource = await registry.loadResource("with-scripts", "scripts/extract.py");
+    expect(resource).toBeDefined();
+    expect(resource?.category).toBe("script");
+    expect(resource?.content).toContain("extracted");
+
+    // Verify cache stats across all levels
+    const stats = registry.cacheStats();
+    expect(stats.metadata.size).toBe(count);
+    expect(stats.content.size).toBe(1);
+    expect(stats.resources.size).toBe(1);
+  });
+
+  it("cache stats reflect operations across all levels", async () => {
+    const resolver = new LocalResolver([FIXTURES]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
+
+    // Initial: all empty
+    let stats = registry.cacheStats();
+    expect(stats.metadata.size).toBe(0);
+    expect(stats.content.size).toBe(0);
+    expect(stats.resources.size).toBe(0);
+
+    // After discover
+    await registry.discover();
+    stats = registry.cacheStats();
+    expect(stats.metadata.size).toBeGreaterThanOrEqual(4);
+
+    // After loading content
+    await registry.load("valid-skill");
+    await registry.load("full-skill");
+    stats = registry.cacheStats();
+    expect(stats.content.size).toBe(2);
+
+    // After loading resources
+    await registry.loadResource("with-scripts", "scripts/extract.py");
+    await registry.loadResource("with-assets", "assets/logo.txt");
+    stats = registry.cacheStats();
+    expect(stats.resources.size).toBe(2);
+  });
+
+  it("resource not found for nonexistent file", async () => {
+    const resolver = new LocalResolver([FIXTURES]);
+    const registry = new SkillRegistry({ resolvers: [resolver] });
+    await registry.discover();
+
+    const result = await registry.loadResource("with-scripts", "scripts/nonexistent.py");
     expect(result).toBeUndefined();
   });
 });
