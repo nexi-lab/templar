@@ -1,14 +1,6 @@
-import {
-  type ErrorCode,
-  ExternalError,
-  isExternalError,
-  isPermissionError,
-  isRateLimitError,
-  isTemplarError,
-  isTimeoutError,
-  isValidationError,
-} from "@templar/errors";
+import { ExternalError } from "@templar/errors";
 import { CircuitBreaker } from "./circuit-breaker.js";
+import { classifyError } from "./classify.js";
 import { KeyPool } from "./key-pool.js";
 import { normalizeModelSelection } from "./model-id.js";
 import { FallbackStrategy } from "./strategies/fallback.js";
@@ -16,11 +8,13 @@ import type {
   CompletionRequest,
   CompletionResponse,
   FailoverAction,
+  KeyConfig,
   ModelProvider,
   ModelRef,
   ModelRouterConfig,
   ProviderErrorCategory,
   StreamChunk,
+  ThinkingLevel,
   UsageEvent,
 } from "./types.js";
 
@@ -32,44 +26,17 @@ const DEFAULT_FAILOVER: Readonly<Record<ProviderErrorCategory, FailoverAction>> 
   timeout: "retry",
   context_overflow: "compact",
   model_error: "fallback",
+  thinking: "thinking_downgrade",
   unknown: "retry",
 };
 
 /**
- * Classify a thrown error into a ProviderErrorCategory.
- * Uses type guards from @templar/errors to avoid generic type parameter issues.
+ * Compute full-jitter backoff delay.
+ * Full Jitter: sleep = random(0, min(cap, base * 2^attempt))
  */
-function classifyError(error: unknown): ProviderErrorCategory {
-  if (!isTemplarError(error)) return "unknown";
-
-  const code: ErrorCode = error.code;
-
-  if (isPermissionError(error)) {
-    if (code === "MODEL_PROVIDER_AUTH_FAILED") return "auth";
-    return "auth";
-  }
-  if (isRateLimitError(error)) return "rate_limit";
-  if (isTimeoutError(error)) return "timeout";
-  if (isValidationError(error)) {
-    if (code === "MODEL_CONTEXT_OVERFLOW") return "context_overflow";
-    return "unknown";
-  }
-  if (isExternalError(error)) {
-    if (code === "MODEL_PROVIDER_BILLING_FAILED") return "billing";
-    if (code === "MODEL_PROVIDER_ERROR") return "model_error";
-    return "unknown";
-  }
-  return "unknown";
-}
-
-/**
- * Compute exponential backoff delay with jitter.
- */
-function backoffDelay(attempt: number, baseMs: number, maxMs: number): number {
-  const delay = Math.min(baseMs * 2 ** attempt, maxMs);
-  // Add ±25% jitter
-  const jitter = delay * 0.25 * (Math.random() * 2 - 1);
-  return Math.max(0, delay + jitter);
+function fullJitterDelay(attempt: number, baseMs: number, maxMs: number): number {
+  const exponentialDelay = Math.min(baseMs * 2 ** attempt, maxMs);
+  return Math.random() * exponentialDelay;
 }
 
 /**
@@ -82,10 +49,15 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       return;
     }
 
-    const timer = setTimeout(resolve, ms);
+    let onAbort: (() => void) | undefined;
+
+    const timer = setTimeout(() => {
+      if (onAbort) signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
 
     if (signal) {
-      const onAbort = () => {
+      onAbort = () => {
         clearTimeout(timer);
         reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
       };
@@ -94,12 +66,33 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/** Resolution returned by the failover resolver */
+interface FailoverResolution {
+  readonly action: "continue" | "break_target" | "sleep_continue";
+  readonly delayMs?: number;
+  readonly thinkingLevel?: ThinkingLevel;
+}
+
+/**
+ * Map thinking levels to their downgrade targets.
+ * adaptive and extended are treated as equivalent tiers,
+ * both downgrading to "standard" before "none".
+ */
+const THINKING_DOWNGRADE_CHAIN: Partial<Readonly<Record<ThinkingLevel, ThinkingLevel>>> = {
+  adaptive: "standard",
+  extended: "standard",
+  standard: "none",
+};
+
 /**
  * Multi-provider LLM router with resilience features:
  * - Key rotation with cooldown
  * - Per-provider circuit breaker
  * - Configurable routing strategies
  * - Automatic failover with retry
+ * - 3-tier thinking downgrade chain
+ * - Full Jitter backoff with Retry-After support
+ * - PreModelSelect hook for candidate reordering
  * - Cost/usage tracking via events
  */
 export class ModelRouter {
@@ -140,93 +133,10 @@ export class ModelRouter {
    * Complete a request through the routing chain with failover.
    */
   async complete(request: CompletionRequest, signal?: AbortSignal): Promise<CompletionResponse> {
-    const targets = this.buildTargetChain(request);
+    const targets = await this.buildTargetChain(request);
     let lastError: unknown;
-    let thinkingDowngraded = false;
-
-    for (const target of targets) {
-      const provider = this.providers.get(target.provider);
-      if (!provider) continue;
-
-      if (!this.circuitBreaker.canExecute(target.provider)) continue;
-
-      for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-        if (signal?.aborted) {
-          throw signal.reason ?? new DOMException("Aborted", "AbortError");
-        }
-
-        const keyConfig = this.keyPool.selectKey(target.provider);
-        if (!keyConfig) break; // all keys exhausted for this provider
-
-        const effectiveRequest = this.buildEffectiveRequest(request, target, thinkingDowngraded);
-
-        const startTime = Date.now();
-        try {
-          const response = await provider.complete(effectiveRequest, signal);
-          const latencyMs = Date.now() - startTime;
-          this.circuitBreaker.recordSuccess(target.provider);
-          this.recordMetrics(target.provider, latencyMs, false);
-          this.emitUsage(target, response.usage, latencyMs);
-          return response;
-        } catch (error) {
-          const latencyMs = Date.now() - startTime;
-          lastError = error;
-          this.recordMetrics(target.provider, latencyMs, true);
-
-          const category = classifyError(error);
-          const action = this.failoverStrategy[category];
-
-          if (category === "context_overflow" && this.thinkingDowngrade && !thinkingDowngraded) {
-            thinkingDowngraded = true;
-            continue;
-          }
-
-          if (action === "rotate_key") {
-            this.keyPool.markCooldown(target.provider, keyConfig.key);
-            continue;
-          }
-
-          if (action === "backoff") {
-            this.keyPool.markCooldown(target.provider, keyConfig.key);
-            this.circuitBreaker.recordFailure(target.provider);
-            const delay = backoffDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
-            await sleep(delay, signal);
-            continue;
-          }
-
-          if (action === "retry") {
-            this.circuitBreaker.recordFailure(target.provider);
-            const delay = backoffDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
-            await sleep(delay, signal);
-            continue;
-          }
-
-          if (action === "fallback") {
-            this.circuitBreaker.recordFailure(target.provider);
-            break; // move to next target
-          }
-
-          // "compact" without thinking downgrade — fallback
-          this.circuitBreaker.recordFailure(target.provider);
-          break;
-        }
-      }
-    }
-
-    throw new ExternalError<"MODEL_ALL_PROVIDERS_FAILED">({
-      code: "MODEL_ALL_PROVIDERS_FAILED",
-      message: `All providers failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-      ...(lastError instanceof Error ? { cause: lastError } : {}),
-    });
-  }
-
-  /**
-   * Stream a request through the routing chain with head-of-stream retry.
-   */
-  async *stream(request: CompletionRequest, signal?: AbortSignal): AsyncIterable<StreamChunk> {
-    const targets = this.buildTargetChain(request);
-    let lastError: unknown;
-    let thinkingDowngraded = false;
+    let currentThinkingLevel: ThinkingLevel =
+      (request.thinking as ThinkingLevel | undefined) ?? "none";
 
     for (const target of targets) {
       const provider = this.providers.get(target.provider);
@@ -242,7 +152,74 @@ export class ModelRouter {
         const keyConfig = this.keyPool.selectKey(target.provider);
         if (!keyConfig) break;
 
-        const effectiveRequest = this.buildEffectiveRequest(request, target, thinkingDowngraded);
+        const effectiveRequest = this.buildEffectiveRequest(request, target, currentThinkingLevel);
+
+        const startTime = Date.now();
+        try {
+          const response = await provider.complete(effectiveRequest, signal);
+          const latencyMs = Date.now() - startTime;
+          this.circuitBreaker.recordSuccess(target.provider);
+          this.recordMetrics(target.provider, latencyMs, false);
+          this.emitUsage(target, response.usage, latencyMs);
+          return response;
+        } catch (error) {
+          const latencyMs = Date.now() - startTime;
+          lastError = error;
+          this.recordMetrics(target.provider, latencyMs, true);
+
+          const resolution = this.resolveFailoverAction(
+            error,
+            target.provider,
+            keyConfig,
+            attempt,
+            currentThinkingLevel,
+          );
+
+          if (resolution.thinkingLevel !== undefined) {
+            currentThinkingLevel = resolution.thinkingLevel;
+          }
+
+          if (resolution.action === "break_target") break;
+
+          if (resolution.action === "sleep_continue" && resolution.delayMs !== undefined) {
+            await sleep(resolution.delayMs, signal);
+          }
+          // "continue" and "sleep_continue" both continue the retry loop
+        }
+      }
+    }
+
+    throw new ExternalError<"MODEL_ALL_PROVIDERS_FAILED">({
+      code: "MODEL_ALL_PROVIDERS_FAILED",
+      message: `All providers failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+      ...(lastError instanceof Error ? { cause: lastError } : {}),
+    });
+  }
+
+  /**
+   * Stream a request through the routing chain with head-of-stream retry.
+   */
+  async *stream(request: CompletionRequest, signal?: AbortSignal): AsyncIterable<StreamChunk> {
+    const targets = await this.buildTargetChain(request);
+    let lastError: unknown;
+    let currentThinkingLevel: ThinkingLevel =
+      (request.thinking as ThinkingLevel | undefined) ?? "none";
+
+    for (const target of targets) {
+      const provider = this.providers.get(target.provider);
+      if (!provider) continue;
+
+      if (!this.circuitBreaker.canExecute(target.provider)) continue;
+
+      for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+        if (signal?.aborted) {
+          throw signal.reason ?? new DOMException("Aborted", "AbortError");
+        }
+
+        const keyConfig = this.keyPool.selectKey(target.provider);
+        if (!keyConfig) break;
+
+        const effectiveRequest = this.buildEffectiveRequest(request, target, currentThinkingLevel);
 
         const startTime = Date.now();
         let receivedFirstChunk = false;
@@ -274,41 +251,23 @@ export class ModelRouter {
           }
 
           // Head-of-stream: apply failover logic
-          const category = classifyError(error);
-          const action = this.failoverStrategy[category];
+          const resolution = this.resolveFailoverAction(
+            error,
+            target.provider,
+            keyConfig,
+            attempt,
+            currentThinkingLevel,
+          );
 
-          if (category === "context_overflow" && this.thinkingDowngrade && !thinkingDowngraded) {
-            thinkingDowngraded = true;
-            continue;
+          if (resolution.thinkingLevel !== undefined) {
+            currentThinkingLevel = resolution.thinkingLevel;
           }
 
-          if (action === "rotate_key") {
-            this.keyPool.markCooldown(target.provider, keyConfig.key);
-            continue;
-          }
+          if (resolution.action === "break_target") break;
 
-          if (action === "backoff") {
-            this.keyPool.markCooldown(target.provider, keyConfig.key);
-            this.circuitBreaker.recordFailure(target.provider);
-            const delay = backoffDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
-            await sleep(delay, signal);
-            continue;
+          if (resolution.action === "sleep_continue" && resolution.delayMs !== undefined) {
+            await sleep(resolution.delayMs, signal);
           }
-
-          if (action === "retry") {
-            this.circuitBreaker.recordFailure(target.provider);
-            const delay = backoffDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
-            await sleep(delay, signal);
-            continue;
-          }
-
-          if (action === "fallback") {
-            this.circuitBreaker.recordFailure(target.provider);
-            break;
-          }
-
-          this.circuitBreaker.recordFailure(target.provider);
-          break;
         }
       }
     }
@@ -366,8 +325,78 @@ export class ModelRouter {
     };
   }
 
+  /**
+   * Resolve failover action for a caught error. DRY helper used by both
+   * complete() and stream().
+   */
+  private resolveFailoverAction(
+    error: unknown,
+    provider: string,
+    keyConfig: KeyConfig,
+    attempt: number,
+    thinkingLevel: ThinkingLevel,
+  ): FailoverResolution {
+    const classification = classifyError(error, provider);
+    const category = classification.category;
+    const action = this.failoverStrategy[category];
+
+    // Thinking downgrade on thinking errors or context overflow
+    if (
+      (category === "thinking" || category === "context_overflow") &&
+      this.thinkingDowngrade &&
+      thinkingLevel !== "none"
+    ) {
+      const nextLevel = THINKING_DOWNGRADE_CHAIN[thinkingLevel];
+      if (nextLevel !== undefined) {
+        return { action: "continue", thinkingLevel: nextLevel };
+      }
+    }
+
+    if (action === "thinking_downgrade") {
+      // Explicit thinking_downgrade action from custom strategy
+      if (this.thinkingDowngrade && thinkingLevel !== "none") {
+        const nextLevel = THINKING_DOWNGRADE_CHAIN[thinkingLevel];
+        if (nextLevel !== undefined) {
+          return { action: "continue", thinkingLevel: nextLevel };
+        }
+      }
+      // Can't downgrade further — fall back to next target
+      this.circuitBreaker.recordFailure(provider);
+      return { action: "break_target" };
+    }
+
+    if (action === "rotate_key") {
+      this.keyPool.markCooldown(provider, keyConfig.key);
+      return { action: "continue" };
+    }
+
+    if (action === "backoff") {
+      this.keyPool.markCooldown(provider, keyConfig.key);
+      this.circuitBreaker.recordFailure(provider);
+      const calculatedDelay = fullJitterDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
+      const delay = Math.max(calculatedDelay, classification.retryAfterMs ?? 0);
+      return { action: "sleep_continue", delayMs: delay };
+    }
+
+    if (action === "retry") {
+      this.circuitBreaker.recordFailure(provider);
+      const calculatedDelay = fullJitterDelay(attempt, this.retryBaseDelayMs, this.retryMaxDelayMs);
+      const delay = Math.max(calculatedDelay, classification.retryAfterMs ?? 0);
+      return { action: "sleep_continue", delayMs: delay };
+    }
+
+    if (action === "fallback") {
+      this.circuitBreaker.recordFailure(provider);
+      return { action: "break_target" };
+    }
+
+    // "compact" or any unrecognized action — break to next target
+    this.circuitBreaker.recordFailure(provider);
+    return { action: "break_target" };
+  }
+
   /** Build the ordered list of model targets to try */
-  private buildTargetChain(request: CompletionRequest): readonly ModelRef[] {
+  private async buildTargetChain(request: CompletionRequest): Promise<readonly ModelRef[]> {
     const strategy = this.config.routingStrategy ?? new FallbackStrategy();
 
     // Build candidates from default + fallback chain
@@ -388,21 +417,31 @@ export class ModelRouter {
       }
     }
 
+    // Apply onPreModelSelect callback if configured
+    if (this.config.onPreModelSelect) {
+      try {
+        const overridden = await this.config.onPreModelSelect(chain);
+        if (overridden.length > 0) return overridden;
+      } catch {
+        // Callback error — fall back to default chain
+      }
+    }
+
     return chain;
   }
 
-  /** Build an effective request with model overrides applied */
+  /** Build an effective request with model overrides and thinking level applied */
   private buildEffectiveRequest(
     request: CompletionRequest,
     target: ModelRef,
-    thinkingDowngraded: boolean,
+    currentThinkingLevel: ThinkingLevel,
   ): CompletionRequest {
     return {
       ...request,
       model: target.model,
       ...(target.temperature !== undefined ? { temperature: target.temperature } : {}),
       ...(target.maxTokens !== undefined ? { maxTokens: target.maxTokens } : {}),
-      ...(thinkingDowngraded ? { thinking: "none" as const } : {}),
+      ...(currentThinkingLevel !== request.thinking ? { thinking: currentThinkingLevel } : {}),
     };
   }
 
@@ -426,19 +465,20 @@ export class ModelRouter {
     }
   }
 
-  /** Record metrics for a provider */
+  /** Record metrics for a provider (immutable update) */
   private recordMetrics(provider: string, latencyMs: number, isError: boolean): void {
-    let m = this.metrics.get(provider);
-    if (!m) {
-      m = { totalLatency: 0, requestCount: 0, errorCount: 0, lastErrorTime: null };
-      this.metrics.set(provider, m);
-    }
-    m.totalLatency += latencyMs;
-    m.requestCount++;
-    if (isError) {
-      m.errorCount++;
-      m.lastErrorTime = Date.now();
-    }
+    const current = this.metrics.get(provider) ?? {
+      totalLatency: 0,
+      requestCount: 0,
+      errorCount: 0,
+      lastErrorTime: null,
+    };
+    this.metrics.set(provider, {
+      totalLatency: current.totalLatency + latencyMs,
+      requestCount: current.requestCount + 1,
+      errorCount: current.errorCount + (isError ? 1 : 0),
+      lastErrorTime: isError ? Date.now() : current.lastErrorTime,
+    });
   }
 
   /** Build a readonly metrics map for routing context */

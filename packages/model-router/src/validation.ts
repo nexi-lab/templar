@@ -28,11 +28,18 @@ const ModelSelectionSchema = z.union([
     model: z.string().min(1),
     temperature: z.number().min(0).max(2).optional(),
     maxTokens: z.number().int().positive().optional(),
-    thinking: z.enum(["extended", "standard", "none"]).optional(),
+    thinking: z.enum(["adaptive", "extended", "standard", "none"]).optional(),
   }),
 ]);
 
-const FailoverActionSchema = z.enum(["rotate_key", "backoff", "retry", "compact", "fallback"]);
+const FailoverActionSchema = z.enum([
+  "rotate_key",
+  "backoff",
+  "retry",
+  "compact",
+  "fallback",
+  "thinking_downgrade",
+]);
 
 const ProviderErrorCategorySchema = z.enum([
   "auth",
@@ -41,6 +48,7 @@ const ProviderErrorCategorySchema = z.enum([
   "timeout",
   "context_overflow",
   "model_error",
+  "thinking",
   "unknown",
 ]);
 
@@ -62,6 +70,7 @@ const ModelRouterConfigSchema = z.object({
   maxRetries: z.number().int().nonnegative().optional(),
   retryBaseDelayMs: z.number().positive().optional(),
   retryMaxDelayMs: z.number().positive().optional(),
+  onPreModelSelect: z.function().optional(),
 });
 
 /**

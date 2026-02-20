@@ -2,7 +2,7 @@ import type { TurnContext } from "@templar/core";
 import { describe, expect, it } from "vitest";
 import { ModelRouterMiddleware } from "../middleware.js";
 import { ModelRouter } from "../router.js";
-import type { CompletionResponse, ModelProvider } from "../types.js";
+import type { CompletionResponse, ModelProvider, ModelRef } from "../types.js";
 
 function makeResponse(): CompletionResponse {
   return {
@@ -138,5 +138,33 @@ describe("ModelRouterMiddleware", () => {
     const usage = context.metadata?.["modelRouter:usage"];
     expect(Array.isArray(usage)).toBe(true);
     expect((usage as unknown[]).length).toBe(1);
+  });
+
+  it("onPreModelSelect callback fires through router config", async () => {
+    let hookCalled = false;
+    const response = makeResponse();
+    const provider = createMockProvider([response]);
+    const router = new ModelRouter(
+      {
+        providers: { openai: { keys: [{ key: "sk-1" }] } },
+        defaultModel: { provider: "openai", model: "gpt-4o" },
+        onPreModelSelect: (candidates: readonly ModelRef[]) => {
+          hookCalled = true;
+          return candidates;
+        },
+      },
+      new Map([["openai", provider]]),
+    );
+    const middleware = new ModelRouterMiddleware(router);
+    const context = makeTurnContext();
+
+    await middleware.onBeforeTurn(context);
+    await router.complete({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Hello" }],
+    });
+    await middleware.onAfterTurn(context);
+
+    expect(hookCalled).toBe(true);
   });
 });

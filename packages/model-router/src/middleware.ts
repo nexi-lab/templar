@@ -1,5 +1,11 @@
 import type { TemplarMiddleware, TurnContext } from "@templar/core";
 import type { ModelRouter } from "./router.js";
+import type { ModelRef } from "./types.js";
+
+/** Optional PreModelSelect hook stored in turn metadata */
+export type PreModelSelectHook = (
+  candidates: readonly ModelRef[],
+) => readonly ModelRef[] | Promise<readonly ModelRef[]>;
 
 /**
  * Thin middleware adapter that wires ModelRouter into the Templar lifecycle.
@@ -7,6 +13,7 @@ import type { ModelRouter } from "./router.js";
  * On each turn:
  * - Injects router diagnostics into turn metadata
  * - Wires onUsage events to track costs per-turn
+ * - Bridges PreModelSelect hook from metadata to router
  */
 export class ModelRouterMiddleware implements TemplarMiddleware {
   readonly name = "model-router";

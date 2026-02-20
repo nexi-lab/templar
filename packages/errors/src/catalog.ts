@@ -1287,6 +1287,15 @@ export const ERROR_CATALOG = {
     title: "All model providers failed",
     description: "All providers in the fallback chain have been exhausted",
   },
+  MODEL_THINKING_FAILED: {
+    domain: "model",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ExternalError" as const,
+    isExpected: true,
+    title: "Model thinking failed",
+    description: "Extended thinking request failed due to provider constraints",
+  },
   MODEL_INVALID_CONFIG: {
     domain: "model",
     httpStatus: 400,

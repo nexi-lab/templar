@@ -7,12 +7,14 @@
  */
 
 export { CircuitBreaker } from "./circuit-breaker.js";
+export { classifyError } from "./classify.js";
 export { KeyPool } from "./key-pool.js";
 export { formatModelId, normalizeModelSelection, parseModelId } from "./model-id.js";
 export { ModelRouter } from "./router.js";
 export type {
   CircuitBreakerConfig,
   CircuitState,
+  ClassificationResult,
   CompletionRequest,
   CompletionResponse,
   FailoverAction,
@@ -32,6 +34,7 @@ export type {
   RoutingStrategy,
   StreamChunk,
   StreamChunkType,
+  ThinkingLevel,
   TokenUsage,
   ToolCall,
   ToolDefinition,
