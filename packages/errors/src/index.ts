@@ -196,6 +196,20 @@ export {
 } from "./plugin.js";
 
 // ============================================================================
+// A2A ERRORS — Agent-to-Agent protocol client (#126)
+// ============================================================================
+
+export {
+  A2aAuthFailedError,
+  A2aDiscoveryFailedError,
+  A2aError,
+  A2aTaskFailedError,
+  A2aTaskRejectedError,
+  A2aTaskTimeoutError,
+  A2aUnsupportedOperationError,
+} from "./a2a.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 

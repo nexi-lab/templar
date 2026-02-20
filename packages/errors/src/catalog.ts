@@ -1923,6 +1923,66 @@ export const ERROR_CATALOG = {
     title: "Invalid search query",
     description: "The search query is empty or invalid",
   },
+
+  // ============================================================================
+  // A2A ERRORS — Agent-to-Agent protocol client (#126)
+  // ============================================================================
+  A2A_DISCOVERY_FAILED: {
+    domain: "a2a",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "A2A agent discovery failed",
+    description: "Failed to fetch or parse the Agent Card from the remote A2A agent",
+  },
+  A2A_AUTH_FAILED: {
+    domain: "a2a",
+    httpStatus: 401,
+    grpcCode: "UNAUTHENTICATED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "A2A authentication failed",
+    description: "Authentication with the remote A2A agent failed (invalid or missing credentials)",
+  },
+  A2A_TASK_REJECTED: {
+    domain: "a2a",
+    httpStatus: 422,
+    grpcCode: "FAILED_PRECONDITION" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "A2A task rejected",
+    description:
+      "The remote A2A agent rejected the task (skills mismatch, unsupported input, etc.)",
+  },
+  A2A_TASK_FAILED: {
+    domain: "a2a",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "A2A task failed",
+    description: "The remote A2A agent reported task execution failure",
+  },
+  A2A_TASK_TIMEOUT: {
+    domain: "a2a",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "A2A task timeout",
+    description:
+      "The remote A2A task did not reach a terminal state within the configured deadline",
+  },
+  A2A_UNSUPPORTED_OPERATION: {
+    domain: "a2a",
+    httpStatus: 400,
+    grpcCode: "UNIMPLEMENTED" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "A2A unsupported operation",
+    description: "The remote A2A agent does not support the requested operation or capability",
+  },
 } as const;
 
 // ============================================================================
