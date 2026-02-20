@@ -13,8 +13,8 @@
 
 // Selective OTel re-exports for advanced users
 export { context, SpanStatusCode, trace } from "@opentelemetry/api";
-export { createCacheTraceMiddleware } from "./cache-trace.js";
 export type { CacheStatus } from "./cache-trace.js";
+export { createCacheTraceMiddleware } from "./cache-trace.js";
 export {
   getAgentLatency,
   getAgentOperations,

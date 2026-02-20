@@ -120,13 +120,12 @@ export function getCacheReadTokens(): Counter {
  */
 export function getCacheCreationTokens(): Counter {
   if (_cacheCreationTokens === undefined) {
-    _cacheCreationTokens = metrics.getMeter(METER_NAME).createCounter(
-      "templar.cache.creation_tokens",
-      {
+    _cacheCreationTokens = metrics
+      .getMeter(METER_NAME)
+      .createCounter("templar.cache.creation_tokens", {
         description: "Tokens used to create cache entries",
         unit: "tokens",
-      },
-    );
+      });
   }
   return _cacheCreationTokens;
 }

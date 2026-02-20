@@ -3,10 +3,7 @@ import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-tr
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import type { ModelRequest, ModelResponse } from "@templar/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  createCacheTraceMiddleware,
-  determineCacheStatus,
-} from "../cache-trace.js";
+import { createCacheTraceMiddleware, determineCacheStatus } from "../cache-trace.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
