@@ -210,6 +210,19 @@ export {
 } from "./a2a.js";
 
 // ============================================================================
+// CODE MODE ERRORS — LLM-generated code execution via Monty sandbox (#111)
+// ============================================================================
+
+export {
+  CodeExecutionTimeoutError,
+  CodeModeError,
+  CodeResourceExceededError,
+  CodeRuntimeError,
+  CodeSandboxNotFoundError,
+  CodeSyntaxError,
+} from "./code-mode.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 

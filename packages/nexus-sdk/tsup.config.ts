@@ -9,6 +9,7 @@ export default defineConfig({
     "resources/memory": "src/resources/memory.ts",
     "resources/eventlog": "src/resources/eventlog.ts",
     "resources/permissions": "src/resources/permissions.ts",
+    "resources/sandbox": "src/resources/sandbox.ts",
     "http/index": "src/http/index.ts",
   },
   format: ["esm"],

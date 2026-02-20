@@ -2001,6 +2001,65 @@ export const ERROR_CATALOG = {
     title: "A2A unsupported operation",
     description: "The remote A2A agent does not support the requested operation or capability",
   },
+
+  // ============================================================================
+  // CODE MODE ERRORS — LLM-generated code execution via Monty sandbox (#111)
+  // ============================================================================
+  CODE_SYNTAX_ERROR: {
+    domain: "code",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Code syntax error",
+    description: "The LLM-generated Python code contains syntax errors",
+  },
+  CODE_RUNTIME_ERROR: {
+    domain: "code",
+    httpStatus: 400,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: true,
+    title: "Code runtime error",
+    description: "The LLM-generated code raised an exception during execution",
+  },
+  CODE_EXECUTION_TIMEOUT: {
+    domain: "code",
+    httpStatus: 408,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: true,
+    title: "Code execution timeout",
+    description: "The code execution exceeded the configured timeout",
+  },
+  CODE_RESOURCE_EXCEEDED: {
+    domain: "code",
+    httpStatus: 413,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "ExternalError" as const,
+    isExpected: true,
+    title: "Code resource exceeded",
+    description: "The code execution exceeded resource limits (memory, allocations, or recursion)",
+  },
+  CODE_SANDBOX_NOT_FOUND: {
+    domain: "code",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Code sandbox not found",
+    description: "The sandbox session does not exist or has expired",
+  },
+  CODE_ESCALATION_NEEDED: {
+    domain: "code",
+    httpStatus: 502,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Code escalation needed",
+    description:
+      "Code execution failed and the operation should fall back to sequential tool calls",
+  },
 } as const;
 
 // ============================================================================
