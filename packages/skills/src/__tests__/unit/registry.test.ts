@@ -11,16 +11,20 @@ function createMockResolver(
   skills: readonly Skill[],
   resources?: ReadonlyMap<string, SkillResource>,
 ): SkillResolver {
-  return {
+  const base = {
     name,
     discover: vi.fn(async () => skills.map((s) => s.metadata)),
     load: vi.fn(async (skillName: string) => skills.find((s) => s.metadata.name === skillName)),
-    loadResource: resources
-      ? vi.fn(async (skillName: string, relativePath: string) =>
-          resources.get(`${skillName}:${relativePath}`),
-        )
-      : undefined,
   };
+  if (resources) {
+    return {
+      ...base,
+      loadResource: vi.fn(async (skillName: string, relativePath: string) =>
+        resources.get(`${skillName}:${relativePath}`),
+      ),
+    };
+  }
+  return base;
 }
 
 const SKILL_A: Skill = {
