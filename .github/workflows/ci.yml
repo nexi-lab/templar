@@ -32,6 +32,9 @@ jobs:
       - name: Turborepo cache
         uses: rharkor/caching-for-turbo@v2.3.11
 
+      - name: Rewrite git SSH to HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
