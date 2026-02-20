@@ -1,23 +1,42 @@
-import type { NexusClient, TokenUsage } from "@nexus/sdk";
-import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
+import type { NexusClient } from "@nexus/sdk";
+import type { SessionContext, TemplarMiddleware, TokenUsage, TurnContext } from "@templar/core";
+import { isTokenUsage } from "@templar/core";
 import { BudgetExhaustedError, PayConfigurationError } from "@templar/errors";
 import { withTimeout } from "../utils.js";
 import {
   type BudgetPressure,
   type CacheStats,
-  type CostEntry,
+  type CostReport,
   DEFAULT_PAY_CONFIG,
+  type ModelCostEntry,
   type NexusPayConfig,
 } from "./types.js";
 
 /**
- * NexusPayMiddleware — budget tracking and cost alerts for agent sessions.
+ * Resolve alertThresholds from config — supports backwards-compat single number.
+ * Priority: alertThresholds > alertThreshold > default.
+ */
+function resolveAlertThresholds(config: NexusPayConfig): readonly number[] {
+  if (config.alertThresholds !== undefined) {
+    return typeof config.alertThresholds === "number"
+      ? [config.alertThresholds]
+      : config.alertThresholds;
+  }
+  if (config.alertThreshold !== undefined) {
+    return [config.alertThreshold];
+  }
+  return DEFAULT_PAY_CONFIG.alertThresholds;
+}
+
+/**
+ * NexusPayMiddleware — budget tracking, cost attribution, and alerts for agent sessions.
  *
  * Integrates with NexusPay (TigerBeetle credits) to:
  * - Check budget before every LLM call
  * - Reserve credits via two-phase transfers (reserve → commit/release)
  * - Track per-model costs and prompt cache hit rates
- * - Emit budget warnings and PSI-style pressure metrics
+ * - Emit budget warnings at configurable thresholds (50%, 80%, 100%)
+ * - Expose per-session cost reports via getCostReport()
  * - Hard-stop agents when budget is exhausted (kill switch)
  *
  * Budget lifecycle:
@@ -30,21 +49,27 @@ export class NexusPayMiddleware implements TemplarMiddleware {
   readonly name = "nexus-pay";
 
   private readonly client: NexusClient;
-  private readonly config: Required<
-    Omit<NexusPayConfig, "costCalculator" | "onBudgetWarning" | "onBudgetExhausted">
-  > & {
-    costCalculator: NexusPayConfig["costCalculator"];
-    onBudgetWarning: NexusPayConfig["onBudgetWarning"];
-    onBudgetExhausted: NexusPayConfig["onBudgetExhausted"];
-  };
+  private readonly dailyBudget: number;
+  private readonly alertThresholds: readonly number[];
+  private readonly hardLimit: boolean;
+  private readonly costTracking: boolean;
+  private readonly twoPhaseTransfers: boolean;
+  private readonly balanceCheckInterval: number;
+  private readonly balanceCheckTimeoutMs: number;
+  private readonly transferTimeoutMs: number;
+  private readonly reconciliationTimeoutMs: number;
+  private readonly defaultEstimatedCost: number;
+  private readonly costCalculator: NexusPayConfig["costCalculator"];
+  private readonly onBudgetWarningCb: NexusPayConfig["onBudgetWarning"];
+  private readonly onBudgetExhaustedCb: NexusPayConfig["onBudgetExhausted"];
 
   // Session state — reassigned (not mutated) on updates
   private turnCount = 0;
   private balance = 0;
   private sessionCost = 0;
   private activeTransferId: string | undefined = undefined;
-  private warningEmitted = false;
-  private perModelCosts: ReadonlyMap<string, CostEntry> = new Map();
+  private firedThresholds: ReadonlySet<number> = new Set();
+  private perModelCosts: ReadonlyMap<string, ModelCostEntry> = new Map();
   private cacheStats: Readonly<CacheStats> = {
     hits: 0,
     misses: 0,
@@ -54,24 +79,72 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
   constructor(client: NexusClient, config: NexusPayConfig) {
     this.client = client;
-    this.config = {
-      dailyBudget: config.dailyBudget,
-      alertThreshold: config.alertThreshold ?? DEFAULT_PAY_CONFIG.alertThreshold,
-      hardLimit: config.hardLimit ?? DEFAULT_PAY_CONFIG.hardLimit,
-      costTracking: config.costTracking ?? DEFAULT_PAY_CONFIG.costTracking,
-      twoPhaseTransfers: config.twoPhaseTransfers ?? DEFAULT_PAY_CONFIG.twoPhaseTransfers,
-      balanceCheckInterval: config.balanceCheckInterval ?? DEFAULT_PAY_CONFIG.balanceCheckInterval,
-      balanceCheckTimeoutMs:
-        config.balanceCheckTimeoutMs ?? DEFAULT_PAY_CONFIG.balanceCheckTimeoutMs,
-      transferTimeoutMs: config.transferTimeoutMs ?? DEFAULT_PAY_CONFIG.transferTimeoutMs,
-      reconciliationTimeoutMs:
-        config.reconciliationTimeoutMs ?? DEFAULT_PAY_CONFIG.reconciliationTimeoutMs,
-      defaultEstimatedCost: config.defaultEstimatedCost ?? DEFAULT_PAY_CONFIG.defaultEstimatedCost,
-      costCalculator: config.costCalculator,
-      onBudgetWarning: config.onBudgetWarning,
-      onBudgetExhausted: config.onBudgetExhausted,
+    this.dailyBudget = config.dailyBudget;
+    this.alertThresholds = resolveAlertThresholds(config);
+    this.hardLimit = config.hardLimit ?? DEFAULT_PAY_CONFIG.hardLimit;
+    this.costTracking = config.costTracking ?? DEFAULT_PAY_CONFIG.costTracking;
+    this.twoPhaseTransfers = config.twoPhaseTransfers ?? DEFAULT_PAY_CONFIG.twoPhaseTransfers;
+    this.balanceCheckInterval =
+      config.balanceCheckInterval ?? DEFAULT_PAY_CONFIG.balanceCheckInterval;
+    this.balanceCheckTimeoutMs =
+      config.balanceCheckTimeoutMs ?? DEFAULT_PAY_CONFIG.balanceCheckTimeoutMs;
+    this.transferTimeoutMs = config.transferTimeoutMs ?? DEFAULT_PAY_CONFIG.transferTimeoutMs;
+    this.reconciliationTimeoutMs =
+      config.reconciliationTimeoutMs ?? DEFAULT_PAY_CONFIG.reconciliationTimeoutMs;
+    this.defaultEstimatedCost =
+      config.defaultEstimatedCost ?? DEFAULT_PAY_CONFIG.defaultEstimatedCost;
+    this.costCalculator = config.costCalculator;
+    this.onBudgetWarningCb = config.onBudgetWarning;
+    this.onBudgetExhaustedCb = config.onBudgetExhausted;
+  }
+
+  // ===========================================================================
+  // PUBLIC API
+  // ===========================================================================
+
+  /**
+   * Get a snapshot cost report for the current session.
+   *
+   * O(n) where n = number of unique models (typically 1-5).
+   * Safe to call during or after a session.
+   */
+  getCostReport(sessionId: string): CostReport {
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalTokens = 0;
+
+    for (const entry of this.perModelCosts.values()) {
+      totalInput += entry.inputTokens;
+      totalOutput += entry.outputTokens;
+      totalTokens += entry.totalTokens;
+    }
+
+    return {
+      sessionId,
+      totalCost: this.sessionCost,
+      totalTokens: {
+        input: totalInput,
+        output: totalOutput,
+        total: totalTokens,
+      },
+      breakdown: {
+        byModel: this.perModelCosts,
+      },
+      cache: { ...this.cacheStats },
+      budget: {
+        used: this.sessionCost,
+        limit: this.dailyBudget,
+        remaining: this.balance,
+        pressure: this.dailyBudget > 0 ? this.sessionCost / this.dailyBudget : 0,
+      },
+      turnCount: this.turnCount,
+      generatedAt: new Date().toISOString(),
     };
   }
+
+  // ===========================================================================
+  // LIFECYCLE HOOKS
+  // ===========================================================================
 
   /**
    * Fetch balance and initialize session state.
@@ -81,10 +154,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
     this.resetSessionState();
 
     try {
-      const result = await withTimeout(
-        this.client.pay.getBalance(),
-        this.config.balanceCheckTimeoutMs,
-      );
+      const result = await withTimeout(this.client.pay.getBalance(), this.balanceCheckTimeoutMs);
 
       if (result !== undefined) {
         this.balance = result.balance;
@@ -108,13 +178,13 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
     // Check if budget is already exhausted
     if (this.isBudgetExhausted()) {
-      if (this.config.hardLimit) {
-        throw new BudgetExhaustedError(this.config.dailyBudget, this.sessionCost, this.balance);
+      if (this.hardLimit) {
+        throw new BudgetExhaustedError(this.dailyBudget, this.sessionCost, this.balance);
       }
     }
 
     // Two-phase transfer: reserve estimated cost
-    if (this.config.twoPhaseTransfers) {
+    if (this.twoPhaseTransfers) {
       await this.reserveCredits(context.sessionId);
     } else {
       // Without two-phase: periodic balance reconciliation
@@ -130,7 +200,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
     const actualCost = this.calculateCost(usage);
 
     // Commit or debit the actual cost
-    if (this.config.twoPhaseTransfers && this.activeTransferId !== undefined) {
+    if (this.twoPhaseTransfers && this.activeTransferId !== undefined) {
       await this.commitTransfer(context.sessionId, actualCost);
     } else if (actualCost > 0) {
       await this.debitCost(context.sessionId, actualCost, usage?.model);
@@ -141,13 +211,13 @@ export class NexusPayMiddleware implements TemplarMiddleware {
     this.balance = Math.max(0, this.balance - actualCost);
 
     // Update per-model costs
-    if (this.config.costTracking && usage !== undefined) {
+    if (this.costTracking && usage !== undefined) {
       this.updateModelCosts(usage, actualCost);
       this.updateCacheStats(usage);
     }
 
-    // Check and emit budget warning
-    await this.checkBudgetThreshold(context.sessionId);
+    // Check and emit budget warnings
+    await this.checkBudgetThresholds(context.sessionId);
 
     // Inject PSI-style pressure metrics into metadata
     this.injectBudgetPressure(context);
@@ -164,10 +234,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
     // Final balance reconciliation
     try {
-      const result = await withTimeout(
-        this.client.pay.getBalance(),
-        this.config.reconciliationTimeoutMs,
-      );
+      const result = await withTimeout(this.client.pay.getBalance(), this.reconciliationTimeoutMs);
 
       if (result !== undefined) {
         this.balance = result.balance;
@@ -192,7 +259,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
     this.balance = 0;
     this.sessionCost = 0;
     this.activeTransferId = undefined;
-    this.warningEmitted = false;
+    this.firedThresholds = new Set();
     this.perModelCosts = new Map();
     this.cacheStats = {
       hits: 0,
@@ -203,18 +270,18 @@ export class NexusPayMiddleware implements TemplarMiddleware {
   }
 
   private handleBalanceCheckFailure(sessionId: string, reason: string): void {
-    if (this.config.hardLimit) {
-      throw new BudgetExhaustedError(this.config.dailyBudget, 0, 0, { session_id: sessionId });
+    if (this.hardLimit) {
+      throw new BudgetExhaustedError(this.dailyBudget, 0, 0, { session_id: sessionId });
     }
     // Soft limit: warn and continue with optimistic balance
     console.warn(
       `[nexus-pay] Session ${sessionId}: ${reason}, continuing with dailyBudget as balance`,
     );
-    this.balance = this.config.dailyBudget;
+    this.balance = this.dailyBudget;
   }
 
   private isBudgetExhausted(): boolean {
-    return this.balance <= 0 || this.sessionCost >= this.config.dailyBudget;
+    return this.balance <= 0 || this.sessionCost >= this.dailyBudget;
   }
 
   /**
@@ -231,7 +298,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
           phase: "reserve",
           description: `Session ${sessionId} turn ${this.turnCount} estimate`,
         }),
-        this.config.transferTimeoutMs,
+        this.transferTimeoutMs,
       );
 
       if (result !== undefined) {
@@ -248,8 +315,8 @@ export class NexusPayMiddleware implements TemplarMiddleware {
   private handleReserveFailure(sessionId: string, reason: string): void {
     this.activeTransferId = undefined;
 
-    if (this.config.hardLimit) {
-      throw new BudgetExhaustedError(this.config.dailyBudget, this.sessionCost, this.balance, {
+    if (this.hardLimit) {
+      throw new BudgetExhaustedError(this.dailyBudget, this.sessionCost, this.balance, {
         session_id: sessionId,
       });
     }
@@ -258,7 +325,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
   private getEstimatedCost(): number {
     if (this.turnCount <= 1 || this.sessionCost === 0) {
-      return this.config.defaultEstimatedCost;
+      return this.defaultEstimatedCost;
     }
     // Average cost per completed turn
     return Math.ceil(this.sessionCost / (this.turnCount - 1));
@@ -283,7 +350,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
           phase: "commit",
           transfer_id: transferId,
         }),
-        this.config.transferTimeoutMs,
+        this.transferTimeoutMs,
       );
 
       if (result !== undefined) {
@@ -321,7 +388,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
           ...(model !== undefined ? { model } : {}),
           session_id: sessionId,
         }),
-        this.config.transferTimeoutMs,
+        this.transferTimeoutMs,
       );
 
       if (result !== undefined) {
@@ -361,7 +428,7 @@ export class NexusPayMiddleware implements TemplarMiddleware {
           phase: "release",
           transfer_id: transferId,
         }),
-        this.config.transferTimeoutMs,
+        this.transferTimeoutMs,
       );
     } catch (error) {
       console.warn(
@@ -374,23 +441,23 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
   /**
    * Periodically re-check balance via API (hybrid approach).
-   * Also checks when approaching the alert threshold for accuracy.
+   * Also checks when approaching the lowest unfired alert threshold for accuracy.
    */
   private async maybeReconcileBalance(sessionId: string): Promise<void> {
-    const pressure = this.config.dailyBudget > 0 ? this.sessionCost / this.config.dailyBudget : 0;
+    const pressure = this.dailyBudget > 0 ? this.sessionCost / this.dailyBudget : 0;
 
-    const isReconciliationTurn = this.turnCount % this.config.balanceCheckInterval === 0;
-    const isApproachingThreshold = pressure >= this.config.alertThreshold * 0.9;
+    const isReconciliationTurn = this.turnCount % this.balanceCheckInterval === 0;
+
+    // Find lowest unfired threshold to determine proximity
+    const lowestUnfired = this.getLowestUnfiredThreshold();
+    const isApproachingThreshold = lowestUnfired !== undefined && pressure >= lowestUnfired * 0.9;
 
     if (!isReconciliationTurn && !isApproachingThreshold) {
       return;
     }
 
     try {
-      const result = await withTimeout(
-        this.client.pay.getBalance(),
-        this.config.reconciliationTimeoutMs,
-      );
+      const result = await withTimeout(this.client.pay.getBalance(), this.reconciliationTimeoutMs);
 
       if (result !== undefined) {
         this.balance = result.balance;
@@ -403,7 +470,13 @@ export class NexusPayMiddleware implements TemplarMiddleware {
   }
 
   /**
-   * Extract TokenUsage from turn context metadata (convention-based).
+   * Extract TokenUsage from turn context metadata.
+   *
+   * Checks two sources in priority order:
+   * 1. context.metadata.usage — direct TokenUsage (primary)
+   * 2. context.metadata["modelRouter:usage"] — array of UsageEvents from ModelRouter
+   *
+   * Uses isTokenUsage type guard from @templar/core for safe validation.
    */
   private extractUsage(context: TurnContext): TokenUsage | undefined {
     const metadata = context.metadata;
@@ -411,17 +484,65 @@ export class NexusPayMiddleware implements TemplarMiddleware {
       return undefined;
     }
 
-    const usage = metadata.usage;
-    if (usage === undefined || typeof usage !== "object" || usage === null) {
-      return undefined;
+    // Primary: direct TokenUsage in metadata.usage
+    if (isTokenUsage(metadata.usage)) {
+      return metadata.usage;
     }
 
-    const record = usage as Record<string, unknown>;
-    if (typeof record.model !== "string" || typeof record.inputTokens !== "number") {
-      return undefined;
+    // Secondary: aggregate from ModelRouter usage events
+    const routerUsage = metadata["modelRouter:usage"];
+    if (Array.isArray(routerUsage) && routerUsage.length > 0) {
+      return this.aggregateRouterUsage(routerUsage);
     }
 
-    return usage as TokenUsage;
+    return undefined;
+  }
+
+  /**
+   * Aggregate multiple ModelRouter UsageEvents into a single TokenUsage.
+   * A turn can produce multiple events due to retries/fallbacks.
+   */
+  private aggregateRouterUsage(events: readonly unknown[]): TokenUsage | undefined {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+    let totalCost = 0;
+    let cacheReadTokens = 0;
+    let cacheCreationTokens = 0;
+    let model = "";
+    let validCount = 0;
+
+    for (const event of events) {
+      if (event === null || typeof event !== "object") continue;
+      const e = event as Record<string, unknown>;
+      const usage = e.usage;
+      if (usage === null || typeof usage !== "object") continue;
+      const u = usage as Record<string, unknown>;
+
+      if (typeof u.inputTokens !== "number" || typeof u.outputTokens !== "number") continue;
+
+      inputTokens += u.inputTokens;
+      outputTokens += u.outputTokens;
+      totalTokens +=
+        typeof u.totalTokens === "number" ? u.totalTokens : u.inputTokens + u.outputTokens;
+      if (typeof u.totalCost === "number") totalCost += u.totalCost;
+      if (typeof u.cacheReadTokens === "number") cacheReadTokens += u.cacheReadTokens;
+      if (typeof u.cacheCreationTokens === "number") cacheCreationTokens += u.cacheCreationTokens;
+      if (typeof e.model === "string") model = e.model;
+      validCount++;
+    }
+
+    if (validCount === 0) return undefined;
+
+    return {
+      model: model || "unknown",
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      ...(totalCost > 0 ? { totalCost } : {}),
+      ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+      ...(cacheCreationTokens > 0 ? { cacheCreationTokens } : {}),
+    };
   }
 
   /**
@@ -429,30 +550,36 @@ export class NexusPayMiddleware implements TemplarMiddleware {
    * Priority: costCalculator callback > usage.totalCost > defaultEstimatedCost.
    */
   private calculateCost(usage: TokenUsage | undefined): number {
-    if (usage !== undefined && this.config.costCalculator !== undefined) {
-      return this.config.costCalculator(usage.model, usage);
+    if (usage !== undefined && this.costCalculator !== undefined) {
+      return this.costCalculator(usage.model ?? "unknown", usage);
     }
 
     if (usage?.totalCost !== undefined) {
       return usage.totalCost;
     }
 
-    return this.config.defaultEstimatedCost;
+    return this.defaultEstimatedCost;
   }
 
   /**
-   * Update per-model cost tracking (bounded by unique model count).
+   * Update per-model cost tracking with full token breakdown.
    */
   private updateModelCosts(usage: TokenUsage, cost: number): void {
-    const existing = this.perModelCosts.get(usage.model);
-    const updated: CostEntry = {
+    const model = usage.model ?? "unknown";
+    const usageTotalTokens = usage.totalTokens ?? usage.inputTokens + usage.outputTokens;
+    const existing = this.perModelCosts.get(model);
+    const updated: ModelCostEntry = {
       totalCost: (existing?.totalCost ?? 0) + cost,
-      totalTokens: (existing?.totalTokens ?? 0) + usage.totalTokens,
+      inputTokens: (existing?.inputTokens ?? 0) + usage.inputTokens,
+      outputTokens: (existing?.outputTokens ?? 0) + usage.outputTokens,
+      totalTokens: (existing?.totalTokens ?? 0) + usageTotalTokens,
       requestCount: (existing?.requestCount ?? 0) + 1,
+      cacheReadTokens: (existing?.cacheReadTokens ?? 0) + (usage.cacheReadTokens ?? 0),
+      cacheCreationTokens: (existing?.cacheCreationTokens ?? 0) + (usage.cacheCreationTokens ?? 0),
     };
 
     const newMap = new Map(this.perModelCosts);
-    newMap.set(usage.model, updated);
+    newMap.set(model, updated);
     this.perModelCosts = newMap;
   }
 
@@ -471,27 +598,35 @@ export class NexusPayMiddleware implements TemplarMiddleware {
   }
 
   /**
-   * Check if budget threshold has been crossed and emit warning.
+   * Check if any alert thresholds have been crossed and emit warnings.
+   * Each threshold fires at most once per session.
    */
-  private async checkBudgetThreshold(sessionId: string): Promise<void> {
-    if (this.warningEmitted || this.config.dailyBudget <= 0) {
+  private async checkBudgetThresholds(sessionId: string): Promise<void> {
+    if (this.dailyBudget <= 0) {
       return;
     }
 
-    const pressure = this.sessionCost / this.config.dailyBudget;
+    const pressure = this.sessionCost / this.dailyBudget;
 
-    if (pressure >= this.config.alertThreshold) {
-      this.warningEmitted = true;
+    // Check each threshold
+    for (const threshold of this.alertThresholds) {
+      if (this.firedThresholds.has(threshold)) continue;
+      if (pressure < threshold) continue;
 
-      if (this.config.onBudgetWarning !== undefined) {
+      // Fire this threshold
+      const newFired = new Set(this.firedThresholds);
+      newFired.add(threshold);
+      this.firedThresholds = newFired;
+
+      if (this.onBudgetWarningCb !== undefined) {
         try {
-          await this.config.onBudgetWarning({
+          await this.onBudgetWarningCb({
             sessionId,
-            budget: this.config.dailyBudget,
+            budget: this.dailyBudget,
             spent: this.sessionCost,
             remaining: this.balance,
             pressure,
-            threshold: this.config.alertThreshold,
+            threshold,
           });
         } catch (error) {
           console.warn(
@@ -504,21 +639,42 @@ export class NexusPayMiddleware implements TemplarMiddleware {
     }
 
     // Check if fully exhausted
-    if (this.isBudgetExhausted() && this.config.onBudgetExhausted !== undefined) {
-      try {
-        await this.config.onBudgetExhausted({
-          sessionId,
-          budget: this.config.dailyBudget,
-          spent: this.sessionCost,
-        });
-      } catch (error) {
-        console.warn(
-          `[nexus-pay] Session ${sessionId}: onBudgetExhausted callback failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
+    if (this.isBudgetExhausted() && this.onBudgetExhaustedCb !== undefined) {
+      // Only fire exhausted callback once (use threshold 1.0 as sentinel)
+      if (!this.firedThresholds.has(-1)) {
+        const newFired = new Set(this.firedThresholds);
+        newFired.add(-1);
+        this.firedThresholds = newFired;
+
+        try {
+          await this.onBudgetExhaustedCb({
+            sessionId,
+            budget: this.dailyBudget,
+            spent: this.sessionCost,
+          });
+        } catch (error) {
+          console.warn(
+            `[nexus-pay] Session ${sessionId}: onBudgetExhausted callback failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
       }
     }
+  }
+
+  /**
+   * Get the lowest unfired threshold, or undefined if all have fired.
+   */
+  private getLowestUnfiredThreshold(): number | undefined {
+    let lowest: number | undefined;
+    for (const threshold of this.alertThresholds) {
+      if (this.firedThresholds.has(threshold)) continue;
+      if (lowest === undefined || threshold < lowest) {
+        lowest = threshold;
+      }
+    }
+    return lowest;
   }
 
   /**
@@ -529,8 +685,8 @@ export class NexusPayMiddleware implements TemplarMiddleware {
 
     const pressure: BudgetPressure = {
       remaining: this.balance,
-      dailyBudget: this.config.dailyBudget,
-      pressure: this.config.dailyBudget > 0 ? this.sessionCost / this.config.dailyBudget : 0,
+      dailyBudget: this.dailyBudget,
+      pressure: this.dailyBudget > 0 ? this.sessionCost / this.dailyBudget : 0,
       sessionCost: this.sessionCost,
       cacheHitRate: totalCacheRequests > 0 ? this.cacheStats.hits / totalCacheRequests : 0,
     };
@@ -548,44 +704,75 @@ export class NexusPayMiddleware implements TemplarMiddleware {
  * @throws {PayConfigurationError} if config is invalid
  */
 export function validatePayConfig(config: NexusPayConfig): void {
-  if (config.dailyBudget < 0) {
+  if (!Number.isFinite(config.dailyBudget) || config.dailyBudget < 0) {
     throw new PayConfigurationError(`dailyBudget must be >= 0, got ${config.dailyBudget}`);
   }
 
+  // Validate legacy alertThreshold
   if (
     config.alertThreshold !== undefined &&
-    (config.alertThreshold < 0 || config.alertThreshold > 1)
+    (!Number.isFinite(config.alertThreshold) ||
+      config.alertThreshold < 0 ||
+      config.alertThreshold > 1)
   ) {
     throw new PayConfigurationError(
       `alertThreshold must be between 0 and 1, got ${config.alertThreshold}`,
     );
   }
 
-  if (config.balanceCheckInterval !== undefined && config.balanceCheckInterval < 1) {
+  // Validate alertThresholds array
+  if (config.alertThresholds !== undefined) {
+    const thresholds =
+      typeof config.alertThresholds === "number"
+        ? [config.alertThresholds]
+        : config.alertThresholds;
+    for (const t of thresholds) {
+      if (!Number.isFinite(t) || t < 0 || t > 1) {
+        throw new PayConfigurationError(`alertThresholds values must be between 0 and 1, got ${t}`);
+      }
+    }
+  }
+
+  if (
+    config.balanceCheckInterval !== undefined &&
+    (!Number.isFinite(config.balanceCheckInterval) || config.balanceCheckInterval < 1)
+  ) {
     throw new PayConfigurationError(
       `balanceCheckInterval must be >= 1, got ${config.balanceCheckInterval}`,
     );
   }
 
-  if (config.balanceCheckTimeoutMs !== undefined && config.balanceCheckTimeoutMs < 0) {
+  if (
+    config.balanceCheckTimeoutMs !== undefined &&
+    (!Number.isFinite(config.balanceCheckTimeoutMs) || config.balanceCheckTimeoutMs < 0)
+  ) {
     throw new PayConfigurationError(
       `balanceCheckTimeoutMs must be >= 0, got ${config.balanceCheckTimeoutMs}`,
     );
   }
 
-  if (config.transferTimeoutMs !== undefined && config.transferTimeoutMs < 0) {
+  if (
+    config.transferTimeoutMs !== undefined &&
+    (!Number.isFinite(config.transferTimeoutMs) || config.transferTimeoutMs < 0)
+  ) {
     throw new PayConfigurationError(
       `transferTimeoutMs must be >= 0, got ${config.transferTimeoutMs}`,
     );
   }
 
-  if (config.reconciliationTimeoutMs !== undefined && config.reconciliationTimeoutMs < 0) {
+  if (
+    config.reconciliationTimeoutMs !== undefined &&
+    (!Number.isFinite(config.reconciliationTimeoutMs) || config.reconciliationTimeoutMs < 0)
+  ) {
     throw new PayConfigurationError(
       `reconciliationTimeoutMs must be >= 0, got ${config.reconciliationTimeoutMs}`,
     );
   }
 
-  if (config.defaultEstimatedCost !== undefined && config.defaultEstimatedCost < 0) {
+  if (
+    config.defaultEstimatedCost !== undefined &&
+    (!Number.isFinite(config.defaultEstimatedCost) || config.defaultEstimatedCost < 0)
+  ) {
     throw new PayConfigurationError(
       `defaultEstimatedCost must be >= 0, got ${config.defaultEstimatedCost}`,
     );

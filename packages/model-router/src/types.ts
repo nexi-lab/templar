@@ -100,8 +100,10 @@ export interface StreamChunk {
 export interface TokenUsage {
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly totalTokens?: number;
+  readonly totalCost?: number;
   readonly cacheReadTokens?: number;
-  readonly cacheWriteTokens?: number;
+  readonly cacheCreationTokens?: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
-import type { TokenUsage } from "@nexus/sdk";
+import type { TokenUsage } from "@templar/core";
 
 /**
- * Budget warning event — emitted when spending crosses the alert threshold.
+ * Budget warning event — emitted when spending crosses an alert threshold.
  */
 export interface BudgetWarningEvent {
   /** Session that triggered the warning */
@@ -14,7 +14,7 @@ export interface BudgetWarningEvent {
   remaining: number;
   /** Budget pressure: spent / budget (0.0–1.0+) */
   pressure: number;
-  /** The threshold that was crossed (e.g., 0.8) */
+  /** The specific threshold that was crossed (e.g., 0.8) */
   threshold: number;
 }
 
@@ -37,7 +37,17 @@ export interface NexusPayConfig {
   /** Max daily spend in credits (integer) — required */
   dailyBudget: number;
 
-  /** Alert at this fraction of budget (default: 0.8 = 80%) */
+  /**
+   * Alert at these fractions of budget (default: [0.5, 0.8, 1.0]).
+   * Accepts a single number (backwards-compatible) or an array.
+   * Each value must be between 0 and 1.
+   */
+  alertThresholds?: number | readonly number[];
+
+  /**
+   * @deprecated Use alertThresholds instead.
+   * If both are set, alertThresholds takes precedence.
+   */
   alertThreshold?: number;
 
   /** Block agent when budget exhausted (default: true) */
@@ -71,7 +81,7 @@ export interface NexusPayConfig {
    */
   costCalculator?: (model: string, usage: TokenUsage) => number;
 
-  /** Called when spending crosses the alert threshold */
+  /** Called when spending crosses an alert threshold */
   onBudgetWarning?: (event: BudgetWarningEvent) => void | Promise<void>;
 
   /** Called when budget is fully exhausted */
@@ -82,7 +92,7 @@ export interface NexusPayConfig {
  * Default configuration values
  */
 export const DEFAULT_PAY_CONFIG = {
-  alertThreshold: 0.8,
+  alertThresholds: [0.5, 0.8, 1.0] as readonly number[],
   hardLimit: true,
   costTracking: true,
   twoPhaseTransfers: true,
@@ -94,16 +104,29 @@ export const DEFAULT_PAY_CONFIG = {
 } as const;
 
 /**
- * Per-model cost accumulator (bounded by unique model count).
+ * Per-model cost entry with detailed token breakdown.
  */
-export interface CostEntry {
+export interface ModelCostEntry {
   /** Total credits spent on this model */
-  totalCost: number;
-  /** Total tokens consumed by this model */
-  totalTokens: number;
+  readonly totalCost: number;
+  /** Input/prompt tokens consumed */
+  readonly inputTokens: number;
+  /** Output/completion tokens consumed */
+  readonly outputTokens: number;
+  /** Total tokens consumed (input + output) */
+  readonly totalTokens: number;
   /** Number of LLM requests using this model */
-  requestCount: number;
+  readonly requestCount: number;
+  /** Cached tokens read */
+  readonly cacheReadTokens: number;
+  /** Tokens used to create cache entries */
+  readonly cacheCreationTokens: number;
 }
+
+/**
+ * @deprecated Use ModelCostEntry instead.
+ */
+export type CostEntry = ModelCostEntry;
 
 /**
  * Prompt cache statistics.
@@ -133,4 +156,54 @@ export interface BudgetPressure {
   sessionCost: number;
   /** Cache hit rate: hits / (hits + misses), or 0 if no data */
   cacheHitRate: number;
+}
+
+// ============================================================================
+// Cost Report (#158)
+// ============================================================================
+
+/**
+ * Budget summary within a cost report.
+ */
+export interface BudgetSummary {
+  /** Credits used this session */
+  readonly used: number;
+  /** Daily budget limit */
+  readonly limit: number;
+  /** Credits remaining */
+  readonly remaining: number;
+  /** Budget pressure: used / limit (0.0–1.0+) */
+  readonly pressure: number;
+}
+
+/**
+ * Cost report — per-session cost transparency.
+ *
+ * Returned by NexusPayMiddleware.getCostReport().
+ * Extensible breakdown object for future per-tool/per-step attribution.
+ */
+export interface CostReport {
+  /** Session this report covers */
+  readonly sessionId: string;
+  /** Total credits spent */
+  readonly totalCost: number;
+  /** Aggregate token counts */
+  readonly totalTokens: {
+    readonly input: number;
+    readonly output: number;
+    readonly total: number;
+  };
+  /** Cost breakdowns by dimension */
+  readonly breakdown: {
+    /** Per-model cost attribution */
+    readonly byModel: ReadonlyMap<string, ModelCostEntry>;
+  };
+  /** Prompt cache statistics */
+  readonly cache: Readonly<CacheStats>;
+  /** Budget summary */
+  readonly budget: BudgetSummary;
+  /** Number of turns in this session */
+  readonly turnCount: number;
+  /** When this report was generated (ISO-8601) */
+  readonly generatedAt: string;
 }

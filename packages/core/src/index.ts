@@ -112,3 +112,6 @@ export type {
   SpawnLimitsConfig,
   SpawnStopReason,
 } from "./spawn-types.js";
+// Token usage types (#158)
+export type { TokenUsage } from "./token-usage-types.js";
+export { isTokenUsage } from "./token-usage-types.js";
