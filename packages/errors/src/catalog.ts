@@ -2204,6 +2204,55 @@ export const ERROR_CATALOG = {
     title: "Invalid guardrail configuration",
     description: "The guardrails middleware configuration is invalid",
   },
+
+  // ============================================================================
+  // CANVAS ERRORS — A2UI Visual Workspace (#90)
+  // ============================================================================
+  CANVAS_ARTIFACT_NOT_FOUND: {
+    domain: "canvas",
+    httpStatus: 404,
+    grpcCode: "NOT_FOUND" as const,
+    baseType: "NotFoundError" as const,
+    isExpected: true,
+    title: "Canvas artifact not found",
+    description: "The requested canvas artifact does not exist",
+  },
+  CANVAS_LIMIT_EXCEEDED: {
+    domain: "canvas",
+    httpStatus: 429,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "RateLimitError" as const,
+    isExpected: true,
+    title: "Canvas artifact limit exceeded",
+    description: "The maximum number of canvas artifacts has been reached",
+  },
+  CANVAS_CONTENT_TOO_LARGE: {
+    domain: "canvas",
+    httpStatus: 413,
+    grpcCode: "RESOURCE_EXHAUSTED" as const,
+    baseType: "RateLimitError" as const,
+    isExpected: true,
+    title: "Canvas content too large",
+    description: "The canvas artifact content exceeds the maximum allowed size",
+  },
+  CANVAS_CONFIGURATION_INVALID: {
+    domain: "canvas",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid canvas configuration",
+    description: "The canvas tool configuration is invalid",
+  },
+  CANVAS_INVALID_ACTION: {
+    domain: "canvas",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid canvas action",
+    description: "The canvas tool action is invalid or missing required fields",
+  },
 } as const;
 
 // ============================================================================
