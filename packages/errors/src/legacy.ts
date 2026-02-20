@@ -2026,6 +2026,23 @@ export class SkillParseError extends ValidationError<"SKILL_PARSE_ERROR"> {
   }
 }
 
+/** @deprecated Use `new NotFoundError({ code: "SKILL_RESOURCE_NOT_FOUND", ... })` */
+export class SkillResourceNotFoundError extends NotFoundError<"SKILL_RESOURCE_NOT_FOUND"> {
+  constructor(
+    public readonly skillName: string,
+    public readonly relativePath: string,
+    metadata?: Record<string, string>,
+    traceId?: string,
+  ) {
+    super({
+      code: "SKILL_RESOURCE_NOT_FOUND",
+      message: `Resource '${relativePath}' not found in skill '${skillName}'`,
+      ...(metadata ? { metadata } : {}),
+      ...(traceId ? { traceId } : {}),
+    });
+  }
+}
+
 /** @deprecated Use `new ValidationError({ code: "SKILL_VALIDATION_ERROR", ... })` */
 export class SkillValidationError extends ValidationError<"SKILL_VALIDATION_ERROR"> {
   readonly validationIssues?: readonly string[] | undefined;
