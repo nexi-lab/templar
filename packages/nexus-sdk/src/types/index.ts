@@ -189,6 +189,14 @@ export type {
   TrajectoryStepType,
   UpdatePlaybookParams,
 } from "./ace.js";
+// Re-export pairing types
+export type {
+  AddPeerParams,
+  ListPeersParams,
+  PeerEntry,
+  PeersPage,
+  RemovePeerParams,
+} from "./pairing.js";
 // Re-export pay types
 export type {
   BalanceResponse,
@@ -200,14 +208,6 @@ export type {
   TransferResponse,
   TransferStatus,
 } from "./pay.js";
-// Re-export pairing types
-export type {
-  AddPeerParams,
-  ListPeersParams,
-  PeerEntry,
-  PeersPage,
-  RemovePeerParams,
-} from "./pairing.js";
 // Re-export sandbox types
 export type {
   CreateSandboxParams,

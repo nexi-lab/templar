@@ -4,7 +4,13 @@
  * Manages paired peer storage for DM channel access control.
  */
 
-import type { AddPeerParams, ListPeersParams, PeerEntry, PeersPage, RemovePeerParams } from "../types/pairing.js";
+import type {
+  AddPeerParams,
+  ListPeersParams,
+  PeerEntry,
+  PeersPage,
+  RemovePeerParams,
+} from "../types/pairing.js";
 import { BaseResource } from "./base.js";
 
 export class PairingResource extends BaseResource {

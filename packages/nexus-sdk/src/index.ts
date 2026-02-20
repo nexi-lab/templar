@@ -153,6 +153,13 @@ export type {
   StoreMemoryParams,
 } from "./types/memory.js";
 export type {
+  AddPeerParams,
+  ListPeersParams,
+  PeerEntry,
+  PeersPage,
+  RemovePeerParams,
+} from "./types/pairing.js";
+export type {
   BalanceResponse,
   DebitParams,
   DebitResponse,
@@ -186,10 +193,3 @@ export type {
   ToolsResponse,
   UpdateToolParams,
 } from "./types/tools.js";
-export type {
-  AddPeerParams,
-  ListPeersParams,
-  PeerEntry,
-  PeersPage,
-  RemovePeerParams,
-} from "./types/pairing.js";
