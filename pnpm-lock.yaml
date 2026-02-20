@@ -278,6 +278,31 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/doctor:
+    dependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      yaml:
+        specifier: ^2.8.0
+        version: 2.8.2
+    devDependencies:
+      '@nexus/sdk':
+        specifier: workspace:*
+        version: link:../nexus-sdk
+      '@templar/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@types/node':
+        specifier: ^25.0.0
+        version: 25.2.2
+      vitest:
+        specifier: ^4.0.0
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.2)(yaml@2.8.2)
+
   packages/engine:
     dependencies:
       '@langchain/langgraph':
