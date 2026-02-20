@@ -223,6 +223,12 @@ export {
 } from "./code-mode.js";
 
 // ============================================================================
+// HUMAN DELAY ERRORS — Human-like typing delay simulation (#88)
+// ============================================================================
+
+export { HumanDelayConfigurationError, HumanDelayError } from "./human-delay.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 
