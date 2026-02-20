@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { buildEnvVars, tryGetContext } from "@templar/core";
 import {
   ExternalError,
   InternalError,
@@ -215,10 +216,17 @@ export class TemplarSandbox implements AsyncDisposable {
       : timeoutSignal;
 
     return new Promise<SandboxExecResult>((resolve, reject) => {
+      // Build env: process.env < TEMPLAR_* context vars < explicit opts.env
+      // Context vars are injected automatically when an active session exists (#128)
+      const runtimeCtx = tryGetContext();
+      const contextVars = runtimeCtx !== undefined ? buildEnvVars(runtimeCtx) : {};
+      const hasContextOrExplicitEnv = Object.keys(contextVars).length > 0 || opts.env !== undefined;
       const child = spawn(wrappedCommand, {
         shell: true,
         ...(opts.cwd ? { cwd: opts.cwd } : {}),
-        ...(opts.env ? { env: { ...process.env, ...opts.env } } : {}),
+        ...(hasContextOrExplicitEnv
+          ? { env: { ...process.env, ...contextVars, ...opts.env } }
+          : {}),
         stdio: ["ignore", "pipe", "pipe"],
       });
 

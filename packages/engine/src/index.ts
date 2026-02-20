@@ -1,3 +1,8 @@
+export {
+  ContextEnvMiddleware,
+  type ContextEnvMiddlewareConfig,
+  createContextEnvMiddleware,
+} from "./context-env-middleware.js";
 export { createTemplar } from "./create-templar.js";
 export { ExecutionGuardMiddleware } from "./execution-guard-middleware.js";
 export { fnv1a32 } from "./fnv-hash.js";

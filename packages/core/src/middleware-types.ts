@@ -21,6 +21,12 @@ export interface SessionContext {
   spawnDepth?: number;
   /** Parent agent ID that spawned this agent. Undefined for root agents. */
   parentAgentId?: string;
+  /** Active channel type (telegram, slack, discord, etc.) */
+  channelType?: string;
+  /** Nexus namespace / zone ID */
+  zoneId?: string;
+  /** Node executing the agent */
+  nodeId?: string;
   /** Arbitrary metadata */
   metadata?: Record<string, unknown>;
 }
