@@ -387,6 +387,28 @@ importers:
         specifier: ^8.19.0
         version: 8.19.0
 
+  packages/guardrails:
+    dependencies:
+      '@templar/errors':
+        specifier: workspace:*
+        version: link:../errors
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@templar/core':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.6)(typescript@5.9.3)(yaml@2.8.2)
+      vitest:
+        specifier: ^4.0.0
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.11)(yaml@2.8.2)
+
   packages/hooks:
     dependencies:
       '@templar/core':

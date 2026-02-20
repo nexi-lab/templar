@@ -1,0 +1,35 @@
+{
+  "name": "@templar/guardrails",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./evidence": {
+      "types": "./dist/evidence.d.ts",
+      "import": "./dist/evidence.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@templar/errors": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@templar/core": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "vitest": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@templar/core": "workspace:*"
+  }
+}
