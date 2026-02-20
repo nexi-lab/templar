@@ -3,9 +3,14 @@
  *
  * Wraps each lifecycle hook in a span without modifying the original middleware.
  * Span names follow: `templar.middleware.{name}.{hook}`
+ *
+ * After onAfterTurn, enriches the span with cost attributes from context.metadata
+ * (budget pressure, token usage, model info) and increments OTel cost counters.
  */
 
+import { trace } from "@opentelemetry/api";
 import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
+import { getCostTotal, getTokenUsage } from "./metrics.js";
 import { withSpan } from "./span-helpers.js";
 
 /**
@@ -13,6 +18,9 @@ import { withSpan } from "./span-helpers.js";
  *
  * Each lifecycle hook (onSessionStart, onBeforeTurn, onAfterTurn, onSessionEnd)
  * is wrapped in a span. Undefined hooks are not included in the result.
+ *
+ * After onAfterTurn completes, cost-related span attributes are added from
+ * context.metadata (budget pressure and token usage injected by pay middleware).
  *
  * Errors propagate unchanged — the wrapper only adds observability.
  *
@@ -46,7 +54,10 @@ export function withTracing(middleware: TemplarMiddleware): TemplarMiddleware {
       withSpan(
         `${baseName}.after_turn`,
         { "session.id": ctx.sessionId, "turn.number": ctx.turnNumber },
-        () => original(ctx),
+        async () => {
+          await original(ctx);
+          enrichSpanWithCostAttributes(ctx);
+        },
       );
   }
 
@@ -57,4 +68,65 @@ export function withTracing(middleware: TemplarMiddleware): TemplarMiddleware {
   }
 
   return result;
+}
+
+/**
+ * Enrich the active span with cost attributes from turn context metadata.
+ *
+ * Reads two metadata sources (both optional, set by other middlewares):
+ * - `budget` — BudgetPressure injected by NexusPayMiddleware
+ * - `usage` — TokenUsage from the engine or ModelRouter
+ *
+ * Also increments OTel counters for tokens and cost.
+ * No-op when metadata fields are absent (non-pay sessions).
+ */
+function enrichSpanWithCostAttributes(ctx: TurnContext): void {
+  const span = trace.getActiveSpan();
+  if (span === undefined) return;
+
+  const metadata = ctx.metadata;
+  if (metadata === undefined) return;
+
+  // Budget pressure (injected by NexusPayMiddleware.injectBudgetPressure)
+  const budget = metadata.budget;
+  if (budget !== null && typeof budget === "object") {
+    const b = budget as Record<string, unknown>;
+    if (typeof b.sessionCost === "number") {
+      span.setAttribute("cost.session_total", b.sessionCost);
+    }
+    if (typeof b.remaining === "number") {
+      span.setAttribute("cost.remaining", b.remaining);
+    }
+    if (typeof b.pressure === "number") {
+      span.setAttribute("cost.budget_pressure", b.pressure);
+    }
+    if (typeof b.cacheHitRate === "number") {
+      span.setAttribute("cost.cache_hit_rate", b.cacheHitRate);
+    }
+  }
+
+  // Token usage (direct or from model router)
+  const usage = metadata.usage;
+  if (usage !== null && typeof usage === "object") {
+    const u = usage as Record<string, unknown>;
+    const model = typeof u.model === "string" ? u.model : "unknown";
+
+    if (typeof u.model === "string") {
+      span.setAttribute("cost.model", u.model);
+    }
+    if (typeof u.inputTokens === "number") {
+      span.setAttribute("cost.input_tokens", u.inputTokens);
+    }
+    if (typeof u.outputTokens === "number") {
+      span.setAttribute("cost.output_tokens", u.outputTokens);
+    }
+    if (typeof u.totalTokens === "number") {
+      span.setAttribute("cost.total_tokens", u.totalTokens);
+      getTokenUsage().add(u.totalTokens, { model });
+    }
+    if (typeof u.totalCost === "number") {
+      span.setAttribute("cost.total_cost", u.totalCost);
+      getCostTotal().add(u.totalCost, { model });
+    }
+  }
 }

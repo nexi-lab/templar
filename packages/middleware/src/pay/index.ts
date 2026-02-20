@@ -18,13 +18,17 @@ import type { NexusPayConfig } from "./types.js";
  * const client = new NexusClient({ apiKey: process.env.NEXUS_API_KEY });
  *
  * const payMiddleware = createNexusPayMiddleware(client, {
- *   dailyBudget: 1000,       // 1000 credits per day
- *   alertThreshold: 0.8,     // Alert at 80%
- *   hardLimit: true,         // Block agent when exhausted
+ *   dailyBudget: 1000,
+ *   alertThresholds: [0.5, 0.8, 1.0],
+ *   hardLimit: true,
  *   onBudgetWarning: (event) => {
- *     console.warn(`Budget warning: ${event.pressure * 100}% used`);
+ *     console.warn(`Budget warning at ${event.threshold * 100}%: ${event.pressure * 100}% used`);
  *   },
  * });
+ *
+ * // After running agent turns, get cost report:
+ * const report = payMiddleware.getCostReport(sessionId);
+ * console.log(report.breakdown.byModel);
  * ```
  */
 export function createNexusPayMiddleware(
@@ -40,9 +44,12 @@ export { NexusPayMiddleware, validatePayConfig } from "./middleware.js";
 export type {
   BudgetExhaustedEvent,
   BudgetPressure,
+  BudgetSummary,
   BudgetWarningEvent,
   CacheStats,
   CostEntry,
+  CostReport,
+  ModelCostEntry,
   NexusPayConfig,
 } from "./types.js";
 export { DEFAULT_PAY_CONFIG } from "./types.js";

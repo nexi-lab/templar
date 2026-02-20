@@ -13,6 +13,8 @@ const METER_NAME = "templar";
 
 let _agentOperations: Counter | undefined;
 let _agentLatency: Histogram | undefined;
+let _tokenUsage: Counter | undefined;
+let _costTotal: Counter | undefined;
 
 /**
  * Get the counter for total agent operations (turns, tool calls, etc.).
@@ -39,4 +41,31 @@ export function getAgentLatency(): Histogram {
     });
   }
   return _agentLatency;
+}
+
+/**
+ * Get the counter for total tokens consumed across all models.
+ * Lazily creates the counter on first access.
+ */
+export function getTokenUsage(): Counter {
+  if (_tokenUsage === undefined) {
+    _tokenUsage = metrics.getMeter(METER_NAME).createCounter("templar.tokens.total", {
+      description: "Total tokens consumed",
+    });
+  }
+  return _tokenUsage;
+}
+
+/**
+ * Get the counter for total cost in credits across all sessions.
+ * Lazily creates the counter on first access.
+ */
+export function getCostTotal(): Counter {
+  if (_costTotal === undefined) {
+    _costTotal = metrics.getMeter(METER_NAME).createCounter("templar.cost.total", {
+      description: "Total cost in credits",
+      unit: "credits",
+    });
+  }
+  return _costTotal;
 }
