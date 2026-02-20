@@ -253,6 +253,19 @@ export {
 } from "./pairing.js";
 
 // ============================================================================
+// GUARDRAIL ERRORS — Output validation guardrails (#28)
+// ============================================================================
+
+export {
+  type GuardIssue,
+  GuardrailConfigurationError,
+  GuardrailError,
+  GuardrailEvidenceError,
+  GuardrailRetryExhaustedError,
+  GuardrailSchemaError,
+} from "./guardrails.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 

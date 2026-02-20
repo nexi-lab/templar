@@ -2164,6 +2164,46 @@ export const ERROR_CATALOG = {
     title: "Invalid pairing configuration",
     description: "The pairing configuration is invalid.",
   },
+
+  // ============================================================================
+  // GUARDRAIL ERRORS — Output validation guardrails (#28)
+  // ============================================================================
+  GUARDRAIL_SCHEMA_FAILED: {
+    domain: "guardrail",
+    httpStatus: 422,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Guardrail schema validation failed",
+    description: "The LLM output failed Zod schema validation",
+  },
+  GUARDRAIL_RETRY_EXHAUSTED: {
+    domain: "guardrail",
+    httpStatus: 422,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Guardrail retry exhausted",
+    description: "All retry attempts failed to produce valid output",
+  },
+  GUARDRAIL_EVIDENCE_MISSING: {
+    domain: "guardrail",
+    httpStatus: 422,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Guardrail evidence missing",
+    description: "The output is missing required evidence or citations",
+  },
+  GUARDRAIL_CONFIGURATION_INVALID: {
+    domain: "guardrail",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid guardrail configuration",
+    description: "The guardrails middleware configuration is invalid",
+  },
 } as const;
 
 // ============================================================================
