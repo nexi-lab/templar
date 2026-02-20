@@ -2129,7 +2129,7 @@ export const ERROR_CATALOG = {
   // --------------------------------------------------------------------------
 
   PAIRING_CODE_EXPIRED: {
-    domain: "auth",
+    domain: "pairing",
     httpStatus: 410,
     grpcCode: "FAILED_PRECONDITION" as const,
     baseType: "ValidationError" as const,
@@ -2138,7 +2138,7 @@ export const ERROR_CATALOG = {
     description: "The pairing code has expired. Generate a new code.",
   },
   PAIRING_CODE_INVALID: {
-    domain: "auth",
+    domain: "pairing",
     httpStatus: 401,
     grpcCode: "UNAUTHENTICATED" as const,
     baseType: "PermissionError" as const,
@@ -2147,7 +2147,7 @@ export const ERROR_CATALOG = {
     description: "The provided pairing code does not match any pending codes.",
   },
   PAIRING_RATE_LIMITED: {
-    domain: "auth",
+    domain: "pairing",
     httpStatus: 429,
     grpcCode: "RESOURCE_EXHAUSTED" as const,
     baseType: "RateLimitError" as const,
@@ -2156,7 +2156,7 @@ export const ERROR_CATALOG = {
     description: "Too many pairing attempts. Wait and try again.",
   },
   PAIRING_CONFIGURATION_INVALID: {
-    domain: "validation",
+    domain: "pairing",
     httpStatus: 400,
     grpcCode: "INVALID_ARGUMENT" as const,
     baseType: "ValidationError" as const,
