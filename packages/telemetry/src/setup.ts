@@ -5,7 +5,13 @@
  * This ensures zero overhead when telemetry is disabled.
  */
 
-import { registerMiddlewareWrapper, unregisterMiddlewareWrapper } from "@templar/engine";
+import {
+  registerAutoMiddleware,
+  registerMiddlewareWrapper,
+  unregisterAutoMiddlewares,
+  unregisterMiddlewareWrapper,
+} from "@templar/engine";
+import { createCacheTraceMiddleware } from "./cache-trace.js";
 import { withTracing } from "./traced-middleware.js";
 import type { TelemetryConfig } from "./types.js";
 
@@ -92,6 +98,9 @@ export async function setupTelemetry(config?: TelemetryConfig): Promise<boolean>
   // Register middleware wrapper with @templar/core for auto-instrumentation
   registerMiddlewareWrapper(withTracing);
 
+  // Auto-register cache trace middleware for per-LLM-call cache instrumentation
+  registerAutoMiddleware(createCacheTraceMiddleware());
+
   sdkInstance = sdk;
   initialized = true;
 
@@ -107,6 +116,7 @@ export async function shutdownTelemetry(): Promise<void> {
   if (sdkInstance !== undefined) {
     await sdkInstance.shutdown();
     unregisterMiddlewareWrapper();
+    unregisterAutoMiddlewares();
     sdkInstance = undefined;
     initialized = false;
   }

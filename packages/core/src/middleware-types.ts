@@ -1,3 +1,5 @@
+import type { TokenUsage } from "./token-usage-types.js";
+
 /**
  * Session context — passed to middleware on session start/end.
  *
@@ -64,7 +66,7 @@ export interface ModelRequest {
 export interface ModelResponse {
   readonly content: string;
   readonly model?: string;
-  readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
+  readonly usage?: TokenUsage;
   readonly metadata?: Record<string, unknown>;
 }
 

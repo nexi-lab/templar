@@ -2,7 +2,7 @@ import type { TemplarConfig, TemplarMiddleware } from "@templar/core";
 import { getErrorCause, getErrorMessage, TemplarConfigError } from "@templar/errors";
 import { createContextEnvMiddleware } from "./context-env-middleware.js";
 import { IterationGuard } from "./iteration-guard.js";
-import { getMiddlewareWrapper } from "./middleware-wrapper.js";
+import { getAutoMiddlewares, getMiddlewareWrapper } from "./middleware-wrapper.js";
 import {
   validateAgentType,
   validateExecutionLimits,
@@ -97,10 +97,12 @@ export function createTemplar(config: TemplarConfig): unknown {
   );
 
   // Merge plugin middleware with explicitly provided middleware
-  // Context env middleware first, then plugin (ordered by trust tier), then explicit
+  // Context env first, then auto-middlewares (e.g., cache-trace), then plugin, then explicit
+  const autoMw = getAutoMiddlewares();
   const pluginMiddleware = config.pluginAssembly?.middleware ?? [];
   let middleware = [
     contextEnvMiddleware as unknown,
+    ...autoMw,
     ...pluginMiddleware,
     ...(config.middleware ?? []),
   ];

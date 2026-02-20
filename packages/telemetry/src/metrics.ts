@@ -15,6 +15,10 @@ let _agentOperations: Counter | undefined;
 let _agentLatency: Histogram | undefined;
 let _tokenUsage: Counter | undefined;
 let _costTotal: Counter | undefined;
+let _cacheHits: Counter | undefined;
+let _cacheMisses: Counter | undefined;
+let _cacheReadTokens: Counter | undefined;
+let _cacheCreationTokens: Counter | undefined;
 
 /**
  * Get the counter for total agent operations (turns, tool calls, etc.).
@@ -68,4 +72,60 @@ export function getCostTotal(): Counter {
     });
   }
   return _costTotal;
+}
+
+/**
+ * Get the counter for prompt cache hits.
+ * Lazily creates the counter on first access.
+ */
+export function getCacheHits(): Counter {
+  if (_cacheHits === undefined) {
+    _cacheHits = metrics.getMeter(METER_NAME).createCounter("templar.cache.hits", {
+      description: "Prompt cache hits",
+    });
+  }
+  return _cacheHits;
+}
+
+/**
+ * Get the counter for prompt cache misses.
+ * Lazily creates the counter on first access.
+ */
+export function getCacheMisses(): Counter {
+  if (_cacheMisses === undefined) {
+    _cacheMisses = metrics.getMeter(METER_NAME).createCounter("templar.cache.misses", {
+      description: "Prompt cache misses",
+    });
+  }
+  return _cacheMisses;
+}
+
+/**
+ * Get the counter for prompt cache read tokens.
+ * Lazily creates the counter on first access.
+ */
+export function getCacheReadTokens(): Counter {
+  if (_cacheReadTokens === undefined) {
+    _cacheReadTokens = metrics.getMeter(METER_NAME).createCounter("templar.cache.read_tokens", {
+      description: "Tokens read from prompt cache",
+      unit: "tokens",
+    });
+  }
+  return _cacheReadTokens;
+}
+
+/**
+ * Get the counter for prompt cache creation tokens.
+ * Lazily creates the counter on first access.
+ */
+export function getCacheCreationTokens(): Counter {
+  if (_cacheCreationTokens === undefined) {
+    _cacheCreationTokens = metrics
+      .getMeter(METER_NAME)
+      .createCounter("templar.cache.creation_tokens", {
+        description: "Tokens used to create cache entries",
+        unit: "tokens",
+      });
+  }
+  return _cacheCreationTokens;
 }

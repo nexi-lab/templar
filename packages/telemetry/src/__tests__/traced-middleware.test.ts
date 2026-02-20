@@ -1,7 +1,15 @@
 import { trace } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
+import type {
+  ModelRequest,
+  ModelResponse,
+  SessionContext,
+  TemplarMiddleware,
+  ToolRequest,
+  ToolResponse,
+  TurnContext,
+} from "@templar/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withTracing } from "../traced-middleware.js";
 
@@ -127,6 +135,8 @@ describe("withTracing", () => {
     expect(traced.onBeforeTurn).toBeUndefined();
     expect(traced.onAfterTurn).toBeUndefined();
     expect(traced.onSessionEnd).toBeUndefined();
+    expect(traced.wrapModelCall).toBeUndefined();
+    expect(traced.wrapToolCall).toBeUndefined();
   });
 
   it("should propagate errors through wrapper", async () => {
@@ -193,5 +203,56 @@ describe("withTracing", () => {
 
     expect(capturedCtx).toBe(ctx);
     expect((capturedCtx?.metadata as Record<string, unknown>)?.existing).toBe("data");
+  });
+
+  it("should forward wrapModelCall with a tracing span", async () => {
+    const wrapModelCall = vi.fn(
+      async (_req: ModelRequest, next: (req: ModelRequest) => Promise<ModelResponse>) => {
+        return next(_req);
+      },
+    );
+    const inner: TemplarMiddleware = {
+      name: "cache-trace",
+      wrapModelCall,
+    };
+
+    const traced = withTracing(inner);
+    expect(traced.wrapModelCall).toBeDefined();
+
+    const req: ModelRequest = {
+      messages: [{ role: "user", content: "hello" }],
+      model: "test-model",
+    };
+    const mockResponse: ModelResponse = { content: "hi", model: "test-model" };
+    await traced.wrapModelCall!(req, async () => mockResponse);
+
+    expect(wrapModelCall).toHaveBeenCalledOnce();
+    const spans = exporter.getFinishedSpans();
+    expect(spans).toHaveLength(1);
+    expect(spans[0]?.name).toBe("templar.middleware.cache-trace.wrap_model_call");
+  });
+
+  it("should forward wrapToolCall with a tracing span", async () => {
+    const wrapToolCall = vi.fn(
+      async (_req: ToolRequest, next: (req: ToolRequest) => Promise<ToolResponse>) => {
+        return next(_req);
+      },
+    );
+    const inner: TemplarMiddleware = {
+      name: "tool-guard",
+      wrapToolCall,
+    };
+
+    const traced = withTracing(inner);
+    expect(traced.wrapToolCall).toBeDefined();
+
+    const req: ToolRequest = { toolName: "search", input: { query: "test" } };
+    const mockResponse: ToolResponse = { output: "result" };
+    await traced.wrapToolCall!(req, async () => mockResponse);
+
+    expect(wrapToolCall).toHaveBeenCalledOnce();
+    const spans = exporter.getFinishedSpans();
+    expect(spans).toHaveLength(1);
+    expect(spans[0]?.name).toBe("templar.middleware.tool-guard.wrap_tool_call");
   });
 });

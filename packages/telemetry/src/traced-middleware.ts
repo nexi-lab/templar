@@ -9,7 +9,17 @@
  */
 
 import { trace } from "@opentelemetry/api";
-import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
+import type {
+  ModelHandler,
+  ModelRequest,
+  ModelResponse,
+  SessionContext,
+  TemplarMiddleware,
+  ToolHandler,
+  ToolRequest,
+  ToolResponse,
+  TurnContext,
+} from "@templar/core";
 import { getCostTotal, getTokenUsage } from "./metrics.js";
 import { withSpan } from "./span-helpers.js";
 
@@ -65,6 +75,23 @@ export function withTracing(middleware: TemplarMiddleware): TemplarMiddleware {
     const original = middleware.onSessionEnd.bind(middleware);
     (result as { onSessionEnd: (ctx: SessionContext) => Promise<void> }).onSessionEnd = (ctx) =>
       withSpan(`${baseName}.session_end`, { "session.id": ctx.sessionId }, () => original(ctx));
+  }
+
+  // Forward wrap hooks (wrapModelCall / wrapToolCall) with tracing spans
+  if (middleware.wrapModelCall) {
+    const original = middleware.wrapModelCall.bind(middleware);
+    (
+      result as { wrapModelCall: (req: ModelRequest, next: ModelHandler) => Promise<ModelResponse> }
+    ).wrapModelCall = (req, next) =>
+      withSpan(`${baseName}.wrap_model_call`, {}, () => original(req, next));
+  }
+
+  if (middleware.wrapToolCall) {
+    const original = middleware.wrapToolCall.bind(middleware);
+    (
+      result as { wrapToolCall: (req: ToolRequest, next: ToolHandler) => Promise<ToolResponse> }
+    ).wrapToolCall = (req, next) =>
+      withSpan(`${baseName}.wrap_tool_call`, {}, () => original(req, next));
   }
 
   return result;
