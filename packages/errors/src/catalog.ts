@@ -2253,6 +2253,46 @@ export const ERROR_CATALOG = {
     title: "Invalid canvas action",
     description: "The canvas tool action is invalid or missing required fields",
   },
+
+  // ============================================================================
+  // EXEC-APPROVAL ERRORS — Progressive command allowlisting (#29)
+  // ============================================================================
+  EXEC_APPROVAL_COMMAND_BLOCKED: {
+    domain: "exec-approval",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Command blocked",
+    description: "The command matched the NEVER_ALLOW block list",
+  },
+  EXEC_APPROVAL_DENIED: {
+    domain: "exec-approval",
+    httpStatus: 403,
+    grpcCode: "PERMISSION_DENIED" as const,
+    baseType: "PermissionError" as const,
+    isExpected: true,
+    title: "Command denied",
+    description: "The human operator denied the command execution",
+  },
+  EXEC_APPROVAL_PARSE_FAILED: {
+    domain: "exec-approval",
+    httpStatus: 422,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Command parse failed",
+    description: "The shell command could not be parsed or tokenized",
+  },
+  EXEC_APPROVAL_CONFIGURATION_INVALID: {
+    domain: "exec-approval",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid exec-approval configuration",
+    description: "The exec-approvals middleware configuration is invalid",
+  },
 } as const;
 
 // ============================================================================

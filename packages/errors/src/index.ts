@@ -266,6 +266,18 @@ export {
 } from "./guardrails.js";
 
 // ============================================================================
+// EXEC-APPROVAL ERRORS — Progressive command allowlisting (#29)
+// ============================================================================
+
+export {
+  ExecApprovalCommandBlockedError,
+  ExecApprovalConfigurationError,
+  ExecApprovalDeniedError,
+  ExecApprovalError,
+  ExecApprovalParseError,
+} from "./exec-approvals.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 
