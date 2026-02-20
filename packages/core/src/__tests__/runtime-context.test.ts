@@ -56,7 +56,7 @@ describe("getContext()", () => {
       const result = getContext();
       expect(Object.isFrozen(result)).toBe(true);
       expect(() => {
-        (result as Record<string, unknown>).sessionId = "hacked";
+        (result as unknown as Record<string, unknown>).sessionId = "hacked";
       }).toThrow();
     });
   });
@@ -160,7 +160,7 @@ describe("buildEnvVars()", () => {
     },
     {
       name: "mixed: some empty strings, some undefined",
-      input: { sessionId: "sess-007", userId: "", agentId: undefined, channelType: "discord" },
+      input: { sessionId: "sess-007", userId: "", channelType: "discord" },
       expected: {
         TEMPLAR_SESSION_ID: "sess-007",
         TEMPLAR_CHANNEL: "discord",
