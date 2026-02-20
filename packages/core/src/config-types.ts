@@ -163,4 +163,6 @@ export interface TemplarConfig extends DeepAgentConfig {
   spawnLimits?: SpawnLimitsConfig;
   /** Merged plugin contributions (output of loadPlugins + assemblePlugins) */
   pluginAssembly?: PluginAssemblyResult;
+  /** Nexus zone ID — injected into runtime context as TEMPLAR_ZONE_ID (#128) */
+  zoneId?: string;
 }

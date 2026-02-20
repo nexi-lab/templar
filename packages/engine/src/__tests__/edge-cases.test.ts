@@ -355,9 +355,11 @@ describe("Middleware wrapper integration", () => {
     };
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
-    expect(wrapperSpy).toHaveBeenCalledTimes(2);
-    expect(result.middleware[0]?.name).toBe("wrapped-logger");
-    expect(result.middleware[1]?.name).toBe("wrapped-metrics");
+    // +1 for auto-injected templar-context-env middleware
+    expect(wrapperSpy).toHaveBeenCalledTimes(3);
+    expect(result.middleware[0]?.name).toBe("wrapped-templar-context-env");
+    expect(result.middleware[1]?.name).toBe("wrapped-logger");
+    expect(result.middleware[2]?.name).toBe("wrapped-metrics");
   });
 
   it("should not wrap non-object middleware items", () => {
@@ -371,9 +373,9 @@ describe("Middleware wrapper integration", () => {
     };
 
     const result = createTemplar(config) as { middleware: unknown[] };
-    // Only the object with `name` should be wrapped
-    expect(wrapperSpy).toHaveBeenCalledTimes(1);
-    expect(result.middleware[0]).toBe("string-mw");
+    // +1 for auto-injected templar-context-env, string-mw skipped
+    expect(wrapperSpy).toHaveBeenCalledTimes(2);
+    expect(result.middleware[1]).toBe("string-mw");
   });
 
   it("should skip wrapping when no wrapper is registered", () => {
@@ -383,7 +385,8 @@ describe("Middleware wrapper integration", () => {
     };
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
-    expect(result.middleware[0]?.name).toBe("logger");
+    // index 0 is auto-injected templar-context-env, index 1 is logger
+    expect(result.middleware[1]?.name).toBe("logger");
   });
 
   it("should unregister wrapper correctly", () => {
@@ -402,7 +405,8 @@ describe("Middleware wrapper integration", () => {
 
     const result = createTemplar(config) as { middleware: TemplarMiddleware[] };
     expect(wrapperSpy).not.toHaveBeenCalled();
-    expect(result.middleware[0]?.name).toBe("logger");
+    // index 0 is auto-injected templar-context-env, index 1 is logger
+    expect(result.middleware[1]?.name).toBe("logger");
   });
 });
 

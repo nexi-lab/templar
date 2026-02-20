@@ -102,6 +102,15 @@ export type {
 } from "./plugin-types.js";
 // Resolver types
 export type { Resolver } from "./resolver-types.js";
+// Runtime context (#128)
+export type { TemplarEnvVarKey, TemplarRuntimeContext } from "./runtime-context.js";
+export {
+  buildEnvVars,
+  getContext,
+  runWithContext,
+  TEMPLAR_ENV_VARS,
+  tryGetContext,
+} from "./runtime-context.js";
 // Spawn governance types (#163)
 export type {
   DepthToolPolicy,

@@ -1,5 +1,6 @@
 import type { TemplarConfig, TemplarMiddleware } from "@templar/core";
 import { getErrorCause, getErrorMessage, TemplarConfigError } from "@templar/errors";
+import { createContextEnvMiddleware } from "./context-env-middleware.js";
 import { IterationGuard } from "./iteration-guard.js";
 import { getMiddlewareWrapper } from "./middleware-wrapper.js";
 import {
@@ -89,10 +90,20 @@ export function createTemplar(config: TemplarConfig): unknown {
   // Create iteration guard for hard execution limits
   const iterationGuard = new IterationGuard(config.executionLimits);
 
+  // Auto-inject ContextEnvMiddleware as the first middleware (#128)
+  // This builds TemplarRuntimeContext from SessionContext at session start.
+  const contextEnvMiddleware = createContextEnvMiddleware(
+    config.zoneId !== undefined ? { zoneId: config.zoneId } : undefined,
+  );
+
   // Merge plugin middleware with explicitly provided middleware
-  // Plugin middleware comes first (ordered by trust tier), then explicit
+  // Context env middleware first, then plugin (ordered by trust tier), then explicit
   const pluginMiddleware = config.pluginAssembly?.middleware ?? [];
-  let middleware = [...pluginMiddleware, ...(config.middleware ?? [])];
+  let middleware = [
+    contextEnvMiddleware as unknown,
+    ...pluginMiddleware,
+    ...(config.middleware ?? []),
+  ];
 
   // Wrap middleware with OTel tracing when @templar/telemetry has registered a wrapper
   const middlewareWrapper = getMiddlewareWrapper();
