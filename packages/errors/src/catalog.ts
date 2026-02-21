@@ -2293,6 +2293,46 @@ export const ERROR_CATALOG = {
     title: "Invalid exec-approval configuration",
     description: "The exec-approvals middleware configuration is invalid",
   },
+
+  // ============================================================================
+  // HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
+  // ============================================================================
+  HEARTBEAT_CONFIGURATION_INVALID: {
+    domain: "heartbeat",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid heartbeat configuration",
+    description: "The heartbeat middleware configuration is invalid",
+  },
+  HEARTBEAT_EVALUATOR_FAILED: {
+    domain: "heartbeat",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Evaluator failed",
+    description: "A heartbeat evaluator threw an unexpected error",
+  },
+  HEARTBEAT_EVALUATOR_TIMEOUT: {
+    domain: "heartbeat",
+    httpStatus: 504,
+    grpcCode: "DEADLINE_EXCEEDED" as const,
+    baseType: "TimeoutError" as const,
+    isExpected: false,
+    title: "Evaluator timeout",
+    description: "A heartbeat evaluator exceeded its timeout",
+  },
+  HEARTBEAT_PIPELINE_FAILED: {
+    domain: "heartbeat",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Pipeline failed",
+    description: "The heartbeat evaluator pipeline failed at the orchestration level",
+  },
 } as const;
 
 // ============================================================================

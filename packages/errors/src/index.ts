@@ -278,6 +278,18 @@ export {
 } from "./exec-approvals.js";
 
 // ============================================================================
+// HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
+// ============================================================================
+
+export {
+  HeartbeatConfigurationError,
+  HeartbeatError,
+  HeartbeatEvaluatorFailedError,
+  HeartbeatEvaluatorTimeoutError,
+  HeartbeatPipelineFailedError,
+} from "./heartbeat.js";
+
+// ============================================================================
 // WEB SEARCH ERRORS — Pluggable search providers (#119)
 // ============================================================================
 
