@@ -1,5 +1,9 @@
 import type { ConversationKey } from "../protocol/index.js";
 import { mapDelete, mapFilter, mapSet } from "../utils/immutable-map.js";
+import {
+  type ConversationStoreSnapshot,
+  ConversationStoreSnapshotSchema,
+} from "./conversation-snapshot.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,6 +157,30 @@ export class ConversationStore {
     this.checkCapacityWarning();
 
     return swept;
+  }
+
+  /**
+   * Capture a serializable snapshot of all conversation bindings.
+   */
+  toSnapshot(): ConversationStoreSnapshot {
+    return {
+      version: 1,
+      bindings: [...this.bindings.values()],
+      capturedAt: Date.now(),
+    };
+  }
+
+  /**
+   * Restore bindings from a snapshot. Clears all existing state first.
+   * Rebuilds the reverse index (nodeIndex) from primary data.
+   */
+  fromSnapshot(snapshot: ConversationStoreSnapshot): void {
+    ConversationStoreSnapshotSchema.parse(snapshot);
+    this.clear();
+    for (const binding of snapshot.bindings) {
+      this.bindings = mapSet(this.bindings, binding.conversationKey, binding);
+      this.addToNodeIndex(binding.nodeId, binding.conversationKey);
+    }
   }
 
   /**

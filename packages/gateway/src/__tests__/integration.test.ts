@@ -8,8 +8,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CheckpointStore } from "../checkpoint/checkpoint-store.js";
+import type { GatewayCheckpoint } from "../checkpoint/types.js";
+import type { TemplarGatewayDeps } from "../gateway.js";
+import { TemplarGateway } from "../gateway.js";
 import type { NodeCapabilities } from "../protocol/index.js";
-import { closeWs, createTestGateway, sendFrame } from "./helpers.js";
+import type { WsServerFactory } from "../server.js";
+import { closeWs, createMockWss, createTestGateway, DEFAULT_CONFIG, sendFrame } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
 // Test-specific fixtures
@@ -510,6 +515,217 @@ describe("TemplarGateway integration", () => {
       const { GatewayNodeNotFoundError } = await import("@templar/errors");
       expect(() => gateway.bindChannel("ch-1", "nonexistent")).toThrow(GatewayNodeNotFoundError);
 
+      await gateway.stop();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Checkpoint e2e lifecycle (#92)
+  // -------------------------------------------------------------------------
+
+  describe("checkpoint e2e lifecycle", () => {
+    function createInMemoryStore(): CheckpointStore & { saved: GatewayCheckpoint | undefined } {
+      let stored: GatewayCheckpoint | undefined;
+      return {
+        get saved() {
+          return stored;
+        },
+        async save(cp: GatewayCheckpoint) {
+          stored = cp;
+        },
+        async load() {
+          return stored;
+        },
+      };
+    }
+
+    function createGatewayWithStore(
+      store: CheckpointStore,
+      overrides: Partial<typeof DEFAULT_CONFIG> = {},
+    ) {
+      const wss = createMockWss();
+      const factory: WsServerFactory = vi.fn().mockReturnValue(wss);
+      const config = { ...DEFAULT_CONFIG, ...overrides };
+      const deps: TemplarGatewayDeps = {
+        wsFactory: factory,
+        configWatcherDeps: {
+          watch: () => ({ on: vi.fn(), close: vi.fn().mockResolvedValue(undefined) }),
+        },
+        checkpointStore: store,
+      };
+      return { gateway: new TemplarGateway(config, deps), wss };
+    }
+
+    it("full e2e: multi-node register → sweep saves → stop → restart → verify + new register", async () => {
+      const store = createInMemoryStore();
+
+      // Phase 1: Build state across multiple nodes
+      const { gateway: gw1, wss: wss1 } = createGatewayWithStore(store, {
+        healthCheckInterval: 1000,
+        sessionTimeout: 60_000,
+      });
+      await gw1.start();
+
+      // Register 3 nodes
+      const ws1 = wss1.connect("ws-1");
+      sendFrame(ws1, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: CAPS,
+        token: "test-key",
+      });
+      const ws2 = wss1.connect("ws-2");
+      sendFrame(ws2, {
+        kind: "node.register",
+        nodeId: "node-2",
+        capabilities: CAPS,
+        token: "test-key",
+      });
+      const ws3 = wss1.connect("ws-3");
+      sendFrame(ws3, {
+        kind: "node.register",
+        nodeId: "node-3",
+        capabilities: CAPS,
+        token: "test-key",
+      });
+
+      expect(gw1.nodeCount).toBe(3);
+
+      // Bind channels and route messages to create conversation bindings
+      gw1.bindChannel("slack", "node-1");
+      gw1.bindChannel("telegram", "node-2");
+      gw1.getRouter().routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "slack",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "bot-1",
+      );
+      gw1.getRouter().routeWithScope(
+        {
+          id: "msg-2",
+          lane: "steer",
+          channelId: "telegram",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-2", messageType: "dm" },
+        },
+        "bot-2",
+      );
+
+      // Track deliveries
+      gw1.getDeliveryTracker().track("node-1", {
+        id: "d1",
+        lane: "steer",
+        channelId: "slack",
+        payload: null,
+        timestamp: Date.now(),
+      });
+      gw1.getDeliveryTracker().track("node-2", {
+        id: "d2",
+        lane: "steer",
+        channelId: "telegram",
+        payload: null,
+        timestamp: Date.now(),
+      });
+
+      // Deregister node-3 before saving — should NOT appear in checkpoint
+      sendFrame(ws3, { kind: "node.deregister", nodeId: "node-3" });
+      expect(gw1.nodeCount).toBe(2);
+
+      // Health sweep triggers checkpoint save
+      vi.advanceTimersByTime(1000);
+
+      // Keep nodes alive so they aren't marked dead
+      sendFrame(ws1, { kind: "heartbeat.pong", timestamp: Date.now() });
+      sendFrame(ws2, { kind: "heartbeat.pong", timestamp: Date.now() });
+
+      // Wait for async save
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.saved).toBeDefined();
+      expect(store.saved?.sessions.sessions).toHaveLength(2);
+      expect(store.saved?.conversations.bindings).toHaveLength(2);
+
+      // Verify invariants pass
+      const result = gw1.checkInvariants();
+      expect(result.valid).toBe(true);
+
+      await gw1.stop();
+
+      // Phase 2: Restart from checkpoint
+      const { gateway: gw2, wss: wss2 } = createGatewayWithStore(store, {
+        healthCheckInterval: 1000,
+        sessionTimeout: 60_000,
+      });
+      await gw2.start();
+
+      // Verify all state restored
+      expect(gw2.getSessionManager().getSession("node-1")).toBeDefined();
+      expect(gw2.getSessionManager().getSession("node-2")).toBeDefined();
+      expect(gw2.getSessionManager().getSession("node-3")).toBeUndefined();
+      expect(gw2.getConversationStore().size).toBe(2);
+      expect(gw2.getDeliveryTracker().pendingCount("node-1")).toBe(1);
+      expect(gw2.getDeliveryTracker().pendingCount("node-2")).toBe(1);
+
+      // Verify restored sessions don't have timers (no transitions happen)
+      vi.advanceTimersByTime(120_000);
+      expect(gw2.getSessionManager().getSession("node-1")?.state).toBe("connected");
+
+      // Phase 3: New registrations work on restored gateway
+      const ws4 = wss2.connect("ws-4");
+      sendFrame(ws4, {
+        kind: "node.register",
+        nodeId: "node-4",
+        capabilities: CAPS,
+        token: "test-key",
+      });
+
+      const ack = ws4.sentFrames().find((f) => f.kind === "node.register.ack");
+      expect(ack).toBeDefined();
+      expect(gw2.getSessionManager().getSession("node-4")).toBeDefined();
+      expect(gw2.getSessionManager().getSession("node-4")?.state).toBe("connected");
+
+      // Invariants still healthy after new registrations
+      expect(gw2.checkInvariants().valid).toBe(true);
+
+      await gw2.stop();
+    });
+
+    it("corrupt checkpoint → clean start → normal operation", async () => {
+      // Pre-load a corrupt checkpoint
+      const store: CheckpointStore & { saved: GatewayCheckpoint | undefined } = {
+        saved: undefined,
+        async save(cp: GatewayCheckpoint) {
+          this.saved = cp;
+        },
+        async load() {
+          // Return garbage on first load
+          return { version: 42, garbage: true } as unknown as GatewayCheckpoint;
+        },
+      };
+
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { gateway, wss } = createGatewayWithStore(store);
+      await gateway.start();
+
+      // Should have started clean despite corrupt checkpoint
+      expect(gateway.getSessionManager().getAllSessions()).toHaveLength(0);
+
+      // Normal operation works
+      const ws = wss.connect("ws-1");
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "node-1",
+        capabilities: CAPS,
+        token: "test-key",
+      });
+      expect(gateway.getSessionManager().getSession("node-1")).toBeDefined();
+
+      warnSpy.mockRestore();
       await gateway.stop();
     });
   });

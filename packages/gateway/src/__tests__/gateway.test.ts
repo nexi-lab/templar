@@ -216,7 +216,7 @@ describe("TemplarGateway", () => {
   // -------------------------------------------------------------------------
 
   describe("disconnect handling", () => {
-    it("handles WebSocket disconnect for registered node", async () => {
+    it("handles WebSocket disconnect and cleans all subsystems", async () => {
       const { gateway, wss } = createTestGateway();
       await gateway.start();
       const ws = wss.connect("agent-1");
@@ -225,17 +225,51 @@ describe("TemplarGateway", () => {
       sendFrame(ws, {
         kind: "node.register",
         nodeId: "agent-1",
-        capabilities: DEFAULT_CAPS,
+        capabilities: { ...DEFAULT_CAPS, agentIds: ["test-agent"] },
         token: "test-key",
       });
 
+      // Bind a channel and create conversation + delivery state
+      gateway.bindChannel("ch-1", "agent-1");
+      const router = gateway.getRouter();
+      router.routeWithScope(
+        {
+          id: "msg-1",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: {},
+          timestamp: Date.now(),
+          routingContext: { peerId: "peer-1", messageType: "dm" },
+        },
+        "test-agent",
+      );
+
+      // Send a lane message to create delivery tracking
+      sendFrame(ws, {
+        kind: "lane.message",
+        lane: "steer",
+        message: {
+          id: "msg-2",
+          lane: "steer",
+          channelId: "ch-1",
+          payload: { text: "hello" },
+          timestamp: Date.now(),
+        },
+      });
+
+      // Verify state exists before disconnect
       expect(gateway.getSessionManager().getSession("agent-1")).toBeDefined();
+      expect(gateway.getRegistry().get("agent-1")).toBeDefined();
+      expect(gateway.getConversationStore().size).toBeGreaterThan(0);
 
       // Simulate disconnect
       closeWs(ws, 1000, "Normal closure");
 
-      // Session should have transitioned to disconnected and been cleaned up
+      // All subsystems should be cleaned up (Decision 8B + 9A)
       expect(gateway.getSessionManager().getSession("agent-1")).toBeUndefined();
+      expect(gateway.getRegistry().get("agent-1")).toBeUndefined();
+      expect(gateway.getConversationStore().size).toBe(0);
+      expect(gateway.getDeliveryTracker().pendingCount("agent-1")).toBe(0);
 
       await gateway.stop();
     });
@@ -248,6 +282,49 @@ describe("TemplarGateway", () => {
       // Disconnect without prior registration
       expect(() => closeWs(ws, 1000, "Normal")).not.toThrow();
 
+      await gateway.stop();
+    });
+
+    it("cleanupNode cleans all subsystems even if one throws", async () => {
+      const { gateway, wss } = createTestGateway();
+      await gateway.start();
+      const ws = wss.connect("ws-1");
+
+      sendFrame(ws, {
+        kind: "node.register",
+        nodeId: "agent-1",
+        capabilities: DEFAULT_CAPS,
+        token: "test-key",
+      });
+
+      // Sabotage one subsystem — make conversationStore.removeNode throw
+      const store = gateway.getConversationStore();
+      vi.spyOn(store, "removeNode").mockImplementation(() => {
+        throw new Error("Simulated conversation store failure");
+      });
+
+      // Suppress console.warn for this test
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // Deregister should still clean up remaining subsystems
+      sendFrame(ws, {
+        kind: "node.deregister",
+        nodeId: "agent-1",
+        reason: "test",
+      });
+
+      // Session and registry should still be cleaned despite conversation store error
+      expect(gateway.getSessionManager().getSession("agent-1")).toBeUndefined();
+      expect(gateway.getRegistry().get("agent-1")).toBeUndefined();
+
+      // Verify the error was logged
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cleanupNode(agent-1) conversations failed"),
+        expect.any(Error),
+      );
+
+      warnSpy.mockRestore();
+      vi.restoreAllMocks();
       await gateway.stop();
     });
   });

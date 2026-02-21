@@ -15,6 +15,16 @@ export {
   type FieldMatcher,
   matchField,
 } from "./binding-resolver.js";
+// Checkpoint (session persistence / recovery)
+export {
+  type CheckpointStore,
+  checkInvariants,
+  type GatewayCheckpoint,
+  GatewayCheckpointSchema,
+  type InvariantCheckResult,
+  type InvariantSeverity,
+  type InvariantViolation,
+} from "./checkpoint/index.js";
 // Circuit breaker
 export {
   CircuitBreaker,
@@ -35,6 +45,8 @@ export {
   type ConversationBinding,
   ConversationStore,
   type ConversationStoreConfig,
+  type ConversationStoreSnapshot,
+  ConversationStoreSnapshotSchema,
 } from "./conversations/index.js";
 // Delegation
 export {
@@ -43,6 +55,10 @@ export {
   type DelegationManagerConfig,
 } from "./delegation-manager.js";
 export type { DelegationRecord, DelegationStore } from "./delegation-store.js";
+export {
+  type DeliveryTrackerSnapshot,
+  DeliveryTrackerSnapshotSchema,
+} from "./delivery-snapshot.js";
 // Delivery tracking
 export { DeliveryTracker, type PendingMessage } from "./delivery-tracker.js";
 // Device auth
@@ -88,6 +104,12 @@ export {
   type WebSocketServerLike,
   type WsServerFactory,
 } from "./server.js";
+// Sessions (snapshot types)
+export {
+  type SessionManagerSnapshot,
+  SessionManagerSnapshotSchema,
+} from "./sessions/session-snapshot.js";
 // Utils
+export { deepFreeze } from "./utils/deep-freeze.js";
 export { createEmitter, type Emitter, type EventMap } from "./utils/emitter.js";
 export { mapDelete, mapFilter, mapSet } from "./utils/immutable-map.js";

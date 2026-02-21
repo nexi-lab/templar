@@ -1,3 +1,7 @@
+import {
+  type DeliveryTrackerSnapshot,
+  DeliveryTrackerSnapshotSchema,
+} from "./delivery-snapshot.js";
 import type { LaneMessage } from "./protocol/index.js";
 
 // ---------------------------------------------------------------------------
@@ -96,6 +100,34 @@ export class DeliveryTracker {
    */
   removeNode(nodeId: string): void {
     this.pending.delete(nodeId);
+  }
+
+  /**
+   * Capture a serializable snapshot of all pending deliveries.
+   */
+  toSnapshot(): DeliveryTrackerSnapshot {
+    const pending: Record<string, PendingMessage[]> = {};
+    for (const [nodeId, nodePending] of this.pending) {
+      pending[nodeId] = [...nodePending.values()];
+    }
+    return { version: 1, pending, capturedAt: Date.now() };
+  }
+
+  /**
+   * Restore pending deliveries from a snapshot. Clears all existing state first.
+   */
+  fromSnapshot(snapshot: DeliveryTrackerSnapshot): void {
+    DeliveryTrackerSnapshotSchema.parse(snapshot);
+    this.pending.clear();
+    for (const [nodeId, messages] of Object.entries(snapshot.pending)) {
+      const nodePending = new Map<string, PendingMessage>();
+      for (const msg of messages) {
+        nodePending.set(msg.messageId, msg);
+      }
+      if (nodePending.size > 0) {
+        this.pending.set(nodeId, nodePending);
+      }
+    }
   }
 
   /**

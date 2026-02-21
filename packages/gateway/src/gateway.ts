@@ -1,5 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { PairingGuard } from "@templar/pairing";
 import { BindingResolver } from "./binding-resolver.js";
+import type { CheckpointStore } from "./checkpoint/checkpoint-store.js";
+import { checkInvariants, type InvariantCheckResult } from "./checkpoint/invariant-checker.js";
+import { type GatewayCheckpoint, GatewayCheckpointSchema } from "./checkpoint/types.js";
 import { ConfigWatcher, type ConfigWatcherDeps } from "./config-watcher.js";
 import { ConversationStore } from "./conversations/conversation-store.js";
 import { DelegationManager, type DelegationManagerConfig } from "./delegation-manager.js";
@@ -56,6 +60,8 @@ export interface TemplarGatewayDeps {
   readonly delegationConfig?: Partial<DelegationManagerConfig>;
   /** Pairing guard (optional — injected for testing) */
   readonly pairingGuard?: PairingGuard;
+  /** Checkpoint store for session persistence/recovery (optional) */
+  readonly checkpointStore?: CheckpointStore;
 }
 
 export type GatewayEventHandler<T extends unknown[] = []> = (...args: T) => void;
@@ -105,6 +111,7 @@ export class TemplarGateway {
   private readonly deviceKeyStore: DeviceKeyStore;
   private readonly delegationManager: DelegationManager | undefined;
   private readonly pairingGuard: PairingGuard | undefined;
+  private readonly checkpointStore: CheckpointStore | undefined;
   private readonly events: Emitter<GatewayEvents> = createEmitter();
 
   // Bidirectional mapping between ephemeral WS connection IDs and registered node IDs.
@@ -217,6 +224,9 @@ export class TemplarGateway {
       });
     }
 
+    // 13. Checkpoint store (optional — for session persistence/recovery)
+    this.checkpointStore = deps.checkpointStore;
+
     // Wire all event handlers
     this.wireFrameHandlers(config);
     this.wireConnectionHandlers();
@@ -231,8 +241,10 @@ export class TemplarGateway {
 
   /**
    * Start all gateway subsystems.
+   * Loads checkpoint (if available) before accepting connections.
    */
   async start(): Promise<void> {
+    await this.loadCheckpoint();
     await this.server.start();
     this.healthMonitor.start();
   }
@@ -246,11 +258,13 @@ export class TemplarGateway {
 
   /**
    * Stop all gateway subsystems gracefully.
+   * Saves a final checkpoint before teardown.
    */
   async stop(): Promise<void> {
     this.healthMonitor.stop();
     this.delegationManager?.dispose();
     await this.configWatcher.stop();
+    await this.saveCheckpoint();
     this.sessionManager.dispose();
     this.registry.clear();
     this.deliveryTracker.clear();
@@ -403,6 +417,51 @@ export class TemplarGateway {
     return this.pairingGuard;
   }
 
+  /**
+   * Run invariant check on-demand. Returns violations (empty = healthy).
+   */
+  checkInvariants(): InvariantCheckResult {
+    return checkInvariants(
+      this.sessionManager.toSnapshot(),
+      this.conversationStore.toSnapshot(),
+      this.deliveryTracker.toSnapshot(),
+    );
+  }
+
+  /**
+   * Save a checkpoint if the checkpoint store is configured and state is valid.
+   * Skips save when invariant check fails (don't overwrite good with bad).
+   */
+  async saveCheckpoint(): Promise<void> {
+    if (!this.checkpointStore) return;
+    try {
+      const sessions = this.sessionManager.toSnapshot();
+      const conversations = this.conversationStore.toSnapshot();
+      const deliveries = this.deliveryTracker.toSnapshot();
+
+      const result = checkInvariants(sessions, conversations, deliveries);
+      if (!result.valid) {
+        console.warn(
+          "[TemplarGateway] Skipping checkpoint save — invariant check failed:",
+          result.violations,
+        );
+        return;
+      }
+
+      const checkpoint: GatewayCheckpoint = {
+        version: 1,
+        checkpointId: randomUUID(),
+        createdAt: Date.now(),
+        sessions,
+        conversations,
+        deliveries,
+      };
+      await this.checkpointStore.save(checkpoint);
+    } catch (err) {
+      console.warn("[TemplarGateway] Checkpoint save failed:", err);
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Event registration (returns disposers)
   // -------------------------------------------------------------------------
@@ -507,11 +566,12 @@ export class TemplarGateway {
       this.events.emit("node.dead", node.nodeId);
     });
 
-    // Piggyback conversation TTL sweep on health check interval
+    // Piggyback conversation TTL sweep + checkpoint save on health check interval
     this.healthMonitor.onSweep(() => {
       this.conversationStore.sweep();
       this.delegationManager?.sweep();
       this.pairingGuard?.sweep();
+      void this.saveCheckpoint();
     });
   }
 
@@ -586,6 +646,11 @@ export class TemplarGateway {
         timestamp: Date.now(),
       };
       this.sendToNode(nodeId, frame);
+
+      // Full subsystem cleanup on disconnect (Decision 8B)
+      if (result.state === "disconnected") {
+        this.cleanupNode(nodeId);
+      }
     });
   }
 
@@ -936,6 +1001,46 @@ export class TemplarGateway {
   // -------------------------------------------------------------------------
 
   /**
+   * Load and validate a checkpoint on startup.
+   * Falls back to clean state on any error (schema, invariant, or I/O).
+   */
+  private async loadCheckpoint(): Promise<void> {
+    if (!this.checkpointStore) return;
+    try {
+      const raw = await this.checkpointStore.load();
+      if (!raw) return;
+
+      const parsed = GatewayCheckpointSchema.safeParse(raw);
+      if (!parsed.success) {
+        console.warn("[TemplarGateway] Invalid checkpoint schema, starting clean:", parsed.error);
+        return;
+      }
+
+      // Cast to GatewayCheckpoint — Zod validated the shape, but inferred types
+      // strip branded types (ConversationKey) and differ from exactOptionalPropertyTypes.
+      const checkpoint = parsed.data as unknown as GatewayCheckpoint;
+      const result = checkInvariants(
+        checkpoint.sessions,
+        checkpoint.conversations,
+        checkpoint.deliveries,
+      );
+      if (!result.valid) {
+        console.warn(
+          "[TemplarGateway] Checkpoint failed invariant check, starting clean:",
+          result.violations,
+        );
+        return;
+      }
+
+      this.sessionManager.fromSnapshot(checkpoint.sessions);
+      this.conversationStore.fromSnapshot(checkpoint.conversations);
+      this.deliveryTracker.fromSnapshot(checkpoint.deliveries);
+    } catch (err) {
+      console.warn("[TemplarGateway] Checkpoint load failed, starting clean:", err);
+    }
+  }
+
+  /**
    * Send a frame to a registered node by translating nodeId → connectionId.
    */
   private sendToNode(nodeId: string, frame: GatewayFrame): void {
@@ -946,26 +1051,32 @@ export class TemplarGateway {
   }
 
   private cleanupNode(nodeId: string): void {
-    // Cancel all delegations involving this node
-    this.delegationManager?.cleanupNode(nodeId);
+    const errors: Error[] = [];
+    const safeRun = (label: string, fn: () => void) => {
+      try {
+        fn();
+      } catch (err) {
+        errors.push(err instanceof Error ? err : new Error(String(err)));
+        console.warn(`[TemplarGateway] cleanupNode(${nodeId}) ${label} failed:`, err);
+      }
+    };
 
-    // Remove in reverse order of creation
-    this.router.removeDispatcher(nodeId);
-    this.conversationStore.removeNode(nodeId);
-    this.deliveryTracker.removeNode(nodeId);
+    safeRun("delegation", () => this.delegationManager?.cleanupNode(nodeId));
+    safeRun("dispatcher", () => this.router.removeDispatcher(nodeId));
+    safeRun("conversations", () => this.conversationStore.removeNode(nodeId));
+    safeRun("deliveries", () => this.deliveryTracker.removeNode(nodeId));
+    safeRun("session", () => {
+      if (this.sessionManager.getSession(nodeId)) {
+        this.sessionManager.destroySession(nodeId);
+      }
+    });
+    safeRun("registry", () => {
+      if (this.registry.get(nodeId)) {
+        this.registry.deregister(nodeId);
+      }
+    });
 
-    // Note: agentId → nodeId cleanup is handled by registry.deregister() below.
-
-    const session = this.sessionManager.getSession(nodeId);
-    if (session) {
-      this.sessionManager.destroySession(nodeId);
-    }
-
-    if (this.registry.get(nodeId)) {
-      this.registry.deregister(nodeId);
-    }
-
-    // Clean up connection mapping
+    // Clean up connection mapping (always last)
     const connectionId = this.nodeToConnection.get(nodeId);
     if (connectionId) {
       this.connectionToNode.delete(connectionId);
