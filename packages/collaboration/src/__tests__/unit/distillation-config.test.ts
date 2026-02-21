@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { CollaborationConfigurationError } from "@templar/errors";
+import { describe, expect, it } from "vitest";
 import { resolveDistillationConfig } from "../../distillation/config.js";
-import type { DistillationConfig } from "../../distillation/types.js";
 import { DEFAULT_MAX_TURNS, DEFAULT_MIN_CONFIDENCE } from "../../distillation/constants.js";
+import type { DistillationConfig } from "../../distillation/types.js";
 
 function mockNexusClient(): DistillationConfig["nexusClient"] {
   return {
@@ -29,9 +29,9 @@ describe("resolveDistillationConfig", () => {
   });
 
   it("should throw when nexusClient is missing", () => {
-    expect(() =>
-      resolveDistillationConfig({} as DistillationConfig),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveDistillationConfig({} as DistillationConfig)).toThrow(
+      CollaborationConfigurationError,
+    );
   });
 
   it("should throw on invalid maxTurns", () => {
@@ -47,25 +47,23 @@ describe("resolveDistillationConfig", () => {
   });
 
   it("should throw on invalid extractionTimeoutMs", () => {
-    expect(() =>
-      resolveDistillationConfig(validConfig({ extractionTimeoutMs: -1 })),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveDistillationConfig(validConfig({ extractionTimeoutMs: -1 }))).toThrow(
+      CollaborationConfigurationError,
+    );
   });
 
   it("should throw on invalid minConfidence", () => {
-    expect(() =>
-      resolveDistillationConfig(validConfig({ minConfidence: -0.1 })),
-    ).toThrow(CollaborationConfigurationError);
-    expect(() =>
-      resolveDistillationConfig(validConfig({ minConfidence: 1.5 })),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveDistillationConfig(validConfig({ minConfidence: -0.1 }))).toThrow(
+      CollaborationConfigurationError,
+    );
+    expect(() => resolveDistillationConfig(validConfig({ minConfidence: 1.5 }))).toThrow(
+      CollaborationConfigurationError,
+    );
   });
 
   it("should throw on invalid trigger", () => {
     expect(() =>
-      resolveDistillationConfig(
-        validConfig({ triggers: ["invalid_trigger" as "session_end"] }),
-      ),
+      resolveDistillationConfig(validConfig({ triggers: ["invalid_trigger" as "session_end"] })),
     ).toThrow(CollaborationConfigurationError);
   });
 

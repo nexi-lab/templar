@@ -1,8 +1,8 @@
+import { CollaborationConfigurationError } from "@templar/errors";
 import { describe, expect, it } from "vitest";
-import { CollaborationConfigurationError, ReactionPatternInvalidError } from "@templar/errors";
 import { resolveReactionConfig } from "../../reaction/config.js";
-import type { ReactionConfig } from "../../reaction/types.js";
 import { DEFAULT_POLL_INTERVAL_MS } from "../../reaction/constants.js";
+import type { ReactionConfig } from "../../reaction/types.js";
 
 function validConfig(overrides?: Partial<ReactionConfig>): ReactionConfig {
   return {
@@ -28,18 +28,14 @@ describe("resolveReactionConfig", () => {
   });
 
   it("should throw on empty patterns", () => {
-    expect(() => resolveReactionConfig({ patterns: [] })).toThrow(
-      CollaborationConfigurationError,
-    );
+    expect(() => resolveReactionConfig({ patterns: [] })).toThrow(CollaborationConfigurationError);
   });
 
   it("should throw on invalid probability (< 0)", () => {
     expect(() =>
       resolveReactionConfig(
         validConfig({
-          patterns: [
-            { event: "nexus.*", probability: -0.1, cooldown: "1m", action: "test" },
-          ],
+          patterns: [{ event: "nexus.*", probability: -0.1, cooldown: "1m", action: "test" }],
         }),
       ),
     ).toThrow(CollaborationConfigurationError);
@@ -49,9 +45,7 @@ describe("resolveReactionConfig", () => {
     expect(() =>
       resolveReactionConfig(
         validConfig({
-          patterns: [
-            { event: "nexus.*", probability: 1.5, cooldown: "1m", action: "test" },
-          ],
+          patterns: [{ event: "nexus.*", probability: 1.5, cooldown: "1m", action: "test" }],
         }),
       ),
     ).toThrow(CollaborationConfigurationError);
@@ -61,9 +55,7 @@ describe("resolveReactionConfig", () => {
     expect(() =>
       resolveReactionConfig(
         validConfig({
-          patterns: [
-            { event: "nexus.*", probability: 0.5, cooldown: "invalid", action: "test" },
-          ],
+          patterns: [{ event: "nexus.*", probability: 0.5, cooldown: "invalid", action: "test" }],
         }),
       ),
     ).toThrow();
@@ -73,30 +65,27 @@ describe("resolveReactionConfig", () => {
     expect(() =>
       resolveReactionConfig(
         validConfig({
-          patterns: [
-            { event: "nexus.*", probability: 0.5, cooldown: "1m", action: "" },
-          ],
+          patterns: [{ event: "nexus.*", probability: 0.5, cooldown: "1m", action: "" }],
         }),
       ),
     ).toThrow(CollaborationConfigurationError);
   });
 
   it("should throw on invalid pollIntervalMs", () => {
-    expect(() =>
-      resolveReactionConfig(validConfig({ pollIntervalMs: -1 })),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveReactionConfig(validConfig({ pollIntervalMs: -1 }))).toThrow(
+      CollaborationConfigurationError,
+    );
 
-    expect(() =>
-      resolveReactionConfig(validConfig({ pollIntervalMs: 0 })),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveReactionConfig(validConfig({ pollIntervalMs: 0 }))).toThrow(
+      CollaborationConfigurationError,
+    );
   });
 
   it("should use custom clock and rng", () => {
     const clock = {
       now: () => 1000,
       setTimeout: (fn: () => void, ms: number) => globalThis.setTimeout(fn, ms),
-      clearTimeout: (id: ReturnType<typeof globalThis.setTimeout>) =>
-        globalThis.clearTimeout(id),
+      clearTimeout: (id: ReturnType<typeof globalThis.setTimeout>) => globalThis.clearTimeout(id),
     };
     const rng = () => 0.42;
 

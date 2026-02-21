@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { DistillationMiddleware } from "../../distillation/middleware.js";
-import type { DistillationConfig, MemoryExtractor, ExtractedMemory } from "../../distillation/types.js";
+import type {
+  DistillationConfig,
+  ExtractedMemory,
+  MemoryExtractor,
+} from "../../distillation/types.js";
 
 function mockNexusClient() {
   return {
@@ -24,8 +28,18 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 2, input: "how?", output: "fine" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 2,
+      input: "how?",
+      output: "fine",
+    });
 
     expect(middleware.getTurnBuffer()).toHaveLength(2);
   });
@@ -70,7 +84,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
     await middleware.onSessionEnd({ sessionId: "test" });
 
     expect(extractor.extract).toHaveBeenCalledTimes(1);
@@ -96,7 +115,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
     await middleware.onSessionEnd({ sessionId: "test" });
 
     // Only the high-confidence memory should be stored
@@ -121,9 +145,7 @@ describe("DistillationMiddleware", () => {
   });
 
   it("should extract on context_compact trigger", async () => {
-    const extractor = mockExtractor([
-      { content: "Extracted", category: "fact", confidence: 0.8 },
-    ]);
+    const extractor = mockExtractor([{ content: "Extracted", category: "fact", confidence: 0.8 }]);
     const client = mockNexusClient();
 
     const middleware = new DistillationMiddleware({
@@ -133,7 +155,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
 
     // Simulate context compact
     await middleware.onAfterTurn({
@@ -170,9 +197,7 @@ describe("DistillationMiddleware", () => {
   });
 
   it("should clear buffer after successful extraction", async () => {
-    const extractor = mockExtractor([
-      { content: "Memory", category: "fact", confidence: 0.8 },
-    ]);
+    const extractor = mockExtractor([{ content: "Memory", category: "fact", confidence: 0.8 }]);
 
     const middleware = new DistillationMiddleware({
       nexusClient: mockNexusClient(),
@@ -180,7 +205,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
     await middleware.onSessionEnd({ sessionId: "test" });
 
     expect(middleware.getTurnBuffer()).toHaveLength(0);
@@ -197,7 +227,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
 
     // Should not throw
     await middleware.onSessionEnd({ sessionId: "test" });
@@ -211,9 +246,7 @@ describe("DistillationMiddleware", () => {
     (client.memory.batchStore as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Storage error"),
     );
-    const extractor = mockExtractor([
-      { content: "Memory", category: "fact", confidence: 0.8 },
-    ]);
+    const extractor = mockExtractor([{ content: "Memory", category: "fact", confidence: 0.8 }]);
 
     const middleware = new DistillationMiddleware({
       nexusClient: client,
@@ -221,7 +254,12 @@ describe("DistillationMiddleware", () => {
     });
 
     await middleware.onSessionStart({ sessionId: "test" });
-    await middleware.onAfterTurn({ sessionId: "test", turnNumber: 1, input: "hi", output: "hello" });
+    await middleware.onAfterTurn({
+      sessionId: "test",
+      turnNumber: 1,
+      input: "hi",
+      output: "hello",
+    });
 
     // Should not throw
     await middleware.onSessionEnd({ sessionId: "test" });

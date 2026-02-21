@@ -10,12 +10,12 @@
 
 import type { SessionContext, TemplarMiddleware, TurnContext } from "@templar/core";
 import { withTimeout } from "../shared/with-timeout.js";
-import { PACKAGE_NAME } from "./constants.js";
 import { resolveDistillationConfig } from "./config.js";
+import { PACKAGE_NAME } from "./constants.js";
 import type {
   DistillationConfig,
-  ExtractionContext,
   ExtractedMemory,
+  ExtractionContext,
   ResolvedDistillationConfig,
   TurnSummary,
 } from "./types.js";
@@ -56,8 +56,10 @@ export class DistillationMiddleware implements TemplarMiddleware {
     // Buffer the turn summary
     const summary: TurnSummary = {
       turnNumber: context.turnNumber,
-      input: typeof context.input === "string" ? context.input : JSON.stringify(context.input ?? ""),
-      output: typeof context.output === "string" ? context.output : JSON.stringify(context.output ?? ""),
+      input:
+        typeof context.input === "string" ? context.input : JSON.stringify(context.input ?? ""),
+      output:
+        typeof context.output === "string" ? context.output : JSON.stringify(context.output ?? ""),
     };
 
     // Windowed buffer: keep only last maxTurns (Decision 16)
@@ -155,8 +157,6 @@ export class DistillationMiddleware implements TemplarMiddleware {
 /**
  * Factory function for DistillationMiddleware.
  */
-export function createDistillationMiddleware(
-  config: DistillationConfig,
-): DistillationMiddleware {
+export function createDistillationMiddleware(config: DistillationConfig): DistillationMiddleware {
   return new DistillationMiddleware(config);
 }

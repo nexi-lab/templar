@@ -7,8 +7,8 @@
 
 import type { SessionContext, TemplarMiddleware } from "@templar/core";
 import { parseDuration } from "../shared/duration.js";
-import { PACKAGE_NAME } from "./constants.js";
 import { resolveReactionConfig } from "./config.js";
+import { PACKAGE_NAME } from "./constants.js";
 import { InMemoryEventSource } from "./event-source.js";
 import { createEventMatcher, matchesFilters } from "./matcher.js";
 import type {

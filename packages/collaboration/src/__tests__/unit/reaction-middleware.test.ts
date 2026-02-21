@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
 import type { Clock } from "@templar/core";
-import { ReactionMiddleware } from "../../reaction/middleware.js";
+import { describe, expect, it, vi } from "vitest";
 import { InMemoryEventSource } from "../../reaction/event-source.js";
-import type { NexusEvent, ReactionPattern } from "../../reaction/types.js";
+import { ReactionMiddleware } from "../../reaction/middleware.js";
+import type { NexusEvent } from "../../reaction/types.js";
 
 function createTestClock(): Clock & { advance(ms: number): void } {
   let time = 1000;
@@ -45,9 +45,7 @@ describe("ReactionMiddleware", () => {
     const clock = createTestClock();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" },
-      ],
+      patterns: [{ event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" }],
       onReaction,
       eventSource,
       clock,
@@ -73,9 +71,7 @@ describe("ReactionMiddleware", () => {
     const clock = createTestClock();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.file.*", probability: 0.5, cooldown: "0s", action: "review" },
-      ],
+      patterns: [{ event: "nexus.file.*", probability: 0.5, cooldown: "0s", action: "review" }],
       onReaction,
       eventSource,
       clock,
@@ -99,9 +95,7 @@ describe("ReactionMiddleware", () => {
     const clock = createTestClock();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.file.*", probability: 1.0, cooldown: "10m", action: "review" },
-      ],
+      patterns: [{ event: "nexus.file.*", probability: 1.0, cooldown: "10m", action: "review" }],
       onReaction,
       eventSource,
       clock,
@@ -136,9 +130,7 @@ describe("ReactionMiddleware", () => {
     const eventSource = new InMemoryEventSource();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" },
-      ],
+      patterns: [{ event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" }],
       onReaction,
       eventSource,
       rng: () => 0.5,
@@ -192,9 +184,7 @@ describe("ReactionMiddleware", () => {
     const eventSource = new InMemoryEventSource();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" },
-      ],
+      patterns: [{ event: "nexus.file.*", probability: 1.0, cooldown: "0s", action: "review" }],
       onReaction,
       eventSource,
       rng: () => 0.5,
@@ -217,9 +207,7 @@ describe("ReactionMiddleware", () => {
     const eventSource = new InMemoryEventSource();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.*", probability: 1.0, cooldown: "0s", action: "test" },
-      ],
+      patterns: [{ event: "nexus.*", probability: 1.0, cooldown: "0s", action: "test" }],
       onReaction,
       eventSource,
       rng: () => 0.999, // Just under 1.0
@@ -238,9 +226,7 @@ describe("ReactionMiddleware", () => {
     const eventSource = new InMemoryEventSource();
 
     const middleware = new ReactionMiddleware({
-      patterns: [
-        { event: "nexus.*", probability: 0, cooldown: "0s", action: "test" },
-      ],
+      patterns: [{ event: "nexus.*", probability: 0, cooldown: "0s", action: "test" }],
       onReaction,
       eventSource,
       rng: () => 0.0, // Lowest possible, but 0 >= 0 is true → blocked

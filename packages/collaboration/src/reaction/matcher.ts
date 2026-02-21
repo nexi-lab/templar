@@ -2,8 +2,8 @@
  * Event pattern matcher using picomatch (Decision 6 — no ReDoS).
  */
 
-import picomatch from "picomatch";
 import { ReactionPatternInvalidError } from "@templar/errors";
+import picomatch from "picomatch";
 
 /**
  * Create a compiled matcher function for an event glob pattern.

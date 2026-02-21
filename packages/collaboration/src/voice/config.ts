@@ -43,9 +43,7 @@ function defaultModifierBuilder(memories: readonly MemoryEntry[]): readonly Pers
 
   return relevant.map((memory) => ({
     source: memory.memory_id,
-    modifier: typeof memory.content === "string"
-      ? memory.content
-      : JSON.stringify(memory.content),
+    modifier: typeof memory.content === "string" ? memory.content : JSON.stringify(memory.content),
     weight: Math.min(weightPerModifier, 0.1), // Cap individual weight at 0.1
     createdAt: memory.created_at ? new Date(memory.created_at).getTime() : Date.now(),
   }));
@@ -73,9 +71,7 @@ export function resolveVoiceEvolutionConfig(
   // Validate maxDrift
   const maxDrift = config.maxDrift ?? DEFAULT_MAX_DRIFT;
   if (!Number.isFinite(maxDrift) || maxDrift < 0 || maxDrift > 1) {
-    throw new CollaborationConfigurationError(
-      `maxDrift must be between 0 and 1, got ${maxDrift}`,
-    );
+    throw new CollaborationConfigurationError(`maxDrift must be between 0 and 1, got ${maxDrift}`);
   }
 
   // Validate queryTimeoutMs

@@ -17,11 +17,11 @@ import type {
   SessionContext,
   TemplarMiddleware,
 } from "@templar/core";
+import { withTimeout } from "../shared/with-timeout.js";
 import { resolveVoiceEvolutionConfig } from "./config.js";
 import { PACKAGE_NAME } from "./constants.js";
 import { ModifierCache } from "./modifier-cache.js";
 import type { ResolvedVoiceEvolutionConfig, VoiceEvolutionConfig } from "./types.js";
-import { withTimeout } from "../shared/with-timeout.js";
 
 export class VoiceEvolutionMiddleware implements TemplarMiddleware {
   readonly name: string = PACKAGE_NAME;

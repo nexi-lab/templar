@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { Clock, ModelRequest } from "@templar/core";
+import { describe, expect, it, vi } from "vitest";
 import { VoiceEvolutionMiddleware } from "../../voice/middleware.js";
 import type { VoiceEvolutionConfig } from "../../voice/types.js";
 
@@ -32,7 +32,14 @@ function createTestClock(): Clock & { advance(ms: number): void } {
   };
 }
 
-function mockNexusClient(memories: Array<{ memory_id: string; content: string; memory_type: string; created_at?: string }> = []) {
+function mockNexusClient(
+  memories: Array<{
+    memory_id: string;
+    content: string;
+    memory_type: string;
+    created_at?: string;
+  }> = [],
+) {
   return {
     memory: {
       query: vi.fn().mockResolvedValue({ results: memories, total: memories.length }),
@@ -70,8 +77,18 @@ describe("VoiceEvolutionMiddleware", () => {
   it("should inject modifiers from personality memories", async () => {
     const clock = createTestClock();
     const memories = [
-      { memory_id: "m1", content: "Be concise", memory_type: "preference", created_at: "2025-01-01T00:00:00Z" },
-      { memory_id: "m2", content: "Use bullet points", memory_type: "style", created_at: "2025-01-02T00:00:00Z" },
+      {
+        memory_id: "m1",
+        content: "Be concise",
+        memory_type: "preference",
+        created_at: "2025-01-01T00:00:00Z",
+      },
+      {
+        memory_id: "m2",
+        content: "Use bullet points",
+        memory_type: "style",
+        created_at: "2025-01-02T00:00:00Z",
+      },
     ];
 
     const middleware = new VoiceEvolutionMiddleware({
@@ -101,9 +118,7 @@ describe("VoiceEvolutionMiddleware", () => {
 
   it("should handle empty systemPrompt", async () => {
     const clock = createTestClock();
-    const memories = [
-      { memory_id: "m1", content: "Be friendly", memory_type: "preference" },
-    ];
+    const memories = [{ memory_id: "m1", content: "Be friendly", memory_type: "preference" }];
 
     const middleware = new VoiceEvolutionMiddleware({
       nexusClient: mockNexusClient(memories),
@@ -150,9 +165,7 @@ describe("VoiceEvolutionMiddleware", () => {
     const next = vi.fn().mockResolvedValue({ content: "response" });
     await middleware.wrapModelCall(req, next);
 
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ systemPrompt: "Base prompt." }),
-    );
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ systemPrompt: "Base prompt." }));
 
     await middleware.onSessionEnd({ sessionId: "test" });
   });
@@ -185,14 +198,14 @@ describe("VoiceEvolutionMiddleware", () => {
 
   it("should use custom modifierBuilder", async () => {
     const clock = createTestClock();
-    const customBuilder = vi.fn().mockReturnValue([
-      { source: "custom", modifier: "Custom trait", weight: 0.1, createdAt: 1000 },
-    ]);
+    const customBuilder = vi
+      .fn()
+      .mockReturnValue([
+        { source: "custom", modifier: "Custom trait", weight: 0.1, createdAt: 1000 },
+      ]);
 
     const middleware = new VoiceEvolutionMiddleware({
-      nexusClient: mockNexusClient([
-        { memory_id: "m1", content: "anything", memory_type: "fact" },
-      ]),
+      nexusClient: mockNexusClient([{ memory_id: "m1", content: "anything", memory_type: "fact" }]),
       updateInterval: "1h",
       maxDrift: 0.5,
       clock,

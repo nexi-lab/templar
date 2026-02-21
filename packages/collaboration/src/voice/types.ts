@@ -2,8 +2,8 @@
  * Type definitions for VoiceEvolutionMiddleware.
  */
 
-import type { Clock } from "@templar/core";
 import type { MemoryEntry, NexusClient } from "@nexus/sdk";
+import type { Clock } from "@templar/core";
 
 // ---------------------------------------------------------------------------
 // Personality modifier
@@ -30,9 +30,7 @@ export interface PersonalityModifier {
  * Default implementation extracts preferences and behavioral patterns.
  * Users can inject custom builders for domain-specific voice evolution.
  */
-export type ModifierBuilder = (
-  memories: readonly MemoryEntry[],
-) => readonly PersonalityModifier[];
+export type ModifierBuilder = (memories: readonly MemoryEntry[]) => readonly PersonalityModifier[];
 
 // ---------------------------------------------------------------------------
 // Configuration

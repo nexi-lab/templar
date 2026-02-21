@@ -1,7 +1,7 @@
+import type { Clock } from "@templar/core";
 import { describe, expect, it, vi } from "vitest";
 import { InMemoryEventSource, PollingEventSource } from "../../reaction/event-source.js";
 import type { NexusEvent } from "../../reaction/types.js";
-import type { Clock } from "@templar/core";
 
 function createTestEvent(type: string): NexusEvent {
   return { id: "evt-1", type, timestamp: Date.now(), payload: {} };
@@ -108,7 +108,8 @@ describe("PollingEventSource", () => {
 
   it("should continue polling after provider error", async () => {
     const clock = createTestClock();
-    const provider = vi.fn()
+    const provider = vi
+      .fn()
       .mockRejectedValueOnce(new Error("API error"))
       .mockResolvedValueOnce([createTestEvent("recovered")]);
     const handler = vi.fn();

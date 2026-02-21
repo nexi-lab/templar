@@ -53,11 +53,7 @@ describe("ModifierCache", () => {
 
   it("should replaceAll with weight cap", () => {
     const cache = ModifierCache.empty(0.3);
-    const modifiers = [
-      mod(0.15, "a", 1000),
-      mod(0.15, "b", 2000),
-      mod(0.15, "c", 3000),
-    ];
+    const modifiers = [mod(0.15, "a", 1000), mod(0.15, "b", 2000), mod(0.15, "c", 3000)];
     const replaced = cache.replaceAll(modifiers);
     // Can only fit 2 modifiers (0.30 cap)
     expect(replaced.size()).toBe(2);

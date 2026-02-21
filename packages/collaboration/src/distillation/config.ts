@@ -15,9 +15,7 @@ import type { DistillationConfig, ResolvedDistillationConfig } from "./types.js"
 /**
  * Validate and resolve DistillationConfig.
  */
-export function resolveDistillationConfig(
-  config: DistillationConfig,
-): ResolvedDistillationConfig {
+export function resolveDistillationConfig(config: DistillationConfig): ResolvedDistillationConfig {
   // Validate nexusClient
   if (!config.nexusClient) {
     throw new CollaborationConfigurationError("nexusClient is required for Distillation");

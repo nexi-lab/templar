@@ -9,15 +9,14 @@
  *   - Graceful degradation on failure
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Clock, ModelRequest } from "@templar/core";
 import { createMockNexusClient } from "@templar/test-utils";
-
-import { ReactionMiddleware } from "../../reaction/middleware.js";
-import { InMemoryEventSource } from "../../reaction/event-source.js";
-import { VoiceEvolutionMiddleware } from "../../voice/middleware.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DistillationMiddleware } from "../../distillation/middleware.js";
+import { InMemoryEventSource } from "../../reaction/event-source.js";
+import { ReactionMiddleware } from "../../reaction/middleware.js";
 import type { NexusEvent } from "../../reaction/types.js";
+import { VoiceEvolutionMiddleware } from "../../voice/middleware.js";
 
 // ---------------------------------------------------------------------------
 // Shared test utilities
@@ -81,8 +80,18 @@ describe("E2E: Collaboration middleware full session lifecycle", () => {
     // --- Configure Nexus mock responses ---
     mockMemory.query.mockResolvedValue({
       results: [
-        { memory_id: "m1", content: "Be concise and direct", memory_type: "preference", created_at: "2025-01-01T00:00:00Z" },
-        { memory_id: "m2", content: "Use bullet points", memory_type: "style", created_at: "2025-01-02T00:00:00Z" },
+        {
+          memory_id: "m1",
+          content: "Be concise and direct",
+          memory_type: "preference",
+          created_at: "2025-01-01T00:00:00Z",
+        },
+        {
+          memory_id: "m2",
+          content: "Use bullet points",
+          memory_type: "style",
+          created_at: "2025-01-02T00:00:00Z",
+        },
       ],
       total: 2,
     });
@@ -95,7 +104,12 @@ describe("E2E: Collaboration middleware full session lifecycle", () => {
     reaction = new ReactionMiddleware({
       patterns: [
         { event: "nexus.file.*", action: "react-to-file", probability: 1.0, cooldown: "0s" },
-        { event: "nexus.memory.stored", action: "react-to-memory", probability: 1.0, cooldown: "0s" },
+        {
+          event: "nexus.memory.stored",
+          action: "react-to-memory",
+          probability: 1.0,
+          cooldown: "0s",
+        },
       ],
       onReaction,
       eventSource,
@@ -301,9 +315,7 @@ describe("E2E: Collaboration middleware full session lifecycle", () => {
     await voice.wrapModelCall(req, next);
 
     // Should pass through with original prompt (no modifiers since query failed)
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ systemPrompt: "Base prompt." }),
-    );
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ systemPrompt: "Base prompt." }));
 
     // Reaction handler errors don't crash
     eventSource.emit(createTestEvent("nexus.event"));

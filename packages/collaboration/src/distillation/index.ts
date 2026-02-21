@@ -15,8 +15,8 @@ export { createDistillationMiddleware, DistillationMiddleware } from "./middlewa
 export type {
   DistillationConfig,
   DistillationTrigger,
-  ExtractionContext,
   ExtractedMemory,
+  ExtractionContext,
   MemoryExtractor,
   ResolvedDistillationConfig,
   TurnSummary,

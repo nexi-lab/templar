@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { CollaborationConfigurationError } from "@templar/errors";
+import { describe, expect, it } from "vitest";
 import { resolveVoiceEvolutionConfig } from "../../voice/config.js";
+import { DEFAULT_QUERY_TIMEOUT_MS } from "../../voice/constants.js";
 import type { VoiceEvolutionConfig } from "../../voice/types.js";
-import { DEFAULT_MAX_DRIFT, DEFAULT_QUERY_TIMEOUT_MS } from "../../voice/constants.js";
 
 function mockNexusClient(): VoiceEvolutionConfig["nexusClient"] {
   return {
@@ -53,15 +53,13 @@ describe("resolveVoiceEvolutionConfig", () => {
   });
 
   it("should throw on invalid updateInterval", () => {
-    expect(() =>
-      resolveVoiceEvolutionConfig(validConfig({ updateInterval: "invalid" })),
-    ).toThrow();
+    expect(() => resolveVoiceEvolutionConfig(validConfig({ updateInterval: "invalid" }))).toThrow();
   });
 
   it("should throw on invalid queryTimeoutMs", () => {
-    expect(() =>
-      resolveVoiceEvolutionConfig(validConfig({ queryTimeoutMs: -1 })),
-    ).toThrow(CollaborationConfigurationError);
+    expect(() => resolveVoiceEvolutionConfig(validConfig({ queryTimeoutMs: -1 }))).toThrow(
+      CollaborationConfigurationError,
+    );
   });
 
   it("should accept maxDrift boundaries (0 and 1)", () => {

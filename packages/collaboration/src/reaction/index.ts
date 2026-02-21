@@ -3,7 +3,7 @@
  */
 
 export { resolveReactionConfig } from "./config.js";
-export { PACKAGE_NAME, DEFAULT_POLL_INTERVAL_MS } from "./constants.js";
+export { DEFAULT_POLL_INTERVAL_MS, PACKAGE_NAME } from "./constants.js";
 export { InMemoryEventSource, PollingEventSource } from "./event-source.js";
 export { createEventMatcher, matchesFilters } from "./matcher.js";
 export { createReactionMiddleware, ReactionMiddleware } from "./middleware.js";

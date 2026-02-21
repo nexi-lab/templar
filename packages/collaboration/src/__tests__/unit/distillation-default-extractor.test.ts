@@ -12,7 +12,11 @@ describe("DefaultMemoryExtractor", () => {
 
   it("should extract decision patterns", async () => {
     const turns = [
-      { turnNumber: 1, input: "Should we use React?", output: "We decided to use React for the frontend." },
+      {
+        turnNumber: 1,
+        input: "Should we use React?",
+        output: "We decided to use React for the frontend.",
+      },
     ];
 
     const result = await extractor.extract(turns, context);
@@ -47,9 +51,7 @@ describe("DefaultMemoryExtractor", () => {
   });
 
   it("should handle turns with no extractable patterns", async () => {
-    const turns = [
-      { turnNumber: 1, input: "Hello", output: "Hi there! How can I help you?" },
-    ];
+    const turns = [{ turnNumber: 1, input: "Hello", output: "Hi there! How can I help you?" }];
 
     const result = await extractor.extract(turns, context);
     expect(result).toHaveLength(0);

@@ -7,7 +7,7 @@
  * This default extracts simple patterns from conversation text.
  */
 
-import type { ExtractionContext, ExtractedMemory, MemoryExtractor, TurnSummary } from "./types.js";
+import type { ExtractedMemory, ExtractionContext, MemoryExtractor, TurnSummary } from "./types.js";
 
 /**
  * Heuristic extractor that looks for common patterns in conversation.

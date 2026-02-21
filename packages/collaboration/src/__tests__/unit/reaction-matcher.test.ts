@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { ReactionPatternInvalidError } from "@templar/errors";
+import { describe, expect, it } from "vitest";
 import { createEventMatcher, matchesFilters } from "../../reaction/matcher.js";
 
 describe("createEventMatcher", () => {
