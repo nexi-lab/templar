@@ -1,0 +1,7 @@
+# Email credentials — required for the email channel adapter
+EMAIL_HOST=imap.gmail.com
+EMAIL_USER=you@example.com
+EMAIL_PASSWORD=your-app-password
+
+# Anthropic API Key — required for the model
+ANTHROPIC_API_KEY=sk-ant-your-key-here

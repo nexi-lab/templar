@@ -17,7 +17,8 @@
     { "path": "packages/test-utils" },
     { "path": "packages/agui" },
     { "path": "packages/sanitize" },
-    { "path": "packages/canvas" }
+    { "path": "packages/canvas" },
+    { "path": "packages/create-templar" }
   ],
   "include": [],
   "exclude": ["node_modules", "dist", "coverage"]

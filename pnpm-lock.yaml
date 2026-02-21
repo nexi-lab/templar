@@ -309,6 +309,19 @@ importers:
         specifier: ^25.2.2
         version: 25.2.2
 
+  packages/create-templar:
+    dependencies:
+      picocolors:
+        specifier: ^1.1.0
+        version: 1.1.1
+    devDependencies:
+      '@templar/manifest':
+        specifier: workspace:*
+        version: link:../manifest
+      '@types/node':
+        specifier: ^25.2.2
+        version: 25.2.2
+
   packages/doctor:
     dependencies:
       '@templar/core':

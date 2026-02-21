@@ -1,0 +1,27 @@
+{
+  "name": "create-templar",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Scaffold a new Templar agent project",
+  "bin": {
+    "create-templar": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.0"
+  },
+  "devDependencies": {
+    "@templar/manifest": "workspace:*",
+    "@types/node": "^25.2.2"
+  }
+}

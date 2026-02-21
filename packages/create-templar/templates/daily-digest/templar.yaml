@@ -1,0 +1,18 @@
+name: daily-digest
+version: 1.0.0
+description: Summarizes key updates from connected channels on a daily schedule
+
+model: anthropic/claude-sonnet-4-5
+channels:
+  - slack
+
+schedule: "0 8 * * *"
+prompt: >
+  You are a daily digest bot. Each morning, collect the most important
+  messages, threads, and updates from the previous 24 hours. Produce a
+  concise, scannable summary grouped by channel and priority.
+
+identity:
+  default:
+    name: Daily Digest
+    bio: Your morning briefing, every day at 8 AM
