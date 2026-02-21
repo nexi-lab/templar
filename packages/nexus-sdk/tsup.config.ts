@@ -10,6 +10,7 @@ export default defineConfig({
     "resources/eventlog": "src/resources/eventlog.ts",
     "resources/permissions": "src/resources/permissions.ts",
     "resources/sandbox": "src/resources/sandbox.ts",
+    "resources/secrets-audit": "src/resources/secrets-audit.ts",
     "http/index": "src/http/index.ts",
   },
   format: ["esm"],
