@@ -5,6 +5,9 @@
  * - Operation-specific timeouts (5s search, 10s mutations)
  * - Graceful degradation to InMemoryArtifactStore when Nexus is unavailable
  * - Progressive disclosure via the Resolver<ArtifactMetadata, Artifact> interface
+ * - Input validation via shared validateCreateParams / validateUpdateParams
+ * - Default pagination (limit: 100) for list/discover operations
+ * - onDegradation callback for observability during fallback
  */
 
 import type {
@@ -28,6 +31,7 @@ import {
   DEFAULT_CONFIG,
   type ResolvedArtifactClientConfig,
 } from "./types.js";
+import { validateCreateParams, validateUpdateParams } from "./validate.js";
 
 /**
  * Race a promise against a timeout. Rejects with a descriptive error on timeout.
@@ -84,6 +88,9 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
     if (config?.inMemoryCapacity !== undefined && config.inMemoryCapacity < 1) {
       throw new Error("inMemoryCapacity must be at least 1");
     }
+    if (config?.defaultPageSize !== undefined && config.defaultPageSize < 1) {
+      throw new Error("defaultPageSize must be at least 1");
+    }
 
     this.nexus = nexus;
     this.config = {
@@ -91,6 +98,8 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
       mutationTimeoutMs: config?.mutationTimeoutMs ?? DEFAULT_CONFIG.mutationTimeoutMs,
       fallbackEnabled: config?.fallbackEnabled ?? DEFAULT_CONFIG.fallbackEnabled,
       inMemoryCapacity: config?.inMemoryCapacity ?? DEFAULT_CONFIG.inMemoryCapacity,
+      defaultPageSize: config?.defaultPageSize ?? DEFAULT_CONFIG.defaultPageSize,
+      onDegradation: config?.onDegradation,
     };
     this.fallbackStore = this.config.fallbackEnabled
       ? new InMemoryArtifactStore(this.config.inMemoryCapacity)
@@ -100,24 +109,19 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
   /**
    * Discover all available artifacts, returning metadata only.
    *
+   * Uses default pagination (limit: 100) to prevent unbounded fetches.
    * Falls back to in-memory store if Nexus API is unavailable.
    */
   async discover(): Promise<readonly ArtifactMetadata[]> {
     try {
       const response = await withTimeout(
-        this.nexus.artifacts.list(),
+        this.nexus.artifacts.list({ limit: this.config.defaultPageSize }),
         this.config.searchTimeoutMs,
         "artifact.discover",
       );
       return response.data;
     } catch (error) {
-      if (this.fallbackStore) {
-        return this.fallbackStore.discover();
-      }
-      throw new ArtifactStoreUnavailableError(
-        "Failed to discover artifacts",
-        error instanceof Error ? error : undefined,
-      );
+      return this.handleFallback("artifact.discover", error, (store) => store.discover());
     }
   }
 
@@ -134,8 +138,9 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
         "artifact.load",
       );
       return artifact;
-    } catch (_error) {
+    } catch (error) {
       if (this.fallbackStore) {
+        this.notifyDegradation("artifact.load", error);
         return this.fallbackStore.load(id);
       }
       return undefined;
@@ -145,9 +150,14 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
   /**
    * Create a new artifact.
    *
+   * Validates input before sending to Nexus.
+   *
+   * @throws ArtifactValidationFailedError if params are invalid
    * @throws ArtifactStoreUnavailableError if Nexus is unreachable and no fallback
    */
   async create(params: CreateArtifactParams): Promise<Artifact> {
+    validateCreateParams(params);
+
     try {
       return await withTimeout(
         this.nexus.artifacts.create(params),
@@ -155,24 +165,23 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
         "artifact.create",
       );
     } catch (error) {
-      if (this.fallbackStore) {
-        return this.fallbackStore.create(params);
-      }
-      throw new ArtifactStoreUnavailableError(
-        "Failed to create artifact",
-        error instanceof Error ? error : undefined,
-      );
+      return this.handleFallback("artifact.create", error, (store) => store.create(params));
     }
   }
 
   /**
    * Update an existing artifact.
    *
+   * Validates input before sending to Nexus.
+   *
+   * @throws ArtifactValidationFailedError if params are invalid
    * @throws ArtifactNotFoundError if the artifact does not exist
    * @throws ArtifactVersionConflictError if expectedVersion does not match
    * @throws ArtifactStoreUnavailableError if Nexus is unreachable and no fallback
    */
   async update(id: string, params: UpdateArtifactParams): Promise<Artifact> {
+    validateUpdateParams(params);
+
     try {
       return await withTimeout(
         this.nexus.artifacts.update(id, params),
@@ -181,6 +190,7 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
       );
     } catch (error) {
       if (this.fallbackStore) {
+        this.notifyDegradation("artifact.update", error);
         const result = await this.fallbackStore.update(id, params);
         if (!result) {
           throw new ArtifactNotFoundError(id);
@@ -208,6 +218,7 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
       );
     } catch (error) {
       if (this.fallbackStore) {
+        this.notifyDegradation("artifact.delete", error);
         await this.fallbackStore.delete(id);
         return;
       }
@@ -221,24 +232,25 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
   /**
    * List artifacts with optional filtering.
    *
+   * Applies default pagination (limit: 100) if no limit is specified.
+   *
    * @throws ArtifactStoreUnavailableError if Nexus is unreachable and no fallback
    */
   async list(params?: ListArtifactsParams): Promise<readonly ArtifactMetadata[]> {
+    const paginatedParams = {
+      ...params,
+      limit: params?.limit ?? this.config.defaultPageSize,
+    };
+
     try {
       const response = await withTimeout(
-        this.nexus.artifacts.list(params),
+        this.nexus.artifacts.list(paginatedParams),
         this.config.searchTimeoutMs,
         "artifact.list",
       );
       return response.data;
     } catch (error) {
-      if (this.fallbackStore) {
-        return this.fallbackStore.list(params);
-      }
-      throw new ArtifactStoreUnavailableError(
-        "Failed to list artifacts",
-        error instanceof Error ? error : undefined,
-      );
+      return this.handleFallback("artifact.list", error, (store) => store.list(params));
     }
   }
 
@@ -259,6 +271,7 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
       return response.results;
     } catch (error) {
       if (this.fallbackStore) {
+        this.notifyDegradation("artifact.search", error);
         const results = await this.fallbackStore.search(params.query);
         return results.map((r) => ({ artifact: r.metadata, score: r.score }));
       }
@@ -281,6 +294,7 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
       return response.artifacts;
     } catch (error) {
       if (this.fallbackStore) {
+        this.notifyDegradation("artifact.getBatch", error);
         const results: Artifact[] = [];
         for (const id of ids) {
           const artifact = await this.fallbackStore.load(id);
@@ -293,5 +307,38 @@ export class ArtifactClient implements Resolver<ArtifactMetadata, Artifact> {
         error instanceof Error ? error : undefined,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Notify the degradation callback when falling back to in-memory store.
+   */
+  private notifyDegradation(operation: string, error: unknown): void {
+    this.config.onDegradation?.(
+      operation,
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+
+  /**
+   * Handle fallback for operations that throw ArtifactStoreUnavailableError on failure.
+   * Notifies degradation callback and passes the verified fallback store to the callback.
+   */
+  private async handleFallback<T>(
+    operation: string,
+    error: unknown,
+    fallbackFn: (store: InMemoryArtifactStore) => Promise<T>,
+  ): Promise<T> {
+    if (this.fallbackStore) {
+      this.notifyDegradation(operation, error);
+      return fallbackFn(this.fallbackStore);
+    }
+    throw new ArtifactStoreUnavailableError(
+      `Failed: ${operation}`,
+      error instanceof Error ? error : undefined,
+    );
   }
 }

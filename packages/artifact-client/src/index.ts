@@ -7,6 +7,7 @@
  * - ArtifactClient: High-level client with timeouts, fallback, and Resolver interface
  * - InMemoryArtifactStore: LRU-based fallback store for local/testing use
  * - prepareManifest(): Freeze an agent artifact into an immutable engine manifest
+ * - validateCreateParams / validateUpdateParams: Shared input validation
  *
  * @example
  * ```typescript
@@ -31,8 +32,10 @@ export type {
   ArtifactMetadata,
   ArtifactStatus,
   ArtifactType,
+  DegradationCallback,
   PreparedManifest,
   PrepareManifestParams,
   ResolvedArtifactClientConfig,
   StoredArtifact,
 } from "./types.js";
+export { validateCreateParams, validateUpdateParams } from "./validate.js";

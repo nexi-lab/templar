@@ -19,6 +19,7 @@ import type {
 import type { Resolver } from "@templar/core";
 import { ArtifactVersionConflictError } from "@templar/errors";
 import { DEFAULT_CONFIG } from "./types.js";
+import { validateCreateParams, validateUpdateParams } from "./validate.js";
 
 /**
  * Internal mutable entry for tracking artifact state and LRU ordering
@@ -73,8 +74,11 @@ export class InMemoryArtifactStore implements Resolver<ArtifactMetadata, Artifac
   /**
    * Store a new artifact. Evicts least-recently-used if at capacity.
    * Returns the created artifact with generated ID and version.
+   *
+   * @throws ArtifactValidationFailedError if params are invalid
    */
   async create(params: CreateArtifactParams): Promise<Artifact> {
+    validateCreateParams(params);
     this.evictIfNeeded();
 
     const id = `art-mem-${this.nextId++}`;
@@ -123,9 +127,12 @@ export class InMemoryArtifactStore implements Resolver<ArtifactMetadata, Artifac
   /**
    * Update an existing artifact. Supports optimistic concurrency via expectedVersion.
    * Returns the updated artifact or undefined if not found.
+   *
+   * @throws ArtifactValidationFailedError if params are invalid
    * @throws ArtifactVersionConflictError if expectedVersion does not match
    */
   async update(id: string, params: UpdateArtifactParams): Promise<Artifact | undefined> {
+    validateUpdateParams(params);
     const entry = this.entries.get(id);
     if (!entry) return undefined;
 
@@ -218,7 +225,11 @@ export class InMemoryArtifactStore implements Resolver<ArtifactMetadata, Artifac
    * Returns results sorted by basic relevance score.
    */
   async search(query: string): Promise<readonly { metadata: ArtifactMetadata; score: number }[]> {
-    const terms = query.toLowerCase().split(/\s+/);
+    const terms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+    if (terms.length === 0) return [];
     const scored: { metadata: ArtifactMetadata; score: number }[] = [];
 
     for (const entry of this.entries.values()) {
