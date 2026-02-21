@@ -5,16 +5,11 @@
  * Will use NFS read API when available.
  */
 
-import type { NexusClient } from "@nexus/sdk";
 import type { HydrationTemplateVars, ResolvedContextSource } from "@templar/core";
 import type { ContextSourceResolver } from "../types.js";
 
 export class WorkspaceSnapshotResolver implements ContextSourceResolver {
   readonly type = "workspace_snapshot";
-
-  constructor(_client: NexusClient) {
-    // Reserved for future NFS read API integration
-  }
 
   async resolve(
     params: Record<string, unknown>,

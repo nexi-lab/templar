@@ -583,9 +583,9 @@ describe("NexusPayMiddleware - getCostReport()", () => {
 
     await middleware.onSessionStart(createSessionContext());
 
-    const beforeTime = new Date().getTime();
+    const beforeTime = Date.now();
     const report = middleware.getCostReport("test-session-1");
-    const afterTime = new Date().getTime();
+    const afterTime = Date.now();
 
     const reportTime = new Date(report.generatedAt).getTime();
     expect(reportTime).toBeGreaterThanOrEqual(beforeTime);
