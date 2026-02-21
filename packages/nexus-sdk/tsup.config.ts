@@ -11,6 +11,7 @@ export default defineConfig({
     "resources/permissions": "src/resources/permissions.ts",
     "resources/sandbox": "src/resources/sandbox.ts",
     "resources/secrets-audit": "src/resources/secrets-audit.ts",
+    "resources/subscriptions": "src/resources/subscriptions.ts",
     "http/index": "src/http/index.ts",
   },
   format: ["esm"],

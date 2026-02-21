@@ -39,6 +39,7 @@ export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
 export { SandboxResource } from "./resources/sandbox.js";
 export { SecretsAuditResource } from "./resources/secrets-audit.js";
+export { SubscriptionsResource } from "./resources/subscriptions.js";
 export { ToolsResource } from "./resources/tools.js";
 // ACE types
 export type {
@@ -195,6 +196,17 @@ export type {
   SecretsAuditExportResponse,
   SecretsAuditIntegrityResponse,
 } from "./types/secrets-audit.js";
+export type {
+  CreateSubscriptionParams,
+  DeleteSubscriptionResponse,
+  DeliveryStatus,
+  FileEventType,
+  ListSubscriptionsParams,
+  Subscription,
+  SubscriptionListResponse,
+  TestWebhookResponse,
+  UpdateSubscriptionParams,
+} from "./types/subscriptions.js";
 export type {
   CreateToolParams,
   ListToolsParams,
