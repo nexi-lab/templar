@@ -100,6 +100,7 @@ async function runPhaseParallel(
     if (s.status === "fulfilled") {
       return s.value;
     }
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed by allSettled mapping
     const verifier = verifiers[i]!;
     return {
       verifierName: verifier.name,

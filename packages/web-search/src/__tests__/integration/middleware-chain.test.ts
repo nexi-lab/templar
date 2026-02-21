@@ -42,10 +42,10 @@ describe("middleware integration chain", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
     const results = response.output as Array<{ title: string }>;
     expect(results).toHaveLength(1);
-    expect(results[0]!.title).toBe("Integration Result");
+    expect(results[0]?.title).toBe("Integration Result");
   });
 
   it("falls back when first provider fails", async () => {
@@ -90,10 +90,10 @@ describe("middleware integration chain", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
     const results = response.output as Array<{ title: string }>;
     expect(results).toHaveLength(1);
-    expect(results[0]!.title).toBe("Fallback");
+    expect(results[0]?.title).toBe("Fallback");
   });
 
   it("propagates error when all providers fail", async () => {
@@ -113,7 +113,7 @@ describe("middleware integration chain", () => {
     };
     const next = vi.fn();
 
-    await expect(middleware.wrapToolCall!(req, next)).rejects.toThrow(
+    await expect(middleware.wrapToolCall?.(req, next)).rejects.toThrow(
       "All search providers failed",
     );
   });
@@ -135,10 +135,10 @@ describe("middleware integration chain", () => {
     };
     const next = vi.fn();
 
-    await middleware.wrapToolCall!(req, next);
+    await middleware.wrapToolCall?.(req, next);
 
-    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-    const body = JSON.parse(fetchCall[1]!.body as string);
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    const body = JSON.parse(fetchCall?.[1]?.body as string);
     expect(body.num).toBe(3);
     expect(body.hl).toBe("fr");
   });

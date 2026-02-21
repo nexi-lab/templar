@@ -43,13 +43,13 @@ describe("A2AClient", () => {
       expect(card.name).toBe("Test Agent");
       expect(card.url).toBe("https://agent.example.com");
       expect(card.skills).toHaveLength(1);
-      expect(card.skills[0]!.id).toBe("search");
+      expect(card.skills[0]?.id).toBe("search");
       expect(card.capabilities.streaming).toBe(false);
       expect(card.provider).toBe("Test Corp");
 
       // Verify correct URL was fetched
-      const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      expect(fetchCall[0]).toBe("https://agent.example.com/.well-known/agent.json");
+      const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+      expect(fetchCall?.[0]).toBe("https://agent.example.com/.well-known/agent.json");
     });
 
     it("caches Agent Card on second call", async () => {
@@ -236,9 +236,9 @@ describe("A2AClient", () => {
       const client = new A2AClient({}, authMap);
       await client.sendMessage("https://agent.com", "Hi");
 
-      const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-      const headers = (fetchCall[1] as RequestInit).headers as Record<string, string>;
-      expect(headers.Authorization).toBe("Bearer my-token");
+      const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+      const headers = (fetchCall?.[1] as RequestInit)?.headers as Record<string, string>;
+      expect(headers?.Authorization).toBe("Bearer my-token");
     });
   });
 

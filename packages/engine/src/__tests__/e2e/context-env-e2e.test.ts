@@ -201,7 +201,7 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
       const middleware = result.middleware as Array<{ name?: string }>;
 
       expect(middleware.length).toBeGreaterThanOrEqual(1);
-      expect(middleware[0]!.name).toBe("templar-context-env");
+      expect(middleware[0]?.name).toBe("templar-context-env");
     });
 
     it("ContextEnvMiddleware from createTemplar builds full runtime context", async () => {
@@ -210,7 +210,8 @@ describe("E2E: Context Environment Variable Injection (#128)", () => {
         zoneId: "e2e-create-zone",
       }) as Record<string, unknown>;
       const middleware = result.middleware as ContextEnvMiddleware[];
-      const contextMw = middleware[0]!;
+      const contextMw = middleware[0];
+      if (!contextMw) throw new Error("Expected context middleware");
 
       const session = fullSessionContext();
       await contextMw.onSessionStart(session);

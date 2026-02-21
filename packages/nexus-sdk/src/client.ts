@@ -16,6 +16,7 @@ import { SandboxResource } from "./resources/sandbox.js";
 import { SecretsAuditResource } from "./resources/secrets-audit.js";
 import { SubscriptionsResource } from "./resources/subscriptions.js";
 import { ToolsResource } from "./resources/tools.js";
+import { ZonesResource } from "./resources/zones.js";
 import type { ClientConfig, RetryOptions } from "./types/index.js";
 
 /**
@@ -117,6 +118,11 @@ export class NexusClient {
   public readonly subscriptions: SubscriptionsResource;
 
   /**
+   * Zones resource (zone management and federation)
+   */
+  public readonly zones: ZonesResource;
+
+  /**
    * ACE resource (Adaptive Context Engine — trajectories, playbooks, reflection, etc.)
    */
   public readonly ace: AceResource;
@@ -148,6 +154,7 @@ export class NexusClient {
     this.pairing = new PairingResource(this._http);
     this.secretsAudit = new SecretsAuditResource(this._http);
     this.subscriptions = new SubscriptionsResource(this._http);
+    this.zones = new ZonesResource(this._http);
     this.ace = new AceResource(this._http);
   }
 

@@ -224,7 +224,7 @@ describe("withTracing", () => {
       model: "test-model",
     };
     const mockResponse: ModelResponse = { content: "hi", model: "test-model" };
-    await traced.wrapModelCall!(req, async () => mockResponse);
+    await traced.wrapModelCall?.(req, async () => mockResponse);
 
     expect(wrapModelCall).toHaveBeenCalledOnce();
     const spans = exporter.getFinishedSpans();
@@ -248,7 +248,7 @@ describe("withTracing", () => {
 
     const req: ToolRequest = { toolName: "search", input: { query: "test" } };
     const mockResponse: ToolResponse = { output: "result" };
-    await traced.wrapToolCall!(req, async () => mockResponse);
+    await traced.wrapToolCall?.(req, async () => mockResponse);
 
     expect(wrapToolCall).toHaveBeenCalledOnce();
     const spans = exporter.getFinishedSpans();

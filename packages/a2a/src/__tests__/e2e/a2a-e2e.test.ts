@@ -366,7 +366,7 @@ describe("A2A E2E — local JSON-RPC server", () => {
       const next = () => Promise.resolve({ output: "should not be called" });
 
       // Step 1: Discover
-      const discoverRes = await middleware.wrapToolCall!(
+      const discoverRes = await middleware.wrapToolCall?.(
         {
           toolName: "a2a_discover",
           input: { agent_url: baseUrl },
@@ -377,7 +377,7 @@ describe("A2A E2E — local JSON-RPC server", () => {
       expect(agentInfo.name).toBe("E2E Test Agent");
 
       // Step 2: Send message
-      const sendRes = await middleware.wrapToolCall!(
+      const sendRes = await middleware.wrapToolCall?.(
         {
           toolName: "a2a_send_message",
           input: { agent_url: baseUrl, message: "E2E middleware test" },
@@ -389,7 +389,7 @@ describe("A2A E2E — local JSON-RPC server", () => {
       expect(taskResult.taskId).toMatch(/^e2e-/);
 
       // Step 3: Get task
-      const getRes = await middleware.wrapToolCall!(
+      const getRes = await middleware.wrapToolCall?.(
         {
           toolName: "a2a_get_task",
           input: { agent_url: baseUrl, task_id: taskResult.taskId },
@@ -405,7 +405,7 @@ describe("A2A E2E — local JSON-RPC server", () => {
       const next = () => Promise.resolve({ output: "unused" });
 
       // Send first
-      const sendRes = await middleware.wrapToolCall!(
+      const sendRes = await middleware.wrapToolCall?.(
         {
           toolName: "a2a_send_message",
           input: { agent_url: baseUrl, message: "For middleware cancel" },
@@ -415,7 +415,7 @@ describe("A2A E2E — local JSON-RPC server", () => {
       const taskId = (sendRes.output as Record<string, unknown>).taskId;
 
       // Cancel
-      const cancelRes = await middleware.wrapToolCall!(
+      const cancelRes = await middleware.wrapToolCall?.(
         {
           toolName: "a2a_cancel_task",
           input: { agent_url: baseUrl, task_id: taskId },

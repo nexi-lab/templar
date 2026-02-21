@@ -41,6 +41,7 @@ export { SandboxResource } from "./resources/sandbox.js";
 export { SecretsAuditResource } from "./resources/secrets-audit.js";
 export { SubscriptionsResource } from "./resources/subscriptions.js";
 export { ToolsResource } from "./resources/tools.js";
+export { ZonesResource } from "./resources/zones.js";
 // ACE types
 export type {
   AddFeedbackParams,
@@ -216,3 +217,15 @@ export type {
   ToolsResponse,
   UpdateToolParams,
 } from "./types/tools.js";
+export type {
+  CreateZoneParams,
+  DeprovisionZoneResponse,
+  JoinZoneParams,
+  JoinZoneResponse,
+  ListZonesParams,
+  ShareZoneParams,
+  ShareZoneResponse,
+  Zone,
+  ZonePhase,
+  ZonesResponse,
+} from "./types/zones.js";
