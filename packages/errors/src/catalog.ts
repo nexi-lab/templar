@@ -2294,7 +2294,6 @@ export const ERROR_CATALOG = {
     description: "The exec-approvals middleware configuration is invalid",
   },
 
-  // ============================================================================
   // HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
   // ============================================================================
   HEARTBEAT_CONFIGURATION_INVALID: {
@@ -2332,6 +2331,37 @@ export const ERROR_CATALOG = {
     isExpected: false,
     title: "Pipeline failed",
     description: "The heartbeat evaluator pipeline failed at the orchestration level",
+  },
+
+  // ============================================================================
+  // CRYSTALLIZER ERRORS — Tool pattern crystallization (#164)
+  // ============================================================================
+  CRYSTALLIZER_CONFIGURATION_INVALID: {
+    domain: "crystallizer",
+    httpStatus: 400,
+    grpcCode: "INVALID_ARGUMENT" as const,
+    baseType: "ValidationError" as const,
+    isExpected: true,
+    title: "Invalid crystallizer configuration",
+    description: "The crystallizer middleware configuration is invalid",
+  },
+  CRYSTALLIZER_MINING_FAILED: {
+    domain: "crystallizer",
+    httpStatus: 500,
+    grpcCode: "INTERNAL" as const,
+    baseType: "InternalError" as const,
+    isExpected: false,
+    title: "Pattern mining failed",
+    description: "The PrefixSpan pattern mining operation failed",
+  },
+  CRYSTALLIZER_PERSIST_FAILED: {
+    domain: "crystallizer",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Crystallization persist failed",
+    description: "Failed to persist crystallized tool artifact to the Nexus Artifact API",
   },
 } as const;
 
