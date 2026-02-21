@@ -126,3 +126,14 @@ export type {
 // Token usage types (#158)
 export type { TokenUsage } from "./token-usage-types.js";
 export { isTokenUsage } from "./token-usage-types.js";
+// Federation types (#202)
+export type {
+	CausalOrder,
+	ConflictOutcome,
+	EdgeSyncConfig,
+	FederationConfig,
+	SyncState,
+	ZoneId,
+	ZoneInfo,
+	ZonePhase,
+} from "./federation-types.js";

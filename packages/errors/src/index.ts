@@ -306,6 +306,26 @@ export {
 } from "./collaboration.js";
 
 // ============================================================================
+// FEDERATION ERRORS — Multi-zone coordination + edge sync (#202)
+// ============================================================================
+
+export {
+	FederationConfigurationInvalidError,
+	FederationConflictUnresolvedError,
+	FederationError,
+	FederationSyncAuthFailedError,
+	FederationSyncDisconnectedError,
+	FederationSyncInvalidTransitionError,
+	FederationSyncTimeoutError,
+	FederationZoneAlreadyExistsError,
+	FederationZoneInvalidIdError,
+	FederationZoneJoinFailedError,
+	FederationZoneNotFoundError,
+	FederationZoneShareFailedError,
+	FederationZoneTerminatingError,
+} from "./federation.js";
+
+// ============================================================================
 // HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
 // ============================================================================
 
