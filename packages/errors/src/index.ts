@@ -289,6 +289,23 @@ export {
 } from "./exec-approvals.js";
 
 // ============================================================================
+// COLLABORATION ERRORS — Reaction, VoiceEvolution, Distillation (#34)
+// ============================================================================
+
+export {
+  CollaborationConfigurationError,
+  CollaborationError,
+  DistillationExtractionFailedError,
+  DistillationExtractionTimeoutError,
+  ReactionCooldownActiveError,
+  ReactionEventSourceFailedError,
+  ReactionPatternInvalidError,
+  VoiceDriftExceededError,
+  VoiceMemoryQueryFailedError,
+  VoiceModifierUpdateTimeoutError,
+} from "./collaboration.js";
+
+// ============================================================================
 // HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
 // ============================================================================
 

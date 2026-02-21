@@ -89,6 +89,14 @@ describe("ERROR_CATALOG", () => {
       "EXEC_APPROVAL_DENIED", // exec-approval domain, EXEC prefix (compound)
       "EXEC_APPROVAL_PARSE_FAILED", // exec-approval domain, EXEC prefix (compound)
       "EXEC_APPROVAL_CONFIGURATION_INVALID", // exec-approval domain, EXEC prefix (compound)
+      "REACTION_PATTERN_INVALID", // collaboration domain, REACTION prefix (sub-component)
+      "REACTION_COOLDOWN_ACTIVE", // collaboration domain, REACTION prefix (sub-component)
+      "REACTION_EVENT_SOURCE_FAILED", // collaboration domain, REACTION prefix (sub-component)
+      "VOICE_DRIFT_EXCEEDED", // collaboration domain, VOICE prefix (sub-component)
+      "VOICE_MEMORY_QUERY_FAILED", // collaboration domain, VOICE prefix (sub-component)
+      "VOICE_MODIFIER_UPDATE_TIMEOUT", // collaboration domain, VOICE prefix (sub-component)
+      "DISTILLATION_EXTRACTION_FAILED", // collaboration domain, DISTILLATION prefix (sub-component)
+      "DISTILLATION_EXTRACTION_TIMEOUT", // collaboration domain, DISTILLATION prefix (sub-component)
     ]);
 
     for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
