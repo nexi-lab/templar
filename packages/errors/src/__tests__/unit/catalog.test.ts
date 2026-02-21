@@ -85,6 +85,10 @@ describe("ERROR_CATALOG", () => {
       "SELF_TEST_TIMEOUT", // selftest domain, SELF prefix (compound)
       "SELF_TEST_CONFIGURATION_INVALID", // selftest domain, SELF prefix (compound)
       "HUMAN_DELAY_CONFIGURATION_INVALID", // channel domain, HUMAN prefix (compound)
+      "EXEC_APPROVAL_COMMAND_BLOCKED", // exec-approval domain, EXEC prefix (compound)
+      "EXEC_APPROVAL_DENIED", // exec-approval domain, EXEC prefix (compound)
+      "EXEC_APPROVAL_PARSE_FAILED", // exec-approval domain, EXEC prefix (compound)
+      "EXEC_APPROVAL_CONFIGURATION_INVALID", // exec-approval domain, EXEC prefix (compound)
     ]);
 
     for (const [code, entry] of Object.entries(ERROR_CATALOG)) {
