@@ -2,23 +2,10 @@ import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { GatewayNodeAlreadyRegisteredError, GatewayNodeNotFoundError } from "@templar/errors";
 import type { SessionEvent, SessionIdentityContext, SessionInfo } from "../protocol/index.js";
+import { deepFreeze } from "../utils/deep-freeze.js";
 import { mapDelete, mapSet } from "../utils/immutable-map.js";
+import { type SessionManagerSnapshot, SessionManagerSnapshotSchema } from "./session-snapshot.js";
 import { type TransitionResult, transition } from "./state-machine.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Recursively freeze an object and all nested objects. */
-function deepFreeze<T>(obj: T): T {
-  Object.freeze(obj);
-  for (const value of Object.values(obj as Record<string, unknown>)) {
-    if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
-      deepFreeze(value);
-    }
-  }
-  return obj;
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -186,6 +173,31 @@ export class SessionManager {
    */
   onTransition(handler: SessionEventHandler): void {
     this.onTransitionHandlers = [...this.onTransitionHandlers, handler];
+  }
+
+  /**
+   * Capture a serializable snapshot of all active sessions.
+   * Excludes disconnected sessions (they are terminal state).
+   */
+  toSnapshot(): SessionManagerSnapshot {
+    return {
+      version: 1,
+      sessions: [...this.sessions.values()].filter((s) => s.state !== "disconnected"),
+      capturedAt: Date.now(),
+    };
+  }
+
+  /**
+   * Restore sessions from a snapshot. Clears all existing state first.
+   * Does NOT start timers — timers resume when real connections arrive.
+   */
+  fromSnapshot(snapshot: SessionManagerSnapshot): void {
+    SessionManagerSnapshotSchema.parse(snapshot);
+    this.dispose();
+    for (const session of snapshot.sessions) {
+      const frozen = deepFreeze(structuredClone(session));
+      this.sessions = mapSet(this.sessions, session.nodeId, frozen);
+    }
   }
 
   /**
