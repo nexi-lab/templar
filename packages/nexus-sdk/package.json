@@ -33,6 +33,10 @@
       "types": "./dist/resources/sandbox.d.ts",
       "import": "./dist/resources/sandbox.js"
     },
+    "./secrets-audit": {
+      "types": "./dist/resources/secrets-audit.d.ts",
+      "import": "./dist/resources/secrets-audit.js"
+    },
     "./http": {
       "types": "./dist/http/index.d.ts",
       "import": "./dist/http/index.js"

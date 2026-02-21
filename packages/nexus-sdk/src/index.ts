@@ -38,6 +38,7 @@ export { PairingResource } from "./resources/pairing.js";
 export { PayResource } from "./resources/pay.js";
 export { PermissionsResource } from "./resources/permissions.js";
 export { SandboxResource } from "./resources/sandbox.js";
+export { SecretsAuditResource } from "./resources/secrets-audit.js";
 export { ToolsResource } from "./resources/tools.js";
 // ACE types
 export type {
@@ -184,6 +185,16 @@ export type {
   RunCodeResponse,
   SandboxInfoResponse,
 } from "./types/sandbox.js";
+export type {
+  ExportSecretsAuditParams,
+  ListSecretsAuditParams,
+  SecretsAuditEvent,
+  SecretsAuditEventListResponse,
+  SecretsAuditEventType,
+  SecretsAuditExportFormat,
+  SecretsAuditExportResponse,
+  SecretsAuditIntegrityResponse,
+} from "./types/secrets-audit.js";
 export type {
   CreateToolParams,
   ListToolsParams,

@@ -13,6 +13,7 @@ import { PairingResource } from "./resources/pairing.js";
 import { PayResource } from "./resources/pay.js";
 import { PermissionsResource } from "./resources/permissions.js";
 import { SandboxResource } from "./resources/sandbox.js";
+import { SecretsAuditResource } from "./resources/secrets-audit.js";
 import { ToolsResource } from "./resources/tools.js";
 import type { ClientConfig, RetryOptions } from "./types/index.js";
 
@@ -105,6 +106,11 @@ export class NexusClient {
   public readonly pairing: PairingResource;
 
   /**
+   * Secrets Audit resource (credential access audit trail)
+   */
+  public readonly secretsAudit: SecretsAuditResource;
+
+  /**
    * ACE resource (Adaptive Context Engine — trajectories, playbooks, reflection, etc.)
    */
   public readonly ace: AceResource;
@@ -134,6 +140,7 @@ export class NexusClient {
     this.permissions = new PermissionsResource(this._http);
     this.sandbox = new SandboxResource(this._http);
     this.pairing = new PairingResource(this._http);
+    this.secretsAudit = new SecretsAuditResource(this._http);
     this.ace = new AceResource(this._http);
   }
 
