@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEmailConfig } from "../../config.js";
+import { type GmailConfig, type ImapSmtpConfig, parseEmailConfig } from "../../config.js";
 
 describe("parseEmailConfig", () => {
   // -----------------------------------------------------------------------
@@ -41,7 +41,7 @@ describe("parseEmailConfig", () => {
         user: "agent@example.com",
       });
       expect(config.provider).toBe("gmail");
-      expect(config.credentials.type).toBe("service-account");
+      expect((config as GmailConfig).credentials.type).toBe("service-account");
     });
 
     it("allows custom pollingInterval and maxEmailSize", () => {
@@ -57,8 +57,8 @@ describe("parseEmailConfig", () => {
         pollingInterval: 60_000,
         maxEmailSize: 10_000_000,
       });
-      expect(config.pollingInterval).toBe(60_000);
-      expect(config.maxEmailSize).toBe(10_000_000);
+      expect((config as GmailConfig).pollingInterval).toBe(60_000);
+      expect((config as GmailConfig).maxEmailSize).toBe(10_000_000);
     });
 
     it("rejects pollingInterval below 10s", () => {
@@ -153,7 +153,7 @@ describe("parseEmailConfig", () => {
           pool: { maxConnections: 5, maxMessages: 100, rateDelta: 2000, rateLimit: 10 },
         },
       });
-      expect(config.smtp.pool.maxConnections).toBe(5);
+      expect((config as ImapSmtpConfig).smtp.pool.maxConnections).toBe(5);
     });
 
     it("accepts accessToken auth", () => {
@@ -164,7 +164,7 @@ describe("parseEmailConfig", () => {
           auth: { user: "agent@example.com", accessToken: "token-123" },
         },
       });
-      expect(config.imap.auth.accessToken).toBe("token-123");
+      expect((config as ImapSmtpConfig).imap.auth.accessToken).toBe("token-123");
     });
 
     it("allows custom mailbox", () => {
@@ -172,7 +172,7 @@ describe("parseEmailConfig", () => {
         ...validImapSmtp,
         mailbox: "Sent",
       });
-      expect(config.mailbox).toBe("Sent");
+      expect((config as ImapSmtpConfig).mailbox).toBe("Sent");
     });
 
     it("rejects missing imap host", () => {

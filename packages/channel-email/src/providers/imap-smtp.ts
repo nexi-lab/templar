@@ -260,27 +260,37 @@ export class ImapSmtpProvider implements EmailProvider {
       }
     }
 
+    const inReplyTo = parsed.inReplyTo ?? undefined;
+    const references = parsed.references
+      ? parsed.references.split(/\s+/).filter((r) => r.length > 0)
+      : undefined;
+    const textBody = parsed.text ?? undefined;
+    const htmlBody = parsed.html ?? undefined;
+    const cc = parsed.cc?.map((a) => parseAddress(a));
+
     return {
       messageId: parsed.messageId,
       from: parseAddress(parsed.from),
-      to: (parsed.to ?? []).map(parseAddress),
-      cc: parsed.cc?.map(parseAddress),
+      to: (parsed.to ?? []).map((a) => parseAddress(a)),
+      ...(cc ? { cc } : {}),
       subject: parsed.subject ?? "",
       date: parsed.date ? new Date(parsed.date) : new Date(),
-      inReplyTo: parsed.inReplyTo ?? undefined,
-      references: parsed.references
-        ? parsed.references.split(/\s+/).filter((r) => r.length > 0)
-        : undefined,
-      textBody: parsed.text ?? undefined,
-      htmlBody: parsed.html ?? undefined,
-      attachments: (parsed.attachments ?? []).map((a) => ({
-        filename: a.filename ?? "attachment",
-        mimeType: a.mimeType ?? "application/octet-stream",
-        size: a.content?.byteLength ?? 0,
-        content: Buffer.from(a.content ?? new ArrayBuffer(0)),
-        contentId: a.contentId ?? undefined,
-        disposition: a.disposition === "inline" ? "inline" : "attachment",
-      })),
+      ...(inReplyTo ? { inReplyTo } : {}),
+      ...(references ? { references } : {}),
+      ...(textBody !== undefined ? { textBody } : {}),
+      ...(htmlBody !== undefined ? { htmlBody } : {}),
+      attachments: (parsed.attachments ?? []).map((a) => {
+        const content = a.content ?? new ArrayBuffer(0);
+        const size = typeof content === "string" ? content.length : content.byteLength;
+        return {
+          filename: a.filename ?? "attachment",
+          mimeType: a.mimeType ?? "application/octet-stream",
+          size,
+          content: Buffer.from(typeof content === "string" ? content : new Uint8Array(content)),
+          ...(a.contentId ? { contentId: a.contentId } : {}),
+          disposition: a.disposition === "inline" ? ("inline" as const) : ("attachment" as const),
+        };
+      }),
       headers,
     };
   }
@@ -293,7 +303,8 @@ export class ImapSmtpProvider implements EmailProvider {
     if (this.smtpTransporter) return this.smtpTransporter;
 
     const nodemailer = await import("nodemailer");
-    const create = nodemailer.default?.createTransport ?? nodemailer.createTransport;
+    // biome-ignore lint/suspicious/noExplicitAny: Handle CJS/ESM interop for nodemailer
+    const create = (nodemailer as any).default?.createTransport ?? nodemailer.createTransport;
 
     this.smtpTransporter = create({
       host: this.config.smtp.host,
@@ -369,9 +380,10 @@ export class ImapSmtpProvider implements EmailProvider {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseAddress(addr: { address?: string; name?: string }): EmailAddress {
+// biome-ignore lint/suspicious/noExplicitAny: Accept postal-mime Address type variants
+function parseAddress(addr: any): EmailAddress {
   return {
-    address: addr.address ?? "",
-    ...(addr.name ? { name: addr.name } : {}),
+    address: (addr.address as string) ?? "",
+    ...(addr.name ? { name: addr.name as string } : {}),
   };
 }

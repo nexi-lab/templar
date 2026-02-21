@@ -22,7 +22,7 @@ vi.mock("imapflow", () => {
   class MockImapFlow {
     constructor() {
       // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-      return mocks.imapClient;
+      return mocks.imapClient as MockImapFlow;
     }
   }
   return { ImapFlow: MockImapFlow };

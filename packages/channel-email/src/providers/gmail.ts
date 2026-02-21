@@ -272,13 +272,13 @@ export class GmailProvider implements EmailProvider {
       messageId,
       from,
       to,
-      cc,
+      ...(cc ? { cc } : {}),
       subject: headers.get("subject") ?? "",
       date,
-      inReplyTo,
-      references,
-      textBody,
-      htmlBody,
+      ...(inReplyTo ? { inReplyTo } : {}),
+      ...(references ? { references } : {}),
+      ...(textBody !== undefined ? { textBody } : {}),
+      ...(htmlBody !== undefined ? { htmlBody } : {}),
       attachments: [],
       headers,
     };
@@ -307,7 +307,10 @@ export class GmailProvider implements EmailProvider {
       }
     }
 
-    return { textBody, htmlBody };
+    return {
+      ...(textBody !== undefined ? { textBody } : {}),
+      ...(htmlBody !== undefined ? { htmlBody } : {}),
+    };
   }
 
   // -----------------------------------------------------------------------
@@ -362,8 +365,9 @@ function parseEmailAddressString(str: string): EmailAddress | undefined {
 
   const angleMatch = /^(.+?)\s*<([^>]+)>$/.exec(str.trim());
   if (angleMatch?.[2]) {
+    const rawName = angleMatch[1]?.replace(/^["']|["']$/g, "").trim();
     return {
-      name: angleMatch[1]?.replace(/^["']|["']$/g, "").trim() || undefined,
+      ...(rawName ? { name: rawName } : {}),
       address: angleMatch[2].trim(),
     };
   }

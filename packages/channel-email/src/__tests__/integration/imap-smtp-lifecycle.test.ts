@@ -15,7 +15,7 @@ vi.mock("imapflow", () => {
   class MockImapFlow {
     constructor() {
       // biome-ignore lint/correctness/noConstructorReturn: Test pattern
-      return mocks.imapClient;
+      return mocks.imapClient as MockImapFlow;
     }
   }
   return { ImapFlow: MockImapFlow };
@@ -50,12 +50,18 @@ vi.mock("postal-mime", () => ({
         switch (key.toLowerCase()) {
           case "from": {
             const m = /(?:(.+?)\s*)?<([^>]+)>/.exec(value);
-            from = m ? { name: m[1]?.trim(), address: m[2] } : { address: value };
+            from = m
+              ? { ...(m[1] ? { name: m[1].trim() } : {}), address: m[2] ?? "" }
+              : { address: value };
             break;
           }
           case "to": {
             const m = /(?:(.+?)\s*)?<([^>]+)>/.exec(value);
-            to = [m ? { name: m[1]?.trim(), address: m[2] } : { address: value }];
+            to = [
+              m
+                ? { ...(m[1] ? { name: m[1].trim() } : {}), address: m[2] ?? "" }
+                : { address: value },
+            ];
             break;
           }
           case "subject":
