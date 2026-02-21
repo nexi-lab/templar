@@ -286,6 +286,8 @@ export {
   ExecApprovalDeniedError,
   ExecApprovalError,
   ExecApprovalParseError,
+  ExecApprovalPolicyFetchError,
+  ExecApprovalSyncError,
 } from "./exec-approvals.js";
 
 // ============================================================================

@@ -16,11 +16,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@templar/errors": "workspace:*"
+    "@templar/errors": "workspace:*",
+    "@nexus/sdk": "workspace:*"
   },
   "devDependencies": {
     "@templar/core": "workspace:*",
-    "@nexus/sdk": "workspace:*",
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
     "vitest": "^4.0.0"

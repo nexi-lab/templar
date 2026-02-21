@@ -89,6 +89,8 @@ describe("ERROR_CATALOG", () => {
       "EXEC_APPROVAL_DENIED", // exec-approval domain, EXEC prefix (compound)
       "EXEC_APPROVAL_PARSE_FAILED", // exec-approval domain, EXEC prefix (compound)
       "EXEC_APPROVAL_CONFIGURATION_INVALID", // exec-approval domain, EXEC prefix (compound)
+      "EXEC_APPROVAL_SYNC_FAILED", // exec-approval domain, EXEC prefix (compound)
+      "EXEC_APPROVAL_POLICY_FETCH_FAILED", // exec-approval domain, EXEC prefix (compound)
       "REACTION_PATTERN_INVALID", // collaboration domain, REACTION prefix (sub-component)
       "REACTION_COOLDOWN_ACTIVE", // collaboration domain, REACTION prefix (sub-component)
       "REACTION_EVENT_SOURCE_FAILED", // collaboration domain, REACTION prefix (sub-component)

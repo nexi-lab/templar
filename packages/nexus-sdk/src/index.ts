@@ -33,6 +33,7 @@ export { ArtifactsResource } from "./resources/artifacts.js";
 export { BaseResource } from "./resources/base.js";
 export { ChannelsResource } from "./resources/channels.js";
 export { EventLogResource } from "./resources/eventlog.js";
+export { ExecApprovalsResource } from "./resources/exec-approvals.js";
 export { MemoryResource } from "./resources/memory.js";
 export { PairingResource } from "./resources/pairing.js";
 export { PayResource } from "./resources/pay.js";
@@ -125,6 +126,19 @@ export type {
   EventLogWriteParams,
   EventLogWriteResponse,
 } from "./types/eventlog.js";
+export type {
+  AllowlistEntryResponse,
+  ApprovalResponse,
+  ApprovalStatus,
+  DangerousFlagOverride,
+  ExecPolicyResponse,
+  GetPolicyParams,
+  ListAllowlistParams,
+  ListAllowlistResponse,
+  SubmitApprovalParams,
+  UpsertAllowlistEntry,
+  UpsertAllowlistParams,
+} from "./types/exec-approvals.js";
 // Re-export all types
 export type {
   ClientConfig,

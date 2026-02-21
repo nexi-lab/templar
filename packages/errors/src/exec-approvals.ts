@@ -131,3 +131,53 @@ export class ExecApprovalConfigurationError extends ExecApprovalError {
     this.isExpected = entry.isExpected;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Allowlist sync failed — Nexus persistence error
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown when the allowlist fails to sync with the Nexus API.
+ */
+export class ExecApprovalSyncError extends ExecApprovalError {
+  readonly _tag = "ExternalError" as const;
+  readonly code = "EXEC_APPROVAL_SYNC_FAILED" as const;
+  readonly httpStatus: HttpStatusCode;
+  readonly grpcCode: GrpcStatusCode;
+  readonly domain: ErrorDomain;
+  readonly isExpected: boolean;
+
+  constructor(message: string, cause?: Error) {
+    super(`Allowlist sync failed: ${message}`, undefined, undefined, ...(cause ? [{ cause }] : []));
+    const entry = ERROR_CATALOG.EXEC_APPROVAL_SYNC_FAILED;
+    this.httpStatus = entry.httpStatus as HttpStatusCode;
+    this.grpcCode = entry.grpcCode as GrpcStatusCode;
+    this.domain = entry.domain as ErrorDomain;
+    this.isExpected = entry.isExpected;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Policy fetch failed — Nexus policy retrieval error
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown when the exec-approval policy fails to fetch from the Nexus API.
+ */
+export class ExecApprovalPolicyFetchError extends ExecApprovalError {
+  readonly _tag = "ExternalError" as const;
+  readonly code = "EXEC_APPROVAL_POLICY_FETCH_FAILED" as const;
+  readonly httpStatus: HttpStatusCode;
+  readonly grpcCode: GrpcStatusCode;
+  readonly domain: ErrorDomain;
+  readonly isExpected: boolean;
+
+  constructor(message: string, cause?: Error) {
+    super(`Policy fetch failed: ${message}`, undefined, undefined, ...(cause ? [{ cause }] : []));
+    const entry = ERROR_CATALOG.EXEC_APPROVAL_POLICY_FETCH_FAILED;
+    this.httpStatus = entry.httpStatus as HttpStatusCode;
+    this.grpcCode = entry.grpcCode as GrpcStatusCode;
+    this.domain = entry.domain as ErrorDomain;
+    this.isExpected = entry.isExpected;
+  }
+}
