@@ -14,6 +14,7 @@ import { PayResource } from "./resources/pay.js";
 import { PermissionsResource } from "./resources/permissions.js";
 import { SandboxResource } from "./resources/sandbox.js";
 import { SecretsAuditResource } from "./resources/secrets-audit.js";
+import { SubscriptionsResource } from "./resources/subscriptions.js";
 import { ToolsResource } from "./resources/tools.js";
 import type { ClientConfig, RetryOptions } from "./types/index.js";
 
@@ -111,6 +112,11 @@ export class NexusClient {
   public readonly secretsAudit: SecretsAuditResource;
 
   /**
+   * Subscriptions resource (webhook notifications — outbound event delivery)
+   */
+  public readonly subscriptions: SubscriptionsResource;
+
+  /**
    * ACE resource (Adaptive Context Engine — trajectories, playbooks, reflection, etc.)
    */
   public readonly ace: AceResource;
@@ -141,6 +147,7 @@ export class NexusClient {
     this.sandbox = new SandboxResource(this._http);
     this.pairing = new PairingResource(this._http);
     this.secretsAudit = new SecretsAuditResource(this._http);
+    this.subscriptions = new SubscriptionsResource(this._http);
     this.ace = new AceResource(this._http);
   }
 

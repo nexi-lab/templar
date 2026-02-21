@@ -37,6 +37,10 @@
       "types": "./dist/resources/secrets-audit.d.ts",
       "import": "./dist/resources/secrets-audit.js"
     },
+    "./subscriptions": {
+      "types": "./dist/resources/subscriptions.d.ts",
+      "import": "./dist/resources/subscriptions.js"
+    },
     "./http": {
       "types": "./dist/http/index.d.ts",
       "import": "./dist/http/index.js"
