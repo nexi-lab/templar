@@ -22,6 +22,8 @@ export type {
   TypingIndicatorCapability,
   VoiceMessageCapability,
 } from "./channel-types.js";
+// Clock types
+export type { Clock } from "./clock-types.js";
 // Config types
 export type {
   AgentManifest,

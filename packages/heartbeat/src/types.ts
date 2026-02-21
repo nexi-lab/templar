@@ -3,16 +3,10 @@
  */
 
 import type { NexusClient } from "@nexus/sdk";
+import type { Clock } from "@templar/core";
 
-// ---------------------------------------------------------------------------
-// Clock (Decision 9A — injectable for testing)
-// ---------------------------------------------------------------------------
-
-export interface Clock {
-  readonly now: () => number;
-  readonly setTimeout: (fn: () => void, ms: number) => ReturnType<typeof globalThis.setTimeout>;
-  readonly clearTimeout: (id: ReturnType<typeof globalThis.setTimeout>) => void;
-}
+// Re-export Clock from core for backwards compatibility
+export type { Clock } from "@templar/core";
 
 // ---------------------------------------------------------------------------
 // Evaluator criticality (Decision 8A)

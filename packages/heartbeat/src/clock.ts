@@ -5,7 +5,7 @@
  * Tests inject a fake clock for deterministic behavior.
  */
 
-import type { Clock } from "./types.js";
+import type { Clock } from "@templar/core";
 
 export const defaultClock: Clock = {
   now: () => Date.now(),
