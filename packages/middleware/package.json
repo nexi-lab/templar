@@ -43,6 +43,10 @@
     "./utils": {
       "types": "./dist/utils.d.ts",
       "import": "./dist/utils.js"
+    },
+    "./crystallizer": {
+      "types": "./dist/crystallizer.d.ts",
+      "import": "./dist/crystallizer.js"
     }
   },
   "scripts": {

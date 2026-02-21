@@ -12,6 +12,7 @@ export default defineConfig({
     ace: "src/ace/index.ts",
     observational: "src/observational/index.ts",
     utils: "src/utils.ts",
+    crystallizer: "src/crystallizer/index.ts",
   },
   format: ["esm"],
   dts: {

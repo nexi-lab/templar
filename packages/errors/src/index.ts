@@ -182,6 +182,17 @@ export {
 } from "./observational.js";
 
 // ============================================================================
+// CRYSTALLIZER ERRORS — Tool pattern crystallization (#164)
+// ============================================================================
+
+export {
+  CrystallizerConfigurationError,
+  CrystallizerError,
+  CrystallizerMiningError,
+  CrystallizerPersistError,
+} from "./crystallizer.js";
+
+// ============================================================================
 // PLUGIN ERRORS — Three-tier plugin discovery & registration (#108)
 // ============================================================================
 

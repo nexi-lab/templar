@@ -112,6 +112,16 @@ export interface MockPairingResource {
   removePeer: ReturnType<typeof vi.fn>;
 }
 
+export interface MockArtifactsResource {
+  create: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  getBatch: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  list: ReturnType<typeof vi.fn>;
+  search: ReturnType<typeof vi.fn>;
+}
+
 export interface MockNexusClient {
   client: NexusClient;
   mockMemory: MockMemoryResource;
@@ -123,6 +133,7 @@ export interface MockNexusClient {
   mockPermissions: MockPermissionsResource;
   mockAce: MockAceResource;
   mockPairing: MockPairingResource;
+  mockArtifacts: MockArtifactsResource;
 }
 
 /**
@@ -230,6 +241,16 @@ export function createMockNexusClient(): MockNexusClient {
     removePeer: vi.fn(),
   };
 
+  const mockArtifacts: MockArtifactsResource = {
+    create: vi.fn(),
+    get: vi.fn(),
+    getBatch: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
+    search: vi.fn(),
+  };
+
   const client = {
     memory: mockMemory,
     pay: mockPay,
@@ -240,6 +261,7 @@ export function createMockNexusClient(): MockNexusClient {
     permissions: mockPermissions,
     ace: mockAce,
     pairing: mockPairing,
+    artifacts: mockArtifacts,
     withRetry: () => client,
     withTimeout: () => client,
   } as unknown as NexusClient;
@@ -255,5 +277,6 @@ export function createMockNexusClient(): MockNexusClient {
     mockPermissions,
     mockAce,
     mockPairing,
+    mockArtifacts,
   };
 }
