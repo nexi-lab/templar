@@ -1,7 +1,11 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: {
+    index: "src/index.ts",
+    tools: "src/tools/index.ts",
+    middleware: "src/middleware/index.ts",
+  },
   format: ["esm"],
   dts: {
     compilerOptions: {

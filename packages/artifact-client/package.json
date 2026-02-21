@@ -8,6 +8,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware.d.ts",
+      "import": "./dist/middleware.js"
     }
   },
   "scripts": {
@@ -18,10 +26,10 @@
   },
   "dependencies": {
     "@nexus/sdk": "workspace:*",
+    "@templar/core": "workspace:*",
     "@templar/errors": "workspace:*"
   },
   "devDependencies": {
-    "@templar/core": "workspace:*",
     "@types/node": "^25.2.2"
   }
 }

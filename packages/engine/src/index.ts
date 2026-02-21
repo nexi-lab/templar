@@ -16,7 +16,9 @@ export {
   unregisterMiddlewareWrapper,
 } from "./middleware-wrapper.js";
 export {
+  type ResolveAndCheckResult,
   type SpawnCheckResult,
+  type SpawnGovernanceConfig,
   SpawnGovernanceMiddleware,
 } from "./spawn-governance-middleware.js";
 export { DEFAULT_SPAWN_LIMITS, SpawnGuard } from "./spawn-guard.js";

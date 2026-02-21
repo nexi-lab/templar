@@ -1,5 +1,6 @@
 import type {
   PreSubagentSpawnData,
+  Resolver,
   SessionContext,
   SpawnGuardState,
   SpawnLimitsConfig,
@@ -20,6 +21,24 @@ type DeniedToolSet = ReadonlySet<string>;
 export interface SpawnCheckResult {
   readonly allowed: boolean;
   readonly reason?: string;
+}
+
+/** Result of a combined resolve + governance check */
+export interface ResolveAndCheckResult {
+  readonly allowed: boolean;
+  readonly reason?: string;
+  readonly entity?: unknown;
+}
+
+/**
+ * Configuration for SpawnGovernanceMiddleware.
+ *
+ * Extends SpawnLimitsConfig with an optional artifact resolver for
+ * resolving sub-agent manifests from an external store.
+ */
+export interface SpawnGovernanceConfig extends SpawnLimitsConfig {
+  /** Optional resolver for discovering and loading agent artifacts */
+  readonly artifactResolver?: Resolver<unknown, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,10 +68,14 @@ export class SpawnGovernanceMiddleware implements TemplarMiddleware {
   /** Pre-computed allowed tool sets per depth (if explicitly set) */
   private readonly allowedByDepth: ReadonlyMap<number, ReadonlySet<string>>;
 
-  constructor(config?: SpawnLimitsConfig) {
+  /** Optional artifact resolver for sub-agent manifest lookup */
+  private readonly resolver: Resolver<unknown, unknown> | null;
+
+  constructor(config?: SpawnGovernanceConfig) {
     this.config = { ...DEFAULT_SPAWN_LIMITS, ...filterDefined(config) };
     this.onExceeded = this.config.onExceeded ?? "error";
     this.guard = new SpawnGuard(this.config);
+    this.resolver = config?.artifactResolver ?? null;
 
     // Pre-compute tool policy sets for O(1) lookups
     const deniedMap = new Map<number, DeniedToolSet>();
@@ -186,6 +209,70 @@ export class SpawnGovernanceMiddleware implements TemplarMiddleware {
       activeChildren: state.activeByParent.get(parentAgentId) ?? 0,
       activeConcurrent: state.activeConcurrent,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Artifact resolver integration (#162)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Check whether an artifact resolver is configured.
+   */
+  hasResolver(): boolean {
+    return this.resolver !== null;
+  }
+
+  /**
+   * Discover available agents via the configured artifact resolver.
+   *
+   * Returns empty array if no resolver is configured.
+   * Propagates resolver errors (network, timeout, etc.) to the caller.
+   */
+  async discoverAgents(): Promise<readonly unknown[]> {
+    if (!this.resolver) return [];
+    return this.resolver.discover();
+  }
+
+  /**
+   * Load a full agent entity by ID from the artifact resolver.
+   *
+   * Returns undefined if no resolver is configured or the agent is not found.
+   * Propagates resolver errors (network, timeout, etc.) to the caller.
+   */
+  async resolveAgent(id: string): Promise<unknown | undefined> {
+    if (!this.resolver) return undefined;
+    return this.resolver.load(id);
+  }
+
+  /**
+   * Combined resolve + governance check in a single call.
+   *
+   * 1. Checks spawn governance (depth, fan-out, concurrency) — may throw
+   * 2. Resolves the agent artifact from the store
+   * 3. Returns the resolved entity if found
+   *
+   * @throws SpawnGovernanceError if governance limits are exceeded (when onExceeded != "warn")
+   * @throws Error if the resolver encounters an error (network, timeout, etc.)
+   */
+  async resolveAndCheckSpawn(
+    parentAgentId: string,
+    childDepth: number,
+    artifactId: string,
+  ): Promise<ResolveAndCheckResult> {
+    // Check governance first — may throw on limits exceeded
+    this.checkSpawn(parentAgentId, childDepth);
+
+    // Then resolve the artifact
+    if (!this.resolver) {
+      return { allowed: false, reason: "Agent not found: no artifact resolver configured" };
+    }
+
+    const entity = await this.resolver.load(artifactId);
+    if (!entity) {
+      return { allowed: false, reason: `Agent artifact '${artifactId}' not found in store` };
+    }
+
+    return { allowed: true, entity };
   }
 
   // ---------------------------------------------------------------------------

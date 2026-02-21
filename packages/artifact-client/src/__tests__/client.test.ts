@@ -297,7 +297,7 @@ describe("ArtifactClient", () => {
 
       const result = await client.list({ type: "tool" });
       expect(result).toEqual([METADATA]);
-      expect(nexus.artifacts.list).toHaveBeenCalledWith({ type: "tool" });
+      expect(nexus.artifacts.list).toHaveBeenCalledWith({ type: "tool", limit: 100 });
     });
 
     it("falls back on failure", async () => {

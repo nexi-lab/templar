@@ -5,6 +5,14 @@
 import type { Artifact, ArtifactMetadata, ArtifactStatus, ArtifactType } from "@nexus/sdk";
 
 /**
+ * Callback invoked when the client degrades to fallback mode.
+ *
+ * @param operation - The operation that triggered degradation (e.g. "artifact.load")
+ * @param error - The original error from Nexus
+ */
+export type DegradationCallback = (operation: string, error: Error) => void;
+
+/**
  * Configuration for the artifact client
  */
 export interface ArtifactClientConfig {
@@ -16,6 +24,10 @@ export interface ArtifactClientConfig {
   readonly fallbackEnabled?: boolean;
   /** Maximum capacity for the in-memory LRU store. Default: 1000 */
   readonly inMemoryCapacity?: number;
+  /** Default page size for list/discover operations. Default: 100 */
+  readonly defaultPageSize?: number;
+  /** Called when the client falls back to in-memory store due to Nexus unavailability */
+  readonly onDegradation?: DegradationCallback;
 }
 
 /**
@@ -26,16 +38,19 @@ export interface ResolvedArtifactClientConfig {
   readonly mutationTimeoutMs: number;
   readonly fallbackEnabled: boolean;
   readonly inMemoryCapacity: number;
+  readonly defaultPageSize: number;
+  readonly onDegradation: DegradationCallback | undefined;
 }
 
 /**
  * Default configuration values
  */
-export const DEFAULT_CONFIG: ResolvedArtifactClientConfig = {
+export const DEFAULT_CONFIG: Omit<ResolvedArtifactClientConfig, "onDegradation"> = {
   searchTimeoutMs: 5_000,
   mutationTimeoutMs: 10_000,
   fallbackEnabled: true,
   inMemoryCapacity: 1_000,
+  defaultPageSize: 100,
 } as const;
 
 /**
