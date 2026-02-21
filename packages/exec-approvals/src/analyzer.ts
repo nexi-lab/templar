@@ -10,7 +10,12 @@
  */
 
 import type { AllowlistStore } from "./allowlist.js";
-import { DANGEROUS_FLAG_PATTERNS, NEVER_ALLOW_PATTERNS } from "./constants.js";
+import {
+  DANGEROUS_FLAG_PATTERNS,
+  INTERPRETER_BINARIES,
+  NETWORK_BINARIES,
+  NEVER_ALLOW_PATTERNS,
+} from "./constants.js";
 import { parseCommand } from "./parser.js";
 import type {
   AnalysisResult,
@@ -244,25 +249,8 @@ export class ExecApprovals {
    */
   private matchNetworkPipeToInterpreter(rawCommand: string): string | undefined {
     const normalized = normalizeForMatch(rawCommand);
-    const networkBinaries = ["curl", "wget"];
-    const interpreters = [
-      "sh",
-      "bash",
-      "zsh",
-      "fish",
-      "dash",
-      "ksh",
-      "python",
-      "python3",
-      "python2",
-      "node",
-      "ruby",
-      "perl",
-      "php",
-      "lua",
-    ];
 
-    for (const net of networkBinaries) {
+    for (const net of NETWORK_BINARIES) {
       if (
         !normalized.startsWith(net) &&
         !normalized.includes(` ${net} `) &&
@@ -270,7 +258,7 @@ export class ExecApprovals {
       ) {
         continue;
       }
-      for (const interp of interpreters) {
+      for (const interp of INTERPRETER_BINARIES) {
         if (normalized.includes(`| ${interp}`) || normalized.includes(`|${interp}`)) {
           return `${net} | ${interp}`;
         }
@@ -284,8 +272,7 @@ export class ExecApprovals {
    */
   private isPipeToInterpreter(rawCommand: string): boolean {
     const normalized = normalizeForMatch(rawCommand);
-    const interpreters = ["sh", "bash", "zsh", "fish", "python", "python3", "node", "ruby", "perl"];
-    for (const interp of interpreters) {
+    for (const interp of INTERPRETER_BINARIES) {
       if (normalized.includes(`|${interp}`) || normalized.includes(`| ${interp}`)) {
         return true;
       }

@@ -17,6 +17,29 @@ export const DEFAULT_AGENT_ID = "default";
 export const DEFAULT_TOOL_NAMES: readonly string[] = ["bash", "exec", "shell", "terminal", "Bash"];
 
 // ---------------------------------------------------------------------------
+// Shared binary lists — used by analyzer for pipe-to-interpreter detection
+// ---------------------------------------------------------------------------
+
+export const INTERPRETER_BINARIES: readonly string[] = [
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "dash",
+  "ksh",
+  "python",
+  "python3",
+  "python2",
+  "node",
+  "ruby",
+  "perl",
+  "php",
+  "lua",
+];
+
+export const NETWORK_BINARIES: readonly string[] = ["curl", "wget"];
+
+// ---------------------------------------------------------------------------
 // Safe binaries — organized by category
 // ---------------------------------------------------------------------------
 

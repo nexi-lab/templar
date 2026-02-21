@@ -2293,6 +2293,24 @@ export const ERROR_CATALOG = {
     title: "Invalid exec-approval configuration",
     description: "The exec-approvals middleware configuration is invalid",
   },
+  EXEC_APPROVAL_SYNC_FAILED: {
+    domain: "exec-approval",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Allowlist sync failed",
+    description: "Failed to sync the allowlist with the Nexus API",
+  },
+  EXEC_APPROVAL_POLICY_FETCH_FAILED: {
+    domain: "exec-approval",
+    httpStatus: 502,
+    grpcCode: "UNAVAILABLE" as const,
+    baseType: "ExternalError" as const,
+    isExpected: false,
+    title: "Policy fetch failed",
+    description: "Failed to fetch the exec-approval policy from the Nexus API",
+  },
 
   // HEARTBEAT ERRORS — Evaluator pipeline periodic wake-up (#33)
   // ============================================================================

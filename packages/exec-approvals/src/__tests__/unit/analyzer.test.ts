@@ -16,6 +16,11 @@ function createConfig(
     sensitiveEnvPatterns: [],
     agentId: "test-agent",
     toolNames: new Set(["bash"]),
+    approvalMode: "sync" as const,
+    policyTimeout: 3000,
+    allowlistSyncInterval: 0,
+    sessionId: "test-session",
+    additionalNeverAllow: [],
     ...overrides,
   };
 }

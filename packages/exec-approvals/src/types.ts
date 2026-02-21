@@ -2,6 +2,8 @@
  * Core type definitions for @templar/exec-approvals
  */
 
+import type { NexusClient } from "@nexus/sdk";
+
 // ---------------------------------------------------------------------------
 // Risk classification
 // ---------------------------------------------------------------------------
@@ -56,6 +58,8 @@ export type CommandPattern = string;
 // Configuration
 // ---------------------------------------------------------------------------
 
+export type ApprovalMode = "sync" | "nexus";
+
 export interface ExecApprovalsConfig {
   readonly safeBinaries?: readonly string[];
   readonly removeSafeBinaries?: readonly string[];
@@ -65,6 +69,11 @@ export interface ExecApprovalsConfig {
   readonly onApprovalRequest?: (result: AnalysisResult) => Promise<"allow" | "deny">;
   readonly agentId?: string;
   readonly toolNames?: readonly string[];
+  readonly nexusClient?: NexusClient;
+  readonly approvalMode?: ApprovalMode;
+  readonly policyTimeout?: number;
+  readonly allowlistSyncInterval?: number;
+  readonly sessionId?: string;
 }
 
 export interface ResolvedExecApprovalsConfig {
@@ -75,6 +84,12 @@ export interface ResolvedExecApprovalsConfig {
   readonly onApprovalRequest?: (result: AnalysisResult) => Promise<"allow" | "deny">;
   readonly agentId: string;
   readonly toolNames: ReadonlySet<string>;
+  readonly nexusClient?: NexusClient;
+  readonly approvalMode: ApprovalMode;
+  readonly policyTimeout: number;
+  readonly allowlistSyncInterval: number;
+  readonly sessionId: string;
+  readonly additionalNeverAllow: readonly string[];
 }
 
 // ---------------------------------------------------------------------------

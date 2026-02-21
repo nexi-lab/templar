@@ -99,4 +99,63 @@ describe("Performance benchmarks", () => {
     // Second batch should not be significantly slower
     expect(elapsed2).toBeLessThan(elapsed1 * 3 + 1);
   });
+
+  it("should have identical analyze() latency with/without nexusClient config", () => {
+    // Analyzer without Nexus
+    const configNoNexus = resolveExecApprovalsConfig({});
+    const allowlistNoNexus = new AllowlistStore(configNoNexus.maxPatterns);
+    const analyzerNoNexus = new ExecApprovals(configNoNexus, allowlistNoNexus);
+
+    // Analyzer with Nexus config (but same analyzer — Nexus only affects middleware lifecycle)
+    const configWithNexus = resolveExecApprovalsConfig({
+      sessionId: "test-session",
+    });
+    const allowlistWithNexus = new AllowlistStore(configWithNexus.maxPatterns);
+    const analyzerWithNexus = new ExecApprovals(configWithNexus, allowlistWithNexus);
+
+    const commands = ["ls -la", "git status", "npm test", "cat file.txt"];
+
+    // Warm up
+    for (const cmd of commands) {
+      analyzerNoNexus.analyze(cmd);
+      analyzerWithNexus.analyze(cmd);
+    }
+
+    // Benchmark without Nexus
+    const start1 = performance.now();
+    for (let i = 0; i < 200; i++) {
+      analyzerNoNexus.analyze(commands[i % commands.length] as string);
+    }
+    const elapsedNoNexus = performance.now() - start1;
+
+    // Benchmark with Nexus config
+    const start2 = performance.now();
+    for (let i = 0; i < 200; i++) {
+      analyzerWithNexus.analyze(commands[i % commands.length] as string);
+    }
+    const elapsedWithNexus = performance.now() - start2;
+
+    // Nexus config should not cause hot-path regression
+    // Both should complete within 100ms for 200 calls
+    expect(elapsedWithNexus).toBeLessThan(100);
+    expect(elapsedNoNexus).toBeLessThan(100);
+  });
+
+  it("should flush 100 dirty entries efficiently", () => {
+    const config = resolveExecApprovalsConfig({});
+    const allowlist = new AllowlistStore(config.maxPatterns);
+
+    // Create 100 dirty entries
+    for (let i = 0; i < 100; i++) {
+      allowlist.recordApproval(`dirty-cmd-${i}`, 5);
+    }
+
+    const start = performance.now();
+    const dirty = allowlist.toDirtyEntries();
+    const elapsed = performance.now() - start;
+
+    expect(dirty).toHaveLength(100);
+    // Should complete in <10ms
+    expect(elapsed).toBeLessThan(10);
+  });
 });

@@ -10,6 +10,7 @@
  * - Per-agent allowlist with auto-promotion after N human approvals
  * - Templar middleware integration via createExecApprovalsMiddleware()
  * - Environment variable sanitization
+ * - Nexus API integration for cross-session persistence
  */
 
 // Allowlist
@@ -26,13 +27,17 @@ export {
   DEFAULT_SAFE_BINARIES,
   DEFAULT_SENSITIVE_ENV_PATTERNS,
   DEFAULT_TOOL_NAMES,
+  INTERPRETER_BINARIES,
+  NETWORK_BINARIES,
   NEVER_ALLOW_PATTERNS,
   PACKAGE_NAME,
 } from "./constants.js";
 // Middleware
-export { createExecApprovalsMiddleware } from "./middleware.js";
+export { createExecApprovalsMiddleware, extractCommandFromInput } from "./middleware.js";
 // Parser
 export { parseCommand } from "./parser.js";
+// Policy merge
+export { applyDangerousFlagOverrides, mergePolicy } from "./policy-merge.js";
 // Registry
 export { createRegistry, isSafeBinary } from "./registry.js";
 // Sanitizer
@@ -42,6 +47,7 @@ export type {
   AllowlistEntry,
   AnalysisAction,
   AnalysisResult,
+  ApprovalMode,
   CommandPattern,
   DangerousFlagPattern,
   ExecApprovalsConfig,

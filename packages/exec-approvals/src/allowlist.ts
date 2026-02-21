@@ -9,11 +9,13 @@ import type { AllowlistEntry, CommandPattern } from "./types.js";
 export class AllowlistStore {
   private entries: Map<CommandPattern, AllowlistEntry>;
   private dirty: boolean;
+  private readonly dirtyPatterns: Set<CommandPattern>;
   private readonly maxPatterns: number;
 
   constructor(maxPatterns: number) {
     this.entries = new Map();
     this.dirty = false;
+    this.dirtyPatterns = new Set();
     this.maxPatterns = maxPatterns;
   }
 
@@ -43,9 +45,9 @@ export class AllowlistStore {
         autoPromoted: newCount >= threshold,
         lastApprovedAt: Date.now(),
       };
-      this.entries = new Map(this.entries);
       this.entries.set(pattern, updated);
       this.dirty = true;
+      this.dirtyPatterns.add(pattern);
       return updated;
     }
 
@@ -62,9 +64,9 @@ export class AllowlistStore {
       lastApprovedAt: Date.now(),
     };
 
-    this.entries = new Map(this.entries);
     this.entries.set(pattern, entry);
     this.dirty = true;
+    this.dirtyPatterns.add(pattern);
     return entry;
   }
 
@@ -74,6 +76,21 @@ export class AllowlistStore {
 
   markClean(): void {
     this.dirty = false;
+    this.dirtyPatterns.clear();
+  }
+
+  /**
+   * Returns only entries that have been modified since the last sync.
+   */
+  toDirtyEntries(): readonly AllowlistEntry[] {
+    const result: AllowlistEntry[] = [];
+    for (const pattern of this.dirtyPatterns) {
+      const entry = this.entries.get(pattern);
+      if (entry) {
+        result.push(entry);
+      }
+    }
+    return result;
   }
 
   /**
@@ -110,7 +127,6 @@ export class AllowlistStore {
     }
 
     if (oldestKey !== undefined) {
-      this.entries = new Map(this.entries);
       this.entries.delete(oldestKey);
     }
   }

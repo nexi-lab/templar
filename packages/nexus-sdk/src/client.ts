@@ -8,6 +8,7 @@ import { AgentsResource } from "./resources/agents.js";
 import { ArtifactsResource } from "./resources/artifacts.js";
 import { ChannelsResource } from "./resources/channels.js";
 import { EventLogResource } from "./resources/eventlog.js";
+import { ExecApprovalsResource } from "./resources/exec-approvals.js";
 import { MemoryResource } from "./resources/memory.js";
 import { PairingResource } from "./resources/pairing.js";
 import { PayResource } from "./resources/pay.js";
@@ -122,6 +123,11 @@ export class NexusClient {
   public readonly ace: AceResource;
 
   /**
+   * Exec Approvals resource (allowlists, policies, async approval workflows)
+   */
+  public readonly execApprovals: ExecApprovalsResource;
+
+  /**
    * Create a new Nexus client
    *
    * @param config - Client configuration
@@ -149,6 +155,7 @@ export class NexusClient {
     this.secretsAudit = new SecretsAuditResource(this._http);
     this.subscriptions = new SubscriptionsResource(this._http);
     this.ace = new AceResource(this._http);
+    this.execApprovals = new ExecApprovalsResource(this._http);
   }
 
   /**
