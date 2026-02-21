@@ -87,7 +87,8 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
   let pendingKeyboard: InlineKeyboardMarkup | undefined;
 
   for (let i = 0; i < coalesced.length; i++) {
-    const block = coalesced[i]!;
+    const block = coalesced[i];
+    if (!block) continue;
 
     if (block.type === "button") {
       const keyboard = buildInlineKeyboard(block);
@@ -111,11 +112,13 @@ export function buildRenderPlan(message: OutboundMessage): readonly RenderCall[]
     if (block.type === "text") {
       const chunks = splitText(block.content, MAX_TEXT_LENGTH);
       for (let c = 0; c < chunks.length; c++) {
+        const chunk = chunks[c];
+        if (!chunk) continue;
         const isLastChunk = c === chunks.length - 1;
         plan.push({
           kind: "sendMessage",
           chatId: channelId,
-          text: chunks[c]!,
+          text: chunk,
           parseMode: "HTML",
           ...(isLastChunk && pendingKeyboard ? { replyMarkup: pendingKeyboard } : {}),
           ...(threadId != null ? { threadId } : {}),

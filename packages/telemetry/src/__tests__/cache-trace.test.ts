@@ -125,7 +125,7 @@ describe("createCacheTraceMiddleware", () => {
       },
     });
 
-    const result = await mw.wrapModelCall!(req, async () => originalResponse);
+    const result = await mw.wrapModelCall?.(req, async () => originalResponse);
 
     // Same reference — not modified
     expect(result).toBe(originalResponse);
@@ -138,7 +138,7 @@ describe("createCacheTraceMiddleware", () => {
     const req = createModelRequest();
     const response: ModelResponse = { content: "Hi there!" };
 
-    const result = await mw.wrapModelCall!(req, async () => response);
+    const result = await mw.wrapModelCall?.(req, async () => response);
     expect(result).toBe(response);
   });
 
@@ -147,7 +147,7 @@ describe("createCacheTraceMiddleware", () => {
     const req = createModelRequest();
 
     await expect(
-      mw.wrapModelCall!(req, async () => {
+      mw.wrapModelCall?.(req, async () => {
         throw new Error("LLM call failed");
       }),
     ).rejects.toThrow("LLM call failed");
@@ -191,7 +191,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 
@@ -220,7 +220,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 
@@ -244,7 +244,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 
@@ -263,7 +263,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 
@@ -287,7 +287,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 
@@ -306,7 +306,7 @@ describe("createCacheTraceMiddleware (OTel integration)", () => {
 
     const tracer = trace.getTracer("test");
     await tracer.startActiveSpan("test.parent", async (parentSpan) => {
-      await mw.wrapModelCall!(req, async () => response);
+      await mw.wrapModelCall?.(req, async () => response);
       parentSpan.end();
     });
 

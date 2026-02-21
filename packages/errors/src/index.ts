@@ -310,19 +310,19 @@ export {
 // ============================================================================
 
 export {
-	FederationConfigurationInvalidError,
-	FederationConflictUnresolvedError,
-	FederationError,
-	FederationSyncAuthFailedError,
-	FederationSyncDisconnectedError,
-	FederationSyncInvalidTransitionError,
-	FederationSyncTimeoutError,
-	FederationZoneAlreadyExistsError,
-	FederationZoneInvalidIdError,
-	FederationZoneJoinFailedError,
-	FederationZoneNotFoundError,
-	FederationZoneShareFailedError,
-	FederationZoneTerminatingError,
+  FederationConfigurationInvalidError,
+  FederationConflictUnresolvedError,
+  FederationError,
+  FederationSyncAuthFailedError,
+  FederationSyncDisconnectedError,
+  FederationSyncInvalidTransitionError,
+  FederationSyncTimeoutError,
+  FederationZoneAlreadyExistsError,
+  FederationZoneInvalidIdError,
+  FederationZoneJoinFailedError,
+  FederationZoneNotFoundError,
+  FederationZoneShareFailedError,
+  FederationZoneTerminatingError,
 } from "./federation.js";
 
 // ============================================================================

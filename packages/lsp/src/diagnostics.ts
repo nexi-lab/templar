@@ -17,8 +17,8 @@ export class DiagnosticsCache {
 
     // Evict LRU if at capacity
     while (this.entries.size >= this.maxEntries && this.accessOrder.length > 0) {
-      const evicted = this.accessOrder.shift()!;
-      this.entries.delete(evicted);
+      const evicted = this.accessOrder.shift();
+      if (evicted) this.entries.delete(evicted);
     }
 
     this.entries.set(uri, Object.freeze([...diagnostics]));
