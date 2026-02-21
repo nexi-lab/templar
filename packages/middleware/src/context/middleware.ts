@@ -183,7 +183,7 @@ function buildResolverMap(deps: ContextHydratorDeps): ReadonlyMap<string, Contex
   }
   if (deps.nexus) {
     map.set("memory_query", new MemoryQueryResolver(deps.nexus));
-    map.set("workspace_snapshot", new WorkspaceSnapshotResolver(deps.nexus));
+    map.set("workspace_snapshot", new WorkspaceSnapshotResolver());
   }
   // Linked resource resolver has no deps
   map.set("linked_resource", new LinkedResourceResolver());

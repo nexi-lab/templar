@@ -93,9 +93,7 @@ export class HeartbeatEvaluatorTimeoutError extends HeartbeatError {
   readonly timeoutMs: number;
 
   constructor(evaluatorName: string, timeoutMs: number) {
-    super(
-      `Evaluator "${evaluatorName}" exceeded timeout of ${timeoutMs}ms`,
-    );
+    super(`Evaluator "${evaluatorName}" exceeded timeout of ${timeoutMs}ms`);
     const entry = ERROR_CATALOG.HEARTBEAT_EVALUATOR_TIMEOUT;
     this.httpStatus = entry.httpStatus as HttpStatusCode;
     this.grpcCode = entry.grpcCode as GrpcStatusCode;
