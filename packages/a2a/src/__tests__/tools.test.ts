@@ -25,30 +25,30 @@ describe("buildA2aTools", () => {
 
   it("discover tool requires agent_url", () => {
     const tools = buildA2aTools();
-    const discover = tools[0]!;
-    const params = discover.parameters as Record<string, unknown>;
-    expect(params.required).toEqual(["agent_url"]);
+    const discover = tools[0];
+    const params = discover?.parameters as Record<string, unknown>;
+    expect(params?.required).toEqual(["agent_url"]);
   });
 
   it("send_message tool requires agent_url and message", () => {
     const tools = buildA2aTools();
-    const send = tools[1]!;
-    const params = send.parameters as Record<string, unknown>;
-    expect(params.required).toEqual(["agent_url", "message"]);
+    const send = tools[1];
+    const params = send?.parameters as Record<string, unknown>;
+    expect(params?.required).toEqual(["agent_url", "message"]);
   });
 
   it("get_task tool requires agent_url and task_id", () => {
     const tools = buildA2aTools();
-    const get = tools[2]!;
-    const params = get.parameters as Record<string, unknown>;
-    expect(params.required).toEqual(["agent_url", "task_id"]);
+    const get = tools[2];
+    const params = get?.parameters as Record<string, unknown>;
+    expect(params?.required).toEqual(["agent_url", "task_id"]);
   });
 
   it("cancel_task tool requires agent_url and task_id", () => {
     const tools = buildA2aTools();
-    const cancel = tools[3]!;
-    const params = cancel.parameters as Record<string, unknown>;
-    expect(params.required).toEqual(["agent_url", "task_id"]);
+    const cancel = tools[3];
+    const params = cancel?.parameters as Record<string, unknown>;
+    expect(params?.required).toEqual(["agent_url", "task_id"]);
   });
 
   it("all tools have descriptions", () => {

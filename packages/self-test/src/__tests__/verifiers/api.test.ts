@@ -114,9 +114,9 @@ describe("ApiVerifier", () => {
 
     await verifier.run(makeVerifierContext());
 
-    const callArgs = fetchSpy.mock.calls[0]!;
-    expect(callArgs[0]).toBe("http://localhost:3000/api/items");
-    const opts = callArgs[1] as RequestInit;
+    const callArgs = fetchSpy.mock.calls[0];
+    expect(callArgs?.[0]).toBe("http://localhost:3000/api/items");
+    const opts = callArgs?.[1] as RequestInit;
     expect(opts.method).toBe("POST");
     expect(opts.body).toBe(JSON.stringify({ name: "test" }));
     expect((opts.headers as Record<string, string>).Authorization).toBe("Bearer token");

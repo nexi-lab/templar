@@ -64,6 +64,17 @@ export type {
   LoopDetectionConfig,
   StopReason,
 } from "./execution-types.js";
+// Federation types (#202)
+export type {
+  CausalOrder,
+  ConflictOutcome,
+  EdgeSyncConfig,
+  FederationConfig,
+  SyncState,
+  ZoneId,
+  ZoneInfo,
+  ZonePhase,
+} from "./federation-types.js";
 // Message types
 export type {
   Button,

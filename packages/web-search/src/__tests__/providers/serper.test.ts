@@ -45,9 +45,9 @@ describe("createSerperProvider", () => {
       publishedDate: "2024-01-15",
     });
 
-    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-    expect(fetchCall[0]).toBe("https://google.serper.dev/search");
-    const body = JSON.parse(fetchCall[1]!.body as string);
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(fetchCall?.[0]).toBe("https://google.serper.dev/search");
+    const body = JSON.parse(fetchCall?.[1]?.body as string);
     expect(body.q).toBe("test query");
     expect(body.num).toBe(5);
   });
@@ -72,7 +72,7 @@ describe("createSerperProvider", () => {
     });
     const results = await provider.search("test");
     expect(results).toHaveLength(1);
-    expect(results[0]!.title).toBe("Valid");
+    expect(results[0]?.title).toBe("Valid");
   });
 
   it("truncates long snippets", async () => {
@@ -88,6 +88,6 @@ describe("createSerperProvider", () => {
 
     const provider = createSerperProvider({ provider: "serper", apiKey: "key" }, 100);
     const results = await provider.search("test");
-    expect(results[0]!.snippet.length).toBeLessThanOrEqual(103); // 100 + "..."
+    expect(results[0]?.snippet.length).toBeLessThanOrEqual(103); // 100 + "..."
   });
 });

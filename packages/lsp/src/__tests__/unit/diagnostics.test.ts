@@ -29,7 +29,8 @@ describe("DiagnosticsCache", () => {
   it("returns frozen arrays (immutable)", () => {
     const cache = new DiagnosticsCache(10);
     cache.set("file:///a.ts", [makeDiag("err1")]);
-    const result = cache.get("file:///a.ts")!;
+    const result = cache.get("file:///a.ts");
+    expect(result).toBeDefined();
     expect(Object.isFrozen(result)).toBe(true);
   });
 

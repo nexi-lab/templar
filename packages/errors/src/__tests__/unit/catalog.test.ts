@@ -23,6 +23,7 @@ describe("ERROR_CATALOG", () => {
     expect(domains).toContain("workflow");
     expect(domains).toContain("deployment");
     expect(domains).toContain("quota");
+    expect(domains).toContain("federation");
   });
 
   it("should have valid HTTP status codes for all entries", () => {

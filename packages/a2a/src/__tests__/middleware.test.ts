@@ -36,7 +36,7 @@ describe("A2AMiddleware", () => {
     const expected: ToolResponse = { output: "other result" };
     const next = vi.fn().mockResolvedValue(expected);
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
 
     expect(next).toHaveBeenCalledWith(req);
     expect(response).toBe(expected);
@@ -57,7 +57,7 @@ describe("A2AMiddleware", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
 
     expect(next).not.toHaveBeenCalled();
     const output = response.output as Record<string, unknown>;
@@ -88,7 +88,7 @@ describe("A2AMiddleware", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
 
     expect(next).not.toHaveBeenCalled();
     const output = response.output as Record<string, unknown>;
@@ -116,7 +116,7 @@ describe("A2AMiddleware", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
 
     expect(next).not.toHaveBeenCalled();
     const output = response.output as Record<string, unknown>;
@@ -145,7 +145,7 @@ describe("A2AMiddleware", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
 
     expect(next).not.toHaveBeenCalled();
     expect(response.metadata).toMatchObject({
@@ -169,7 +169,7 @@ describe("A2AMiddleware", () => {
     };
     const next = vi.fn();
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
     expect(next).not.toHaveBeenCalled();
     expect((response.output as Record<string, unknown>).name).toBe("Test Agent");
   });
@@ -183,7 +183,7 @@ describe("A2AMiddleware", () => {
     const expected: ToolResponse = { output: "passthrough" };
     const next = vi.fn().mockResolvedValue(expected);
 
-    const response = await middleware.wrapToolCall!(req, next);
+    const response = await middleware.wrapToolCall?.(req, next);
     expect(next).toHaveBeenCalledWith(req);
     expect(response).toBe(expected);
   });

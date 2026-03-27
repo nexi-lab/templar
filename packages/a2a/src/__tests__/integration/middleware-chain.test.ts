@@ -47,7 +47,7 @@ describe("A2A middleware integration chain", () => {
       toolName: "a2a_discover",
       input: { agent_url: "https://integration-agent.com" },
     };
-    const discoverRes = await middleware.wrapToolCall!(discoverReq, next);
+    const discoverRes = await middleware.wrapToolCall?.(discoverReq, next);
     const agentInfo = discoverRes.output as Record<string, unknown>;
     expect(agentInfo.name).toBe("Integration Agent");
 
@@ -59,7 +59,7 @@ describe("A2A middleware integration chain", () => {
         message: "Process this task",
       },
     };
-    const sendRes = await middleware.wrapToolCall!(sendReq, next);
+    const sendRes = await middleware.wrapToolCall?.(sendReq, next);
     const taskResult = sendRes.output as Record<string, unknown>;
     expect(taskResult.state).toBe("completed");
     expect(taskResult.taskId).toBe("int-task-1");
@@ -86,7 +86,7 @@ describe("A2A middleware integration chain", () => {
       input: { agent_url: "https://failing-agent.com" },
     };
 
-    await expect(middleware.wrapToolCall!(discoverReq, next)).rejects.toThrow();
+    await expect(middleware.wrapToolCall?.(discoverReq, next)).rejects.toThrow();
   });
 
   it("passes auth headers from agent config", async () => {
@@ -113,11 +113,11 @@ describe("A2A middleware integration chain", () => {
       },
     };
 
-    await middleware.wrapToolCall!(sendReq, next);
+    await middleware.wrapToolCall?.(sendReq, next);
 
-    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-    const headers = (fetchCall[1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer secret-token");
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    const headers = (fetchCall?.[1] as RequestInit)?.headers as Record<string, string>;
+    expect(headers?.Authorization).toBe("Bearer secret-token");
   });
 
   it("propagates error details through middleware", async () => {
@@ -137,6 +137,6 @@ describe("A2A middleware integration chain", () => {
       },
     };
 
-    await expect(middleware.wrapToolCall!(sendReq, next)).rejects.toThrow();
+    await expect(middleware.wrapToolCall?.(sendReq, next)).rejects.toThrow();
   });
 });

@@ -80,16 +80,16 @@ describe("LSPClient", () => {
     );
 
     // Open files 1-3 (fills capacity)
-    await client.ensureOpen(files[0]!);
-    await client.ensureOpen(files[1]!);
-    await client.ensureOpen(files[2]!);
+    if (files[0]) await client.ensureOpen(files[0]);
+    if (files[1]) await client.ensureOpen(files[1]);
+    if (files[2]) await client.ensureOpen(files[2]);
 
     // Opening file 4 should evict file 1 (oldest)
-    await client.ensureOpen(files[3]!);
+    if (files[3]) await client.ensureOpen(files[3]);
 
     // File 1 was evicted, but we can still re-open it
     // (this tests that eviction doesn't crash)
-    await client.ensureOpen(files[0]!);
+    if (files[0]) await client.ensureOpen(files[0]);
   });
 
   it("re-opening same file updates LRU without re-sending didOpen", async () => {

@@ -1,0 +1,48 @@
+{
+  "name": "@templar/federation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./zone": {
+      "types": "./dist/zone/index.d.ts",
+      "import": "./dist/zone/index.js"
+    },
+    "./sync": {
+      "types": "./dist/sync/index.d.ts",
+      "import": "./dist/sync/index.js"
+    },
+    "./vector-clock": {
+      "types": "./dist/vector-clock/index.d.ts",
+      "import": "./dist/vector-clock/index.js"
+    },
+    "./conflict": {
+      "types": "./dist/conflict/index.d.ts",
+      "import": "./dist/conflict/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@templar/errors": "workspace:*"
+  },
+  "devDependencies": {
+    "@templar/core": "workspace:*",
+    "@nexus/sdk": "workspace:*",
+    "@templar/test-utils": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "vitest": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@templar/core": "workspace:*"
+  }
+}

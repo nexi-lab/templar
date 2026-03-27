@@ -77,7 +77,8 @@ export class LSPClient {
   }
 
   private async performInitialize(): Promise<ServerCapabilities> {
-    const conn = this.connection!;
+    const conn = this.connection;
+    if (!conn) throw new Error("Connection not established");
 
     // Set up diagnostics notification handler using string method
     conn.onNotification(
@@ -176,7 +177,8 @@ export class LSPClient {
 
     // Evict oldest if at capacity
     while (this.openFiles.size >= this.options.maxOpenFiles && this.openFileOrder.length > 0) {
-      const evictUri = this.openFileOrder.shift()!;
+      const evictUri = this.openFileOrder.shift();
+      if (!evictUri) break;
       this.openFiles.delete(evictUri);
       try {
         await this.connection?.sendNotification("textDocument/didClose", {

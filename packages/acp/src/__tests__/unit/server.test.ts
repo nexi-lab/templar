@@ -163,9 +163,9 @@ describe("ACPServer", () => {
       expect(handler).toHaveBeenCalledOnce();
 
       // Verify handler received correct input
-      const callArgs = handler.mock.calls[0]!;
-      expect(callArgs[0].sessionId).toBe(sessionId);
-      expect(callArgs[0].prompt).toEqual([{ type: "text", content: "Hello agent" }]);
+      const callArgs = handler.mock.calls[0];
+      expect(callArgs?.[0]?.sessionId).toBe(sessionId);
+      expect(callArgs?.[0]?.prompt).toEqual([{ type: "text", content: "Hello agent" }]);
     });
 
     it("streams session updates from handler", async () => {

@@ -47,13 +47,13 @@ describe("createBraveProvider", () => {
       publishedDate: "2 days ago",
     });
 
-    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-    const url = fetchCall[0] as string;
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    const url = fetchCall?.[0] as string;
     expect(url).toContain("api.search.brave.com");
     expect(url).toContain("q=test+query");
 
-    const headers = fetchCall[1]!.headers as Record<string, string>;
-    expect(headers["X-Subscription-Token"]).toBe("test-key");
+    const headers = fetchCall?.[1]?.headers as Record<string, string>;
+    expect(headers?.["X-Subscription-Token"]).toBe("test-key");
   });
 
   it("filters out results without title or url", async () => {
@@ -99,6 +99,6 @@ describe("createBraveProvider", () => {
 
     const provider = createBraveProvider({ provider: "brave", apiKey: "key" }, 100);
     const results = await provider.search("test");
-    expect(results[0]!.snippet.length).toBeLessThanOrEqual(103);
+    expect(results[0]?.snippet.length).toBeLessThanOrEqual(103);
   });
 });

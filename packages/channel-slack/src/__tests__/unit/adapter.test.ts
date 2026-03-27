@@ -183,8 +183,8 @@ describe("SlackChannel", () => {
       adapter.onMessage(handler);
 
       // Simulate incoming message through the registered handler
-      const registeredHandler = mockApp.messageHandlers[0]!;
-      await registeredHandler({
+      const registeredHandler = mockApp.messageHandlers[0];
+      await registeredHandler?.({
         message: {
           type: "message",
           text: "Hello bot",
@@ -215,8 +215,8 @@ describe("SlackChannel", () => {
       const handler = vi.fn().mockRejectedValue(new Error("handler error"));
       adapter.onMessage(handler);
 
-      const registeredHandler = mockApp.messageHandlers[0]!;
-      await registeredHandler({
+      const registeredHandler = mockApp.messageHandlers[0];
+      await registeredHandler?.({
         message: {
           type: "message",
           text: "trigger error",

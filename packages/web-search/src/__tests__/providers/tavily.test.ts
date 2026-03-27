@@ -47,9 +47,9 @@ describe("createTavilyProvider", () => {
       publishedDate: "2024-01-20",
     });
 
-    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0]!;
-    expect(fetchCall[0]).toBe("https://api.tavily.com/search");
-    const body = JSON.parse(fetchCall[1]!.body as string);
+    const fetchCall = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(fetchCall?.[0]).toBe("https://api.tavily.com/search");
+    const body = JSON.parse(fetchCall?.[1]?.body as string);
     // Tavily requires the API key in the request body
     expect(body.api_key).toBe("test-key");
     expect(body.query).toBe("test query");
@@ -95,6 +95,6 @@ describe("createTavilyProvider", () => {
 
     const provider = createTavilyProvider({ provider: "tavily", apiKey: "key" }, 100);
     const results = await provider.search("test");
-    expect(results[0]!.snippet.length).toBeLessThanOrEqual(103);
+    expect(results[0]?.snippet.length).toBeLessThanOrEqual(103);
   });
 });
